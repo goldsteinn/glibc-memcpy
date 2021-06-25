@@ -1,6 +1,7 @@
 #include <macro.h>
 #include <string.h>
-#include "bench-common.h"
+
+#include "bench-params.h"
 
 #define NAME memcpy
 #include "bench-memcpy.h"

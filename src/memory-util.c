@@ -66,9 +66,8 @@ _safe_mprotect(void *             addr,
 }
 
 void
-_safe_free(void * addr, const char * const fn, const int32_t ln) {
-    if (UNLIKELY(addr == NULL)) {
-        _die(fn, ln, NULL);
+_safe_free(void * addr) {
+    if (LIKELY(addr != NULL)) {
+        free(addr);
     }
-    free(addr);
 }

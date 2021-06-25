@@ -31,7 +31,7 @@ typedef float    safe_float __attribute__((may_alias, aligned(1)));
 #define safe_munmap(addr, sz) _safe_munmap(addr, sz, __FILENAME__, __LINE__)
 #define safe_mprotect(addr, sz, prot_flags)                                    \
     _safe_mprotect(addr, sz, prot_flags, __FILENAME__, __LINE__)
-#define safe_free(addr) _safe_free(addr, __FILENAME__, __LINE__)
+#define safe_free(addr) _safe_free(addr)
 
 
 void * _safe_calloc(uint64_t n, uint64_t sz, const char * const fn, int32_t ln);
@@ -49,16 +49,16 @@ void * _safe_mmap(void *             addr,
                   const char * const fn,
                   const int32_t      ln);
 
-void _safe_munmap(void *       addr,
+void _safe_munmap(void *             addr,
                   uint64_t           sz,
                   const char * const fn,
                   const int32_t      ln);
 
-void _safe_mprotect(void *       addr,
+void _safe_mprotect(void *             addr,
                     uint64_t           sz,
                     int32_t            prot_flags,
                     const char * const fn,
                     const int32_t      ln);
 
-void _safe_free(void * addr, const char * const fn, const int32_t ln);
+void _safe_free(void * addr);
 #endif

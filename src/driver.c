@@ -1,6 +1,5 @@
 #include "arg.h"
-#include "bench/bench-params.h"
-#include "bench/bench-common.h"
+#include "bench/bench-entry.h"
 #include "error-util.h"
 
 extern const bench_t  bench_funcs[];
@@ -10,7 +9,7 @@ uint32_t verbose   = 0;
 uint32_t test      = 0;
 uint32_t bench     = 0;
 char *   func_name = NULL;
-
+char *   file_path = NULL;
 
 // clang-format off
 static ArgOption args[] = {
@@ -32,8 +31,7 @@ int
 main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments");
     bench_params_t params;
-    bench_conf_t * confs = init_rand_params(&params, 100);
-
-    PRINTFFL;
-    run_benchmark(NULL, &params, 1, &bench_funcs[0]);
+    init_small_params(&params, 0, 1000);
+    run_benchmarks(&params, 1, &bench_funcs[0]);
+    destroy_params(&params, 1);
 }

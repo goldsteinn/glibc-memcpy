@@ -7,9 +7,9 @@
 #include <memory-util.h>
 #include <timing.h>
 
-#include "bench-common.h"
-#include "bench-params.h"
+#include "bench-constants.h"
 #include "bench-macros.h"
+#include "bench-params.h"
 
 #undef run_rand_bench
 #undef run_fixed_bench
@@ -90,7 +90,7 @@ bench_fixed(const bench_params_t * restrict params,
     uint32_t                      trials = params->trials;
     uint32_t                      nconfs = params->nconfs;
     // warmup
-    run_fixed_bench(confs[0], times, trials, mem_lo, mem_hi);
+    run_fixed_bench(confs[0], times, (trials / 4) | 1, mem_lo, mem_hi);
     LIGHT_SERIALIZE();
 
     for (uint32_t i = 0; i < nconfs; ++i) {
@@ -111,7 +111,7 @@ bench_rand(const bench_params_t * restrict params,
     const bench_conf_t * restrict confs  = params->confs;
     uint32_t                      trials = params->trials;
     // warmup
-    run_rand_bench(confs, times, 1, mem_lo);
+    run_rand_bench(confs, times, (trials / 4) | 1, mem_lo);
     LIGHT_SERIALIZE();
 
     run_rand_bench(confs, times, trials, mem_lo);

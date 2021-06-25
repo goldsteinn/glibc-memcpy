@@ -1,0 +1,101 @@
+#include "bench-results.h"
+#include <error-util.h>
+
+
+#define csv_hdr                                                                \
+    "%-12s,%-12s,%-8s,%-7s,%-7s,%-9s,%-7s,%-10s,%-10s,%-10s,%-10s,%-10s,%-"    \
+    "10s\n"
+#define csv_body                                                               \
+    "%-12s,%-12s,%-8u,%-7u,%-7u,%-9u,%-7u,%-10.2E,%-10.2E,%-10.2E,%-10.2E,%-"  \
+    "10.2E,%-10.2E\n"
+
+extern char * file_path;
+
+static void
+display_results(FILE * fp, const bench_result_t * result) {
+    bench_stats_t *        stats  = result->stats;
+    const bench_params_t * params = result->params;
+    die_assert(stats != NULL);
+    uint64_t nconfs = params->nconfs;
+    for (uint32_t i = 0; i < nconfs; ++i) {
+        fprintf(fp, csv_body, result->impl_name, params->test_name,
+                params->confs[i].sz, params->confs[i].al_dst,
+                params->confs[i].al_src, params->confs[i].direction,
+                params->trials, stats[i].mean, stats[i].median, stats[i].gmean,
+                stats[i].min, stats[i].max, stats[i].stdev);
+    }
+}
+
+
+static void
+get_stats(const bench_result_t * result) {
+    die_assert(result->stats != NULL);
+    PRINTFFL;
+    uint32_t nconfs = result->params->nconfs;
+    PRINTFFL;
+
+    uint32_t trial_offset = 0;
+    uint32_t trials       = result->params->trials;
+    PRINTFFL;
+    for (uint64_t i = 0; i < nconfs; ++i) {
+        make_stats(result->stats + i, result->times + trial_offset, trials);
+        trial_offset += trials;
+    }
+}
+
+static void
+get_all_stats(const bench_result_t * results, uint64_t nresults) {
+    PRINTFFL;
+    for (uint64_t i = 0; i < nresults; ++i) {
+        PRINTFFL;
+        get_stats(results + i);
+    }
+}
+
+bench_result_t *
+init_results(const bench_params_t * params,
+             uint64_t               nparams,
+             const char *           impl_name) {
+
+    bench_result_t * results =
+        (bench_result_t *)safe_calloc(nparams, sizeof(bench_result_t));
+
+    for (uint64_t i = 0; i < nparams; ++i) {
+        results[i].times = (uint64_t *)safe_calloc(
+            params[i].nconfs * params[i].trials, sizeof(uint64_t));
+        results[i].stats     = (bench_stats_t *)safe_calloc(params[i].nconfs,
+                                                        sizeof(bench_stats_t));
+        results[i].impl_name = impl_name;
+        results[i].params    = params;
+    }
+    return results;
+}
+
+void
+destroy_results(bench_result_t * results, uint64_t nresults) {
+    for (uint64_t i = 0; i < nresults; ++i) {
+        safe_free(results[i].stats);
+        safe_free(results[i].times);
+    }
+    safe_free(results);
+}
+
+
+void
+display_all_results(const bench_result_t * results, uint64_t nresults) {
+    get_all_stats(results, nresults);
+
+    FILE * fp = stdout;
+    if (file_path != NULL && strlen(file_path) > 1) {
+        fp = fopen(file_path, "w+");
+        die_assert(fp != NULL, "Error opening: %s\n", file_path);
+    }
+    fprintf(fp, csv_hdr, "impl name", "test name", "size", "al dst", "al src",
+            "dst > src", "trials", "mean", "median", "geomean", "min", "max",
+            "stdev");
+
+    for (uint64_t i = 0; i < nresults; ++i) {
+        display_results(fp, results + i);
+    }
+    fclose(fp);
+}

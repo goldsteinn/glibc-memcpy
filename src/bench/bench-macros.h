@@ -1,3 +1,4 @@
+
 #ifndef _BENCH_MACROS_H_
 #define _BENCH_MACROS_H_
 
