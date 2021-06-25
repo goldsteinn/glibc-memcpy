@@ -87,7 +87,19 @@
 #define APPLY_19(m, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19) m(x1) OP m(x2) OP m(x3) OP m(x4) OP m(x5) OP m(x6) OP m(x7) OP m(x8) OP m(x9) OP m(x10) OP m(x11) OP m(x12) OP m(x13) OP m(x14) OP m(x15) OP m(x16) OP m(x17) OP m(x18) OP m(x19)
 #define APPLY_20(m, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20) m(x1) OP m(x2) OP m(x3) OP m(x4) OP m(x5) OP m(x6) OP m(x7) OP m(x8) OP m(x9) OP m(x10) OP m(x11) OP m(x12) OP m(x13) OP m(x14) OP m(x15) OP m(x16) OP m(x17) OP m(x18) OP m(x19) OP m(x20)
 
+// For comma chaing of elements. Useful for initialization
+#define EMPTY()
+#define DEFER(id) id EMPTY()
+#define COMMA()   ,
 
+#define CHAIN_COMMA(chain) CAT(CHAIN_COMMA_0 chain, _END)  // error
+
+#define CHAIN_COMMA_0(x) x CHAIN_COMMA_1
+#define CHAIN_COMMA_1(x) DEFER(COMMA)() x CHAIN_COMMA_2
+#define CHAIN_COMMA_2(x) DEFER(COMMA)() x CHAIN_COMMA_1
+#define CHAIN_COMMA_0_END
+#define CHAIN_COMMA_1_END
+#define CHAIN_COMMA_2_END
 // clang-format on
 
 #endif

@@ -1,0 +1,7 @@
+#define MEMCPY	memcpy_glibc_v32_movsb
+#include "evex-vecs.h"
+
+#define USE_WITH_MULTIARCH_AND_LIBC
+#define USE_WITH_ERMS
+
+#include "core/memcpy-glibc.S"

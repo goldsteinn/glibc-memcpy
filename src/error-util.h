@@ -20,12 +20,12 @@
 
 #define err_assert_MANY(X, msg, args...)                                       \
     if (UNLIKELY(!(X))) {                                                      \
-        error_die(msg, ##args);                                                \
+        errdie(msg, ##args);                                                \
     }
 
 #define err_assert_ONE(X)                                                      \
     if (UNLIKELY(!(X))) {                                                      \
-        error_die(NULL);                                                       \
+        errdie(NULL);                                                       \
     }
 
 #define die_assert_MANY(X, msg, args...)                                       \

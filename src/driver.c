@@ -31,7 +31,7 @@ int
 main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments");
     bench_params_t params;
-    init_small_params(&params, 0, 1000);
+    init_rand_params(&params, 10000);
     run_benchmarks(&params, 1, &bench_funcs[0]);
     destroy_params(&params, 1);
 }

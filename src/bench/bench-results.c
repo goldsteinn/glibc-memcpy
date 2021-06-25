@@ -1,12 +1,13 @@
 #include "bench-results.h"
+#include "bench-constants.h"
+
 #include <error-util.h>
 
-
 #define csv_hdr                                                                \
-    "%-12s,%-12s,%-8s,%-7s,%-7s,%-9s,%-7s,%-10s,%-10s,%-10s,%-10s,%-10s,%-"    \
+    "%-24s,%-16s,%-8s,%-7s,%-7s,%-9s,%-7s,%-10s,%-10s,%-10s,%-10s,%-10s,%-"    \
     "10s\n"
 #define csv_body                                                               \
-    "%-12s,%-12s,%-8u,%-7u,%-7u,%-9u,%-7u,%-10.2E,%-10.2E,%-10.2E,%-10.2E,%-"  \
+    "%-24s,%-16s,%-8u,%-7u,%-7u,%-9u,%-7u,%-10.2E,%-10.2E,%-10.2E,%-10.2E,%-"  \
     "10.2E,%-10.2E\n"
 
 extern char * file_path;
@@ -30,15 +31,20 @@ display_results(FILE * fp, const bench_result_t * result) {
 static void
 get_stats(const bench_result_t * result) {
     die_assert(result->stats != NULL);
+
     PRINTFFL;
     uint32_t nconfs = result->params->nconfs;
     PRINTFFL;
 
     uint32_t trial_offset = 0;
     uint32_t trials       = result->params->trials;
+    double   times_scale =
+        result->params->todo == FIXED ? inner_trials : nrand_confs;
+
     PRINTFFL;
     for (uint64_t i = 0; i < nconfs; ++i) {
-        make_stats(result->stats + i, result->times + trial_offset, trials);
+        make_stats(result->stats + i, result->times + trial_offset, trials,
+                   times_scale);
         trial_offset += trials;
     }
 }

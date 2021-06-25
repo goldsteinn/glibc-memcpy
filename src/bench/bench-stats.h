@@ -15,6 +15,9 @@ typedef struct bench_stats {
 } bench_stats_t;
 
 
-void make_stats(bench_stats_t * stats, uint64_t * times, uint64_t n);
+void make_stats(bench_stats_t * stats,
+                uint64_t *      times,
+                uint64_t        n,
+                double          times_scale);
 
 #endif
