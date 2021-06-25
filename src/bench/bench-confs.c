@@ -1,7 +1,7 @@
 #include "bench-confs.h"
-#include "bench-constants.h"
-#include <memory-util.h>
 #include <error-util.h>
+#include <memory-util.h>
+#include "bench-constants.h"
 
 typedef struct freq_data {
     uint32_t freq;
@@ -140,6 +140,8 @@ make_rand_confs() {
 
     bench_conf_t * confs =
         (bench_conf_t *)safe_calloc(nrand_confs, sizeof(bench_conf_t));
+    die_assert(nrand_confs >= size_dist_sz);
+
     for (uint64_t i = 0; i < nrand_confs; ++i) {
         int      direction = rand() % 2;
         uint32_t al_dst    = dst_align_dist[rand() % align_dist_sz] + direction
@@ -148,10 +150,22 @@ make_rand_confs() {
         uint32_t al_src    = src_align_dist[rand() % align_dist_sz] + direction
                                  ? 0
                                  : 2 * PAGE_SIZE;
-
-        make_conf(confs[i], al_dst, al_src, direction,
-                  size_dist[rand() % size_dist_sz]);
+        uint32_t sz =
+            size_dist[nrand_confs == size_dist_sz ? i
+                                                  : (rand() % size_dist_sz)];
+        make_conf(confs[i], al_dst, al_src, direction, sz);
     }
+    if (nrand_confs == size_dist_sz) {
+        for (uint64_t i = 0; i < 2 * nrand_confs; ++i) {
+            uint32_t     idx0 = rand() % nrand_confs;
+            uint32_t     idx1 = rand() % nrand_confs;
+            bench_conf_t tmp;
+            memcpy(&tmp, confs + idx0, sizeof(bench_conf_t));
+            memcpy(confs + idx0, confs + idx1, sizeof(bench_conf_t));
+            memcpy(confs + idx1, &tmp, sizeof(bench_conf_t));
+        }
+    }
+
     safe_free(scaled_src_align_freq);
     safe_free(scaled_dst_align_freq);
     safe_free(src_align_dist);
@@ -181,21 +195,21 @@ make_small_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
                             cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + j, j, 0, i, cur_sz,
                             cur_cap, confs);
-            make_conf_check(confs[cur_sz], dst_al_offset + j + 1, j, 0, i, cur_sz,
-                            cur_cap, confs);
+            make_conf_check(confs[cur_sz], dst_al_offset + j + 1, j, 0, i,
+                            cur_sz, cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + 0, j, 0, i, cur_sz,
                             cur_cap, confs);
-            
+
             make_conf_check(confs[cur_sz], dst_al_offset + j, 31, 0, i, cur_sz,
                             cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + 31, j, 0, i, cur_sz,
                             cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + j, 31, 0, i, cur_sz,
                             cur_cap, confs);
-            make_conf_check(confs[cur_sz], dst_al_offset + j, j + 31, 0, i, cur_sz,
-                            cur_cap, confs);
-            make_conf_check(confs[cur_sz], dst_al_offset + j + 31, j + 31, 0, i, cur_sz,
-                            cur_cap, confs);
+            make_conf_check(confs[cur_sz], dst_al_offset + j, j + 31, 0, i,
+                            cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], dst_al_offset + j + 31, j + 31, 0, i,
+                            cur_sz, cur_cap, confs);
         }
     }
     *nconfs_out = cur_sz;

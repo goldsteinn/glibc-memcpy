@@ -4,10 +4,12 @@
 #include <error-util.h>
 
 #define csv_hdr                                                                \
-    "%-24s,%-16s,%-8s,%-7s,%-7s,%-9s,%-7s,%-10s,%-10s,%-10s,%-10s,%-10s,%-"    \
+    "%-24s,%-16s,%-8s,%-7s,%-7s,%-9s,%-7s,%-12s,%-10s,%-10s,%-10s,%-10s,%-"    \
+    "10s,%-"                                                                   \
     "10s\n"
 #define csv_body                                                               \
-    "%-24s,%-16s,%-8u,%-7u,%-7u,%-9u,%-7u,%-10.2E,%-10.2E,%-10.2E,%-10.2E,%-"  \
+    "%-24s,%-16s,%-8u,%-7u,%-7u,%-9u,%-7u,%-12u,%-10.2E,%-10.2E,%-10.2E,%-10." \
+    "2E,%-"                                                                    \
     "10.2E,%-10.2E\n"
 
 extern char * file_path;
@@ -22,8 +24,10 @@ display_results(FILE * fp, const bench_result_t * result) {
         fprintf(fp, csv_body, result->impl_name, params->test_name,
                 params->confs[i].sz, params->confs[i].al_dst,
                 params->confs[i].al_src, params->confs[i].direction,
-                params->trials, stats[i].mean, stats[i].median, stats[i].gmean,
-                stats[i].min, stats[i].max, stats[i].stdev);
+                params->trials,
+                params->todo == FIXED ? inner_trials : nrand_confs,
+                stats[i].mean, stats[i].median, stats[i].gmean, stats[i].min,
+                stats[i].max, stats[i].stdev);
     }
 }
 
@@ -38,13 +42,10 @@ get_stats(const bench_result_t * result) {
 
     uint32_t trial_offset = 0;
     uint32_t trials       = result->params->trials;
-    double   times_scale =
-        result->params->todo == FIXED ? inner_trials : nrand_confs;
 
     PRINTFFL;
     for (uint64_t i = 0; i < nconfs; ++i) {
-        make_stats(result->stats + i, result->times + trial_offset, trials,
-                   times_scale);
+        make_stats(result->stats + i, result->times + trial_offset, trials);
         trial_offset += trials;
     }
 }
@@ -97,8 +98,8 @@ display_all_results(const bench_result_t * results, uint64_t nresults) {
         die_assert(fp != NULL, "Error opening: %s\n", file_path);
     }
     fprintf(fp, csv_hdr, "impl name", "test name", "size", "al dst", "al src",
-            "dst > src", "trials", "mean", "median", "geomean", "min", "max",
-            "stdev");
+            "dst > src", "trials", "inner trials", "mean", "median", "geomean",
+            "min", "max", "stdev");
 
     for (uint64_t i = 0; i < nresults; ++i) {
         display_results(fp, results + i);

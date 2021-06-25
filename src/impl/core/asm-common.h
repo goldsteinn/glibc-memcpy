@@ -4,15 +4,17 @@
 #define L(name) .L##name
 
 #ifndef ALIGN_BASE
-#define ALIGN_BASE 64
+#define ALIGN_BASE 2048
 #endif
 
 #ifndef ALIGN_ENTRY
-#define ALIGN_ENTRY 48
+#define ALIGN_ENTRY 64
 #endif
 
-#if ALIGN_BASE == ALIGN_ENTRY
+#if ALIGN_ENTRY == 0 || ALIGN_ENTRY == ALIGN_BASE || ALIGN_ENTRY == 64
 #define ENTRY(name)                                                            \
+    .align 4096;                                                               \
+    nop;                                                                       \
     .align ALIGN_BASE;                                                         \
     .globl name;                                                               \
     .type  name, @function;                                                    \
@@ -20,6 +22,8 @@
 #else
 #if ALIGN_ENTRY == 48
 #define ENTRY(name)                                                            \
+    .align 4096;                                                               \
+    nop;                                                                       \
     .align ALIGN_BASE;                                                         \
     nop;                                                                       \
     .align 32;                                                                 \
@@ -32,13 +36,14 @@
 #else
 
 #define ENTRY(name)                                                            \
+    .align 4096;                                                               \
+    nop;                                                                       \
     .align ALIGN_BASE;                                                         \
     nop;                                                                       \
     .align ALIGN_ENTRY;                                                        \
     .globl name;                                                               \
     .type  name, @function;                                                    \
     name
-
 #endif
 #endif
 
