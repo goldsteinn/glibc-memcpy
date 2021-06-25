@@ -1,4 +1,5 @@
 #include "bench-common.h"
+#include "bench-params.h"
 #include "error-util.h"
 #define csv_hdr                                                                \
     "%-12s,%-12s,%-8s,%-7s,%-7s,%-9s,%-7s,%-10s,%-10s,%-10s,%-10s,%-10s,%-"    \
@@ -9,14 +10,15 @@
 
 static void
 display_results(FILE * fp, const bench_result_t * result) {
-    bench_stats_t * stats = result->stats;
+    bench_stats_t *        stats  = result->stats;
+    const bench_params_t * params = result->params;
     die_assert(stats != NULL);
-    uint64_t nconfs = result->nconfs;
+    uint64_t nconfs = params->nconfs;
     for (uint32_t i = 0; i < nconfs; ++i) {
-        fprintf(fp, csv_body, result->impl_name, result->test_name,
-                result->confs[i].sz, result->confs[i].al_dst,
-                result->confs[i].al_src, result->confs[i].direction,
-                result->trials, stats[i].mean, stats[i].median, stats[i].gmean,
+        fprintf(fp, csv_body, result->impl_name, params->test_name,
+                params->confs[i].sz, params->confs[i].al_dst,
+                params->confs[i].al_src, params->confs[i].direction,
+                params->trials, stats[i].mean, stats[i].median, stats[i].gmean,
                 stats[i].min, stats[i].max, stats[i].stdev);
     }
 }
@@ -44,14 +46,13 @@ display_all_results(const char *           file_path,
 
 static void
 get_stats(bench_result_t * result) {
-    die_assert(result->stats == NULL);
+    die_assert(result->stats != NULL);
     PRINTFFL;
-    uint32_t nconfs = result->nconfs;
-    result->stats = (bench_stats_t *)safe_calloc(nconfs, sizeof(bench_stats_t));
+    uint32_t nconfs = result->params->nconfs;
     PRINTFFL;
 
     uint32_t trial_offset = 0;
-    uint32_t trials       = result->trials;
+    uint32_t trials       = result->params->trials;
     PRINTFFL;
     for (uint64_t i = 0; i < nconfs; ++i) {
         make_stats(result->stats + i, result->times + trial_offset, trials);
@@ -81,15 +82,12 @@ bench_init(const bench_params_t * params,
         (bench_result_t *)safe_calloc(nparams, sizeof(bench_result_t));
 
     for (uint64_t i = 0; i < nparams; ++i) {
-
         results[i].times = (uint64_t *)safe_calloc(
             params[i].nconfs * params[i].trials, sizeof(uint64_t));
-        results[i].confs  = params[i].confs;
-        results[i].trials = params[i].trials;
-        results[i].nconfs = params[i].nconfs;
-
-        results[i].test_name = params[i].test_name;
+        results[i].stats     = (bench_stats_t *)safe_calloc(params[i].nconfs,
+                                                        sizeof(bench_stats_t));
         results[i].impl_name = bench_info->name;
+        results[i].params    = params;
     }
     bench_char_t * init_mem =
         (bench_char_t *)safe_mmap_alloc(2 * MAX_BENCH_SIZE);
@@ -144,7 +142,7 @@ run_benchmark(const char *           file_path,
     PRINTFFL;
     for (uint64_t i = 0; i < nparams; ++i) {
         PRINTFFL;
-        bench_info->func(results, mem_lo, mem_hi, params[i].todo);
+        bench_info->func(params + i, results[i].times, mem_lo, mem_hi);
         PRINTFFL;
     }
     PRINTFFL;

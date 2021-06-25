@@ -5,7 +5,7 @@
 #include <macro.h>
 #include <memory-util.h>
 
-#include "bench-confs.h"
+
 #include "bench-stats.h"
 
 static const uint32_t inner_trials = 16;
@@ -16,31 +16,34 @@ typedef char bench_char_t;
 
 typedef enum bench_options { RAND, FIXED } bench_options_t;
 
+typedef struct bench_conf {
+    uint64_t al_dst : 16;
+    uint64_t al_src : 16;
+    uint64_t direction : 1;
+    uint32_t sz : 31;
+} bench_conf_t;
 
 typedef struct bench_params {
-    bench_conf_t *     confs;
-    uint32_t           trials;
-    uint64_t           nconfs;
-    const char * const test_name;
-    bench_options_t    todo;
+    bench_conf_t *  confs;
+    uint64_t        nconfs;
+    const char *    test_name;
+    uint32_t        trials;
+    bench_options_t todo;
 } bench_params_t;
 
 
 typedef struct bench_result {
-    uint64_t *      times;
-    bench_conf_t *  confs;
-    uint32_t        trials;
-    bench_stats_t * stats;
-    uint32_t        nconfs;
-    const char *    test_name;
-    const char *    impl_name;
+    uint64_t *             times;
+    bench_stats_t *        stats;
+    const char *           impl_name;
+    const bench_params_t * params;
 } bench_result_t;
 
 
-typedef void (*bench_func)(const bench_result_t * restrict result,
+typedef void (*bench_func)(const bench_params_t * restrict params,
+                           uint64_t * restrict             times,
                            bench_char_t * restrict         mem_lo,
-                           bench_char_t * restrict         mem_hi,
-                           bench_options_t                 todo);
+                           bench_char_t * restrict         mem_hi);
 
 
 typedef struct bench {
@@ -48,9 +51,8 @@ typedef struct bench {
     const char *     name;
 } bench_t;
 
-void
-run_benchmark(const char *           file_path,
-              const bench_params_t * params,
-              uint64_t               nparams,
-              const bench_t *        bench_info);
+void run_benchmark(const char *           file_path,
+                   const bench_params_t * params,
+                   uint64_t               nparams,
+                   const bench_t *        bench_info);
 #endif

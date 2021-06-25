@@ -2,15 +2,9 @@
 #define _BENCH_CONFS_H_
 
 #include <common.h>
+#include "bench-common.h"
 
-typedef struct bench_conf {
-    uint64_t al_dst : 16;
-    uint64_t al_src : 16;
-    uint64_t direction : 1;
-    uint32_t sz : 31;
-} bench_conf_t;
-
-static const uint32_t nrand_confs    = 4096;
+static const uint32_t nrand_confs    = 2 * 8192;
 static const uint64_t MAX_BENCH_SIZE = (1UL << 26);
 
 bench_conf_t * make_rand_confs();

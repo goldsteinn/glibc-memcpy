@@ -1,4 +1,5 @@
 #include "arg.h"
+#include "bench/bench-params.h"
 #include "bench/bench-common.h"
 #include "error-util.h"
 
@@ -30,8 +31,9 @@ static ArgDefs argp = { args, "Driver for glibc qsort development", NULL,
 int
 main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments");
-    bench_conf_t * confs  = make_rand_confs();
-    bench_params_t params = { confs, 10000, 1, "rand", RAND };
+    bench_params_t params;
+    bench_conf_t * confs = init_rand_params(&params, 100);
+
     PRINTFFL;
     run_benchmark(NULL, &params, 1, &bench_funcs[0]);
 }

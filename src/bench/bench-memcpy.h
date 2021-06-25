@@ -8,7 +8,7 @@
 #include <timing.h>
 
 #include "bench-common.h"
-#include "bench-confs.h"
+#include "bench-params.h"
 #include "bench-macros.h"
 
 #undef run_rand_bench
@@ -82,48 +82,51 @@ run_fixed_bench(bench_conf_t            conf,
 }
 
 static void
-bench_fixed(const bench_result_t * restrict result,
+bench_fixed(const bench_params_t * restrict params,
+            uint64_t * restrict             times,
             bench_char_t * restrict         mem_lo,
             bench_char_t * restrict         mem_hi) {
-    uint64_t * restrict           current_times = result->times;
-    const bench_conf_t * restrict confs         = result->confs;
-    uint32_t                      trials        = result->trials;
-    uint32_t                      nconfs        = result->nconfs;
+    const bench_conf_t * restrict confs  = params->confs;
+    uint32_t                      trials = params->trials;
+    uint32_t                      nconfs = params->nconfs;
     // warmup
-    run_fixed_bench(confs[0], current_times, trials, mem_lo, mem_hi);
+    run_fixed_bench(confs[0], times, trials, mem_lo, mem_hi);
     LIGHT_SERIALIZE();
 
     for (uint32_t i = 0; i < nconfs; ++i) {
         bench_conf_t _conf = confs[i];
-        run_fixed_bench(_conf, current_times, trials, mem_lo, mem_hi);
-        current_times += trials;
+        LIGHT_SERIALIZE();
+        run_fixed_bench(_conf, times, trials, mem_lo, mem_hi);
+        LIGHT_SERIALIZE();
+        times += trials;
     }
 }
 
 
 static void
-bench_rand(const bench_result_t * restrict result,
+bench_rand(const bench_params_t * restrict params,
+           uint64_t * restrict             times,
            bench_char_t * restrict         mem_lo) {
 
-    uint64_t * restrict           times  = result->times;
-    const bench_conf_t * restrict confs  = result->confs;
-    uint32_t                      trials = result->trials;
+    const bench_conf_t * restrict confs  = params->confs;
+    uint32_t                      trials = params->trials;
     // warmup
     run_rand_bench(confs, times, 1, mem_lo);
     LIGHT_SERIALIZE();
-    
+
     run_rand_bench(confs, times, trials, mem_lo);
+    LIGHT_SERIALIZE();
 }
 
 static void
-CAT(bench_, NAME)(const bench_result_t * restrict result,
+CAT(bench_, NAME)(const bench_params_t * restrict params,
+                  uint64_t * restrict             times,
                   bench_char_t * restrict         mem_lo,
-                  bench_char_t * restrict         mem_hi,
-                  bench_options_t                 todo) {
-    if (todo == RAND) {
-        bench_rand(result, mem_lo);
+                  bench_char_t * restrict         mem_hi) {
+    if (params->todo == RAND) {
+        bench_rand(params, times, mem_lo);
     }
     else {
-        bench_fixed(result, mem_lo, mem_hi);
+        bench_fixed(params, times, mem_lo, mem_hi);
     }
 }

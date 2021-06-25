@@ -1,6 +1,6 @@
-#include "bench-confs.h"
-#include <memory-util.h>
+#include "bench-params.h"
 #include <error-util.h>
+#include <memory-util.h>
 typedef struct freq_data {
     uint32_t freq;
     uint32_t val;
@@ -115,13 +115,15 @@ make_data_dist(const freq_data_t * freq_in,
     for (uint64_t i = 0; i < freq_in_sz; ++i) {
         for (uint64_t j = 0; j < freq_in[i].freq; ++j) {
             freq_out[n] = freq_in[i].val;
+            ++n;
         }
     }
     return freq_out;
 }
 
-bench_conf_t *
-make_rand_confs() {
+void
+init_rand_params(bench_params_t * params_out, uint32_t trials) {
+    die_assert(trials != 0, "Trials must be > 0");
     freq_data_t * scaled_src_align_freq = scale_align_freq(src_align_freq);
     freq_data_t * scaled_dst_align_freq = scale_align_freq(dst_align_freq);
 
@@ -139,6 +141,7 @@ make_rand_confs() {
     bench_conf_t * confs =
         (bench_conf_t *)safe_calloc(nrand_confs, sizeof(bench_conf_t));
     for (uint64_t i = 0; i < nrand_confs; ++i) {
+
         int      direction = rand() % 2;
         uint32_t al_dst    = dst_align_dist[rand() % align_dist_sz] + direction
                                  ? 2 * PAGE_SIZE
@@ -146,9 +149,8 @@ make_rand_confs() {
         uint32_t al_src    = src_align_dist[rand() % align_dist_sz] + direction
                                  ? 0
                                  : 2 * PAGE_SIZE;
-
-        make_conf(confs[i], al_dst, al_src, direction,
-                  size_dist[rand() % size_dist_sz]);
+        uint32_t sz        = size_dist[rand() % size_dist_sz];
+        make_conf(confs[i], al_dst, al_src, direction, sz);
     }
     safe_free(scaled_src_align_freq);
     safe_free(scaled_dst_align_freq);
@@ -156,12 +158,19 @@ make_rand_confs() {
     safe_free(dst_align_dist);
     safe_free(size_dist);
 
-    return confs;
+    params_out->confs     = confs;
+    params_out->nconfs    = 1;
+    params_out->test_name = "rand SPEC2017";
+    params_out->trials    = trials;
+    params_out->todo      = RAND;
 }
 
 
-bench_conf_t *
-make_small_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
+void
+init_small_params(bench_params_t * params_out,
+                  uint32_t         dst_al_offset,
+                  uint32_t         trials) {
+    die_assert(trials != 0, "Trials must be > 0");
     uint32_t       cur_sz  = 0;
     uint32_t       cur_cap = 128 * 64;
     bench_conf_t * confs =
@@ -179,30 +188,36 @@ make_small_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
                             cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + j, j, 0, i, cur_sz,
                             cur_cap, confs);
-            make_conf_check(confs[cur_sz], dst_al_offset + j + 1, j, 0, i, cur_sz,
-                            cur_cap, confs);
+            make_conf_check(confs[cur_sz], dst_al_offset + j + 1, j, 0, i,
+                            cur_sz, cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + 0, j, 0, i, cur_sz,
                             cur_cap, confs);
-            
+
             make_conf_check(confs[cur_sz], dst_al_offset + j, 31, 0, i, cur_sz,
                             cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + 31, j, 0, i, cur_sz,
                             cur_cap, confs);
             make_conf_check(confs[cur_sz], dst_al_offset + j, 31, 0, i, cur_sz,
                             cur_cap, confs);
-            make_conf_check(confs[cur_sz], dst_al_offset + j, j + 31, 0, i, cur_sz,
-                            cur_cap, confs);
-            make_conf_check(confs[cur_sz], dst_al_offset + j + 31, j + 31, 0, i, cur_sz,
-                            cur_cap, confs);
+            make_conf_check(confs[cur_sz], dst_al_offset + j, j + 31, 0, i,
+                            cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], dst_al_offset + j + 31, j + 31, 0, i,
+                            cur_sz, cur_cap, confs);
         }
     }
-    *nconfs_out = cur_sz;
-    return confs;
+    params_out->confs     = confs;
+    params_out->nconfs    = cur_sz;
+    params_out->test_name = "fixed small";
+    params_out->trials    = trials;
+    params_out->todo      = FIXED;
 }
 
 
-bench_conf_t *
-make_medium_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
+void
+init_medium_params(bench_params_t * params_out,
+                   uint32_t         dst_al_offset,
+                   uint32_t         trials) {
+    die_assert(trials != 0, "Trials must be > 0");
     uint32_t       cur_sz  = 0;
     uint32_t       cur_cap = 128 * 64;
     bench_conf_t * confs =
@@ -251,13 +266,19 @@ make_medium_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
             }
         }
     }
-    *nconfs_out = cur_sz;
-    return confs;
+    params_out->confs     = confs;
+    params_out->nconfs    = cur_sz;
+    params_out->test_name = "fixed medium";
+    params_out->trials    = trials;
+    params_out->todo      = FIXED;
 }
 
 
-bench_conf_t *
-make_large_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
+void
+init_large_params(bench_params_t * params_out,
+                  uint32_t         dst_al_offset,
+                  uint32_t         trials) {
+    die_assert(trials != 0, "Trials must be > 0");
     uint32_t       cur_sz  = 0;
     uint32_t       cur_cap = 128 * 64;
     bench_conf_t * confs =
@@ -305,6 +326,9 @@ make_large_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
             }
         }
     }
-    *nconfs_out = cur_sz;
-    return confs;
+    params_out->confs     = confs;
+    params_out->nconfs    = cur_sz;
+    params_out->test_name = "fixed large";
+    params_out->trials    = trials;
+    params_out->todo      = FIXED;
 }
