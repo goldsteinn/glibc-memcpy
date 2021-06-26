@@ -145,11 +145,11 @@ make_rand_confs() {
     for (uint64_t i = 0; i < nrand_confs; ++i) {
         int      direction = rand() % 2;
         uint32_t al_dst    = dst_align_dist[rand() % align_dist_sz] + direction
-                                 ? 2 * PAGE_SIZE
-                                 : 0;
-        uint32_t al_src    = src_align_dist[rand() % align_dist_sz] + direction
-                                 ? 0
+                                 ? 1 * PAGE_SIZE
                                  : 2 * PAGE_SIZE;
+        uint32_t al_src    = src_align_dist[rand() % align_dist_sz] + direction
+                                 ? 0 * PAGE_SIZE
+                                 : 3 * PAGE_SIZE;
         uint32_t sz =
             size_dist[nrand_confs == size_dist_sz ? i
                                                   : (rand() % size_dist_sz)];
