@@ -42,12 +42,12 @@ get_stats(const bench_result_t * result) {
 
     uint32_t trial_offset = 0;
     uint32_t trials       = result->params->trials;
-
     PRINTFFL;
     for (uint64_t i = 0; i < nconfs; ++i) {
         make_stats(result->stats + i, result->times + trial_offset, trials);
         trial_offset += trials;
     }
+    PRINTFFL;
 }
 
 static void
@@ -57,6 +57,7 @@ get_all_stats(const bench_result_t * results, uint64_t nresults) {
         PRINTFFL;
         get_stats(results + i);
     }
+    PRINTFFL;
 }
 
 bench_result_t *
@@ -73,18 +74,21 @@ init_results(const bench_params_t * params,
         results[i].stats     = (bench_stats_t *)safe_calloc(params[i].nconfs,
                                                         sizeof(bench_stats_t));
         results[i].impl_name = impl_name;
-        results[i].params    = params;
+        results[i].params    = params + i;
     }
     return results;
 }
 
 void
 destroy_results(bench_result_t * results, uint64_t nresults) {
+    PRINTFFL;
     for (uint64_t i = 0; i < nresults; ++i) {
         safe_free(results[i].stats);
         safe_free(results[i].times);
     }
+    PRINTFFL;
     safe_free(results);
+    PRINTFFL;
 }
 
 
@@ -97,6 +101,7 @@ display_all_results(const bench_result_t * results, uint64_t nresults) {
         fp = fopen(file_path, "w+");
         die_assert(fp != NULL, "Error opening: %s\n", file_path);
     }
+
     fprintf(fp, csv_hdr, "impl name", "test name", "size", "al dst", "al src",
             "dst > src", "trials", "inner trials", "mean", "median", "geomean",
             "min", "max", "stdev");

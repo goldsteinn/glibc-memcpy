@@ -283,40 +283,32 @@ make_large_confs(uint32_t * nconfs_out) {
     uint32_t       cur_cap = 128 * 64;
     bench_conf_t * confs =
         (bench_conf_t *)safe_calloc(cur_cap, sizeof(bench_conf_t));
-    for (uint32_t i = (1u << 21); i < (MAX_BENCH_SIZE - 65536);
-         i += ((1u) << 21)) {
-        uint32_t j = i;
+    for (uint32_t i = (1u << 21); i <= MAX_BENCH_SIZE / 2; i <<= 1) {
         // Size is generally less interesting to vary than alignment
-        uint32_t bench_sz = i - j;
-        for (uint32_t k = 0; k < 4; ++k) {
-            uint32_t pg_offset = k * 4096;
-            for (uint32_t l = 0; l < 2; ++l) {
-                for (uint32_t m = 0; m <= 256; m += 32) {
-                    make_conf_check(confs[cur_sz], pg_offset, pg_offset, l,
-                                    bench_sz, cur_sz, cur_cap, confs);
-                    make_conf_check(confs[cur_sz], pg_offset + 1, pg_offset, l,
-                                    bench_sz, cur_sz, cur_cap, confs);
-                    make_conf_check(confs[cur_sz], pg_offset + 1, pg_offset + 1,
-                                    l, bench_sz, cur_sz, cur_cap, confs);
-                    make_conf_check(confs[cur_sz], pg_offset + m, pg_offset + 0,
-                                    l, bench_sz, cur_sz, cur_cap, confs);
+        uint32_t bench_sz = i;
+        for (uint32_t j = 0; j < 4; ++j) {
+            uint32_t pg_offset = j * 4096;
+            for (uint32_t k = 0; k < 2; ++k) {
+                for (uint32_t m = 0; m <= 256; m = (m == 0 ? 32 : (m << 1))) {
                     make_conf_check(confs[cur_sz], pg_offset + 0, pg_offset + m,
-                                    l, bench_sz, cur_sz, cur_cap, confs);
-
+                                    k, bench_sz, cur_sz, cur_cap, confs);
+                    make_conf_check(confs[cur_sz], pg_offset + m, pg_offset + 0,
+                                    k, bench_sz, cur_sz, cur_cap, confs);
                     make_conf_check(confs[cur_sz], pg_offset + m, pg_offset + 1,
-                                    l, bench_sz, cur_sz, cur_cap, confs);
+                                    k, bench_sz, cur_sz, cur_cap, confs);
                     make_conf_check(confs[cur_sz], pg_offset + 1, pg_offset + m,
-                                    l, bench_sz, cur_sz, cur_cap, confs);
+                                    k, bench_sz, cur_sz, cur_cap, confs);
                     make_conf_check(confs[cur_sz], pg_offset + m + 1,
-                                    pg_offset + 0, l, bench_sz, cur_sz, cur_cap,
+                                    pg_offset + m, k, bench_sz, cur_sz, cur_cap,
                                     confs);
-                    make_conf_check(confs[cur_sz], pg_offset + 0,
-                                    pg_offset + m + 1, l, bench_sz, cur_sz,
+                    make_conf_check(confs[cur_sz], pg_offset + m,
+                                    pg_offset + m + 1, k, bench_sz, cur_sz,
                                     cur_cap, confs);
                 }
             }
         }
     }
+
     *nconfs_out = cur_sz;
     return confs;
 }

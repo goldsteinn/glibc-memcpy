@@ -41,9 +41,11 @@ static void
 bench_finish(uint64_t         nresults,
              bench_result_t * results,
              bench_char_t *   init_mem) {
+    PRINTFFL;
     display_all_results(results, nresults);
-
+    PRINTFFL;
     destroy_results(results, nresults);
+    PRINTFFL;
     safe_munmap(init_mem, 2 * MAX_BENCH_SIZE);
 }
 

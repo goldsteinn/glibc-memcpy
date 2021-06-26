@@ -11,7 +11,7 @@ static const uint64_t MAX_BENCH_SIZE = (1UL << 26);
 
 static const uint32_t DEFAULT_SMALL_TRIALS  = (1UL << 12);
 static const uint32_t DEFAULT_MEDIUM_TRIALS = (1UL << 8);
-static const uint32_t DEFAULT_LARGE_TRIALS  = (1UL << 6);
+static const uint32_t DEFAULT_LARGE_TRIALS  = (1UL << 2);
 static const uint32_t DEFAULT_RAND_TRIALS =
     (((1UL << 12) * 65536) / nrand_confs);
 
