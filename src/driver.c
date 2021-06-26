@@ -7,14 +7,14 @@ extern const bench_t  bench_funcs[];
 extern const uint64_t nbench_funcs;
 
 
-uint32_t verbose       = 0;
-int32_t  core          = -1;
-int32_t  large_trials  = 0;
-int32_t  medium_trials = 0;
-int32_t  small_trials  = 0;
-int32_t  rand_trials   = 0;
-uint32_t no_4k_alias   = 0;
-
+uint32_t verbose        = 0;
+int32_t  core           = -1;
+int32_t  large_trials   = 0;
+int32_t  medium_trials  = 0;
+int32_t  small_trials   = 0;
+int32_t  rand_trials    = 0;
+uint32_t no_4k_alias    = 0;
+int32_t  human_readable = 0;
 
 char * func_name = NULL;
 char * file_path = NULL;
@@ -30,6 +30,7 @@ static ArgOption args[] = {
   {     KindOption,     Integer, 	"--lt",     0,      &large_trials,  "Set to number of trials for large params. (0 skips, -1 sets trials to default)" },
   {     KindOption,     Integer, 	"--rt",     0,      &rand_trials,   "Set to number of trials for rand params. (0 skips, -1 sets trials to default)" },
   {     KindOption,     String,		"--func",	0,      &func_name,     "Memcpy implementation to benchmark" },
+  {     KindOption,     Set,		"--hr",     0,      &human_readable,"Set to make output more human readable" },
 
   {     KindHelp,       Help,       "-h",       0,      NULL,           ""  },
   {     KindEnd,        EndOptions, "",         0,      NULL,           ""  }
@@ -44,7 +45,24 @@ main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments\n");
     die_assert(large_trials | medium_trials | small_trials | rand_trials,
                "No benchmark requested\n");
-    uint64_t dst_al_offset = no_4k_alias ? 2048 : 0;
+    uint64_t        dst_al_offset = no_4k_alias ? 2048 : 0;
+    const bench_t * bench_func    = NULL;
+    die_assert(func_name != NULL);
+    for (uint64_t i = 0; i < nbench_funcs; ++i) {
+        if (!strcmp(func_name, bench_funcs[i].name)) {
+            bench_func = &bench_funcs[i];
+            break;
+        }
+    }
+    if (UNLIKELY(bench_func == NULL)) {
+        fprintf(stderr,
+                "Unknown bench function: %s\nAvailable Functions are:\n",
+                func_name);
+        for (uint64_t i = 0; i < nbench_funcs; ++i) {
+            fprintf(stderr, "%-2lu: %-24s\n", i, bench_funcs[i].name);
+        }
+        abort();
+    }
 
     bench_params_t params[4];
     uint64_t       nparams = 0;
@@ -80,6 +98,6 @@ main(int argc, char ** argv) {
         ++nparams;
     }
 
-    run_benchmarks(params, nparams, &bench_funcs[0], core);
+    run_benchmarks(params, nparams, bench_func, core);
     destroy_params(params, nparams);
 }

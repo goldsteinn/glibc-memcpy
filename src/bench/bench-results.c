@@ -7,12 +7,18 @@
     "%-24s,%-16s,%-8s,%-7s,%-7s,%-9s,%-7s,%-12s,%-10s,%-10s,%-10s,%-10s,%-"    \
     "10s,%-"                                                                   \
     "10s\n"
+
 #define csv_body                                                               \
     "%-24s,%-16s,%-8u,%-7u,%-7u,%-9u,%-7u,%-12u,%-10.2E,%-10.2E,%-10.2E,%-10." \
     "2E,%-"                                                                    \
     "10.2E,%-10.2E\n"
 
-extern char * file_path;
+#define hr_csv_hdr "%-16s,%-8s,%-7s,%-7s,%-9s,%-10s\n"
+
+#define hr_csv_body "%-16s,%-8u,%-7u,%-7u,%-9u,%-10.2E\n"
+
+extern char *  file_path;
+extern int32_t human_readable;
 
 static void
 display_results(FILE * fp, const bench_result_t * result) {
@@ -21,13 +27,21 @@ display_results(FILE * fp, const bench_result_t * result) {
     die_assert(stats != NULL);
     uint64_t nconfs = params->nconfs;
     for (uint32_t i = 0; i < nconfs; ++i) {
-        fprintf(fp, csv_body, result->impl_name, params->test_name,
-                params->confs[i].sz, params->confs[i].al_dst,
-                params->confs[i].al_src, params->confs[i].direction,
-                params->trials,
-                params->todo == FIXED ? inner_trials : nrand_confs,
-                stats[i].mean, stats[i].median, stats[i].gmean, stats[i].min,
-                stats[i].max, stats[i].stdev);
+        if (human_readable) {
+            fprintf(fp, hr_csv_body, params->test_name, params->confs[i].sz,
+                    params->confs[i].al_dst, params->confs[i].al_src,
+                    params->confs[i].direction, stats[i].gmean);
+        }
+        else {
+
+            fprintf(fp, csv_body, result->impl_name, params->test_name,
+                    params->confs[i].sz, params->confs[i].al_dst,
+                    params->confs[i].al_src, params->confs[i].direction,
+                    params->trials,
+                    params->todo == FIXED ? inner_trials : nrand_confs,
+                    stats[i].mean, stats[i].median, stats[i].gmean,
+                    stats[i].min, stats[i].max, stats[i].stdev);
+        }
     }
 }
 
@@ -101,10 +115,15 @@ display_all_results(const bench_result_t * results, uint64_t nresults) {
         fp = fopen(file_path, "w+");
         die_assert(fp != NULL, "Error opening: %s\n", file_path);
     }
-
-    fprintf(fp, csv_hdr, "impl name", "test name", "size", "al dst", "al src",
-            "dst > src", "trials", "inner trials", "mean", "median", "geomean",
-            "min", "max", "stdev");
+    if (human_readable) {
+        fprintf(fp, hr_csv_hdr, "test name", "size", "al dst", "al src",
+                "dst > src", "geomean");
+    }
+    else {
+        fprintf(fp, csv_hdr, "impl name", "test name", "size", "al dst",
+                "al src", "dst > src", "trials", "inner trials", "mean",
+                "median", "geomean", "min", "max", "stdev");
+    }
 
     for (uint64_t i = 0; i < nresults; ++i) {
         display_results(fp, results + i);
