@@ -18,14 +18,20 @@
         _msg_die(msg, ##args);                                                 \
     }
 
+#define warn_assert(X, ...)                                                    \
+    if (UNLIKELY(!(X))) {                                                      \
+        fprintf(stderr, __VA_ARGS__);                                          \
+    }
+
+
 #define err_assert_MANY(X, msg, args...)                                       \
     if (UNLIKELY(!(X))) {                                                      \
-        errdie(msg, ##args);                                                \
+        errdie(msg, ##args);                                                   \
     }
 
 #define err_assert_ONE(X)                                                      \
     if (UNLIKELY(!(X))) {                                                      \
-        errdie(NULL);                                                       \
+        errdie(NULL);                                                          \
     }
 
 #define die_assert_MANY(X, msg, args...)                                       \

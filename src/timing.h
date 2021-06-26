@@ -91,6 +91,12 @@ get_ns() {
     return to_ns(&ts);
 }
 
-
+static ALWAYS_INLINE void
+bench_store_u64(uint64_t * ptr, uint64_t v) {
+    asm volatile("movnti %[v], (%[ptr]); sfence"
+                 : "=m"(*(uint64_t(*)[1])ptr)
+                 : [v] "r"(v), [ptr] "r"(ptr)
+                 :);
+}
 
 #endif

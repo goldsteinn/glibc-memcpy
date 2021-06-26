@@ -48,7 +48,8 @@ run_rand_bench(const bench_conf_t * restrict confs,
         }
         uint64_t end = get_cycles();
         LIGHT_SERIALIZE();
-        *(times++) = (end - start);
+        bench_store_u64(times, (end - start));
+        ++times;
     }
 }
 
@@ -64,6 +65,8 @@ run_fixed_bench(bench_conf_t            conf,
     bench_char_t * restrict dst =
         (conf.direction ? mem_lo : mem_hi) + conf.al_dst;
     uint64_t sz = conf.sz;
+    DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
+    
     // idea is we want both want to get a sense of variance but not add too much
     // overhead from timing. inner_trials is constant defined in bench-common.h.
     // Best to keep below 22 to avoid the LSD.
@@ -77,7 +80,8 @@ run_fixed_bench(bench_conf_t            conf,
         }
         uint64_t end = get_cycles();
         LIGHT_SERIALIZE();
-        *(times++) = (end - start);
+        bench_store_u64(times, (end - start));
+        ++times;
     }
 }
 

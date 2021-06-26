@@ -39,10 +39,9 @@ init_medium_params(bench_params_t * params_out,
 
 void
 init_large_params(bench_params_t * params_out,
-                  uint32_t         dst_al_offset,
                   uint32_t         trials) {
     die_assert(trials != 0, "Trials must be > 0");
-    params_out->confs = make_large_confs(dst_al_offset, &(params_out->nconfs));
+    params_out->confs = make_large_confs(&(params_out->nconfs));
     params_out->test_name = "fixed large";
     params_out->trials    = trials;
     params_out->todo      = FIXED;

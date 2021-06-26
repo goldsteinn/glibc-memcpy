@@ -1,9 +1,10 @@
 #include "bench-entry.h"
-#include "bench-results.h"
-#include "bench-constants.h"
 #include <error-util.h>
 #include <memory-util.h>
-
+#include <sched.h>
+#include <unistd.h>
+#include "bench-constants.h"
+#include "bench-results.h"
 static void
 prep_bench_memory(bench_char_t * mem) {
     // set -1 so that 0-over-0 writeback optimization is disabled
@@ -50,11 +51,26 @@ bench_finish(uint64_t         nresults,
 void
 run_benchmarks(const bench_params_t * params,
                uint64_t               nparams,
-               const bench_t *        bench_info) {
+               const bench_t *        bench_info,
+               int32_t                core) {
     die_assert(inner_trials < LSD_START || inner_trials > 256,
                "Benchmarkings will have unreasonable overhead from branch "
                "misses in the inner loop");
     PRINTFFL;
+    cpu_set_t cur_set, bench_set;
+    if (core >= 0) {
+        die_assert(core < sysconf(_SC_NPROCESSORS_ONLN),
+                   "Invalid core selection");
+        CPU_ZERO(&cur_set);
+        CPU_ZERO(&bench_set);
+        err_assert(sched_getaffinity(0, sizeof(cpu_set_t), &cur_set) >= 0);
+        CPU_SET(core, &bench_set);
+        err_assert(sched_setaffinity(0, sizeof(cpu_set_t), &bench_set) >= 0);
+        while(sched_getcpu() != core) {
+            sched_yield();
+        }
+    }
+
     bench_result_t * results;
     bench_char_t *   mem_lo;
     bench_char_t *   mem_hi;
@@ -67,6 +83,11 @@ run_benchmarks(const bench_params_t * params,
         func(params + i, results[i].times, mem_lo, mem_hi);
         PRINTFFL;
     }
+    if (core >= 0) {
+        warn_assert(sched_setaffinity(0, sizeof(cpu_set_t), &cur_set) >= 0,
+                    "Unable to restore old cpu set\n")
+    }
+
     PRINTFFL;
     bench_finish(nparams, results, mem_lo);
     PRINTFFL;
