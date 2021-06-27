@@ -1,4 +1,5 @@
 #include "asm-common.h"
+
 #ifndef HAS_VECS
 # include "../evex-vecs.h"
 #endif
@@ -116,6 +117,8 @@
 # error SECTION is not defined!
 #endif
 
+
+
 	.section SECTION(.text), "ax", @progbits
 ENTRY(MEMCPY):
 	movq	%rdi, %rax
@@ -126,8 +129,13 @@ L(start_erms):
 #endif
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
+#if OPTIMIZE_32
+# if VEC_SIZE == 32
+	je	L(exactly_32)
+# endif
+#endif
 	cmp	$(VEC_SIZE * 2), %RDX_LP
-	ja	L(more_2x_vec)
+	ja	L(movsb_more_2x_vec)
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
 	VMOVU	(%rsi), %VEC(0)
@@ -140,8 +148,14 @@ L(return):
 #else
 	ret
 #endif
-
-
+#if OPTIMIZE_32
+# if VEC_SIZE == 32
+L(exactly_32):
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	%VEC(0), (%rdi)
+	VZEROUPPER_RETURN
+# endif
+#endif
 #if VEC_SIZE > 16
 	.p2align 4
 	/* From 16 to 31.  No branch when size == 16.  */
@@ -171,11 +185,19 @@ L(less_vec):
 	cmpl	$4, %edx
 	jae	L(between_4_7)
 	cmpl	$1, %edx
+#if OPTIMIZE_1_3
 	jb	L(between_0_0)
 	movzbl	(%rsi), %ecx
 	ja	L(between_2_3)
 	movb	%cl, (%rdi)
+#else
+	ja	L(between_2_3)
+	jb	L(between_0_0)
+	movzbl	(%rsi), %ecx
+	movb	%cl, (%rdi)
+#endif
 L(between_0_0):
+
 	ret
 #if VEC_SIZE > 32
 L(between_32_63):
@@ -205,58 +227,173 @@ L(between_4_7):
 	.p2align 4
 L(between_2_3):
 	/* From 2 to 3.  No branch when size == 2.  */
+#if OPTIMIZE_1_3
 	movzwl	-2(%rsi, %rdx), %esi
 	movb	%cl, (%rdi)
 	movw	%si, -2(%rdi, %rdx)
+#else
+	movzwl	-2(%rsi, %rdx), %ecx
+	movzwl	(%rsi), %esi
+	movw	%cx, -2(%rdi, %rdx)
+	movw	%si, (%rdi)
+#endif
 	ret
 
-
+	.p2align 4
+#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
+L(movsb_more_2x_vec):
+	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+	ja	L(movsb)
+#endif
 L(more_2x_vec):
 	/* More than 2 * VEC and there may be overlap between destination and
 	   source.  */
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_8x_vec)
+#if OPTIMIZE_128 >= 1
 	VMOVU	(%rsi), %VEC(0)
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+# if OPTIMIZE_128 >= 2
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+# endif
+#endif
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(last_4x_vec)
 	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
+#if OPTIMIZE_128 < 1
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+#endif
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
-	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
 	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(7)
+	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
+#if OPTIMIZE_128 < 2
+	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
+#endif
+#if OPTIMIZE_128 >= 3
+	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
+	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
+	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+L(last_4x_vec):
+	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
+	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
+#endif
+#if OPTIMIZE_128 < 3
 	VMOVU	%VEC(0), (%rdi)
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
-	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
-	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
-	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
+	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
+#endif
 	VZEROUPPER_RETURN
+#if OPTIMIZE_128 < 3
+	.p2align 4
 L(last_4x_vec):
+#endif
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+#if OPTIMIZE_128 < 1
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+#endif
+#if OPTIMIZE_128 < 2
 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+#endif
+#if OPTIMIZE_128 < 3
 	VMOVU	%VEC(0), (%rdi)
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
-	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
 	VZEROUPPER_RETURN
+#endif
+
+#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
+	.p2align 4
+L(movsb):
+# if OPTIMIZE_MOVSB
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	jae	L(more_8x_vec)
+	cmpq	%rsi, %rdi
+	jb	1f
+	/* Source == destination is less common.  */
+	je	L(nop)
+	leaq	(%rsi, %rdx), %r9
+	cmpq	%r9, %rdi
+	/* Avoid slow backward REP MOVSB.  */
+	jb	L(more_8x_vec_backward)
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rdi, %rcx
+	subq	%rsi, %rcx
+	/* Avoid "rep movsb" if RCX, the distance between source and
+	   destination, is N*4GB + [1..63] with N >= 0.  */
+	cmpl	$63, %ecx
+	/* Avoid "rep movsb" if ECX <= 63.  */
+	jbe	L(more_8x_vec_backward)
+	mov	%RDX_LP, %RCX_LP
+	rep	movsb
+	ret
+#  endif
+1:
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rsi, %rcx
+	subq	%rdi, %rcx
+	cmpl	$63, %ecx
+	/* Avoid "rep movsb" if ECX <= 63.  */
+	jbe	L(more_8x_vec_forward)
+#  endif
+	mov	%RDX_LP, %RCX_LP
+	rep	movsb
+L(nop):
+	ret
+# else
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	jae	L(more_8x_vec)
+	cmpq	%rsi, %rdi
+	jb	1f
+	/* Source == destination is less common.  */
+	je	L(nop)
+	leaq	(%rsi, %rdx), %r9
+	cmpq	%r9, %rdi
+	/* Avoid slow backward REP MOVSB.  */
+	jb	L(more_8x_vec_backward)
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rdi, %rcx
+	subq	%rsi, %rcx
+	jmp	2f
+#  endif
+1:
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rsi, %rcx
+	subq	%rdi, %rcx
+2:
+	/* Avoid "rep movsb" if RCX, the distance between source and
+	   destination, is N*4GB + [1..63] with N >= 0.  */
+	cmpl	$63, %ecx
+	/* Avoid "rep movsb" if ECX <= 63.  */
+	jbe	L(more_8x_vec_check)
+#  endif
+	mov	%RDX_LP, %RCX_LP
+	rep	movsb
+L(nop):
+	ret
+# endif
+#endif
 
 L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
-# ifdef USE_WITH_ERMS
-	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
-	ja	L(movsb)
-# else
 	/* Check non-temporal store threshold.  */
 	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
-# endif
 #endif
 	/* Entry if rdx is greater than non-temporal threshold but there is
 	   overlap.  */
@@ -274,7 +411,8 @@ L(more_8x_vec_forward):
 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
 	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(8)
 
-	leaq	-(VEC_SIZE * 4)(%rdi, %rdx), %rcx
+#if OPTIMIZE_8x_FORWARD
+	leaq	-(VEC_SIZE * 4)(%rsi, %rdx), %rcx
 	subq	%rdi, %rsi
 	movq	%rdi, %rdx
 	orq	$(VEC_SIZE - 1), %rdi
@@ -294,9 +432,42 @@ L(loop_4x_vec_forward):
 	VMOVA	%VEC(2), (VEC_SIZE * 2)(%rdi)
 	VMOVA	%VEC(3), (VEC_SIZE * 3)(%rdi)
 	subq	$-(VEC_SIZE * 4), %rdi
-	cmpq	%rcx, %rdi
+	cmpq	%rcx, %rsi
 	jb	L(loop_4x_vec_forward)
+#else
+	/* Save start and stop of the destination buffer.  */
+	movq	%rdi, %r11
+	leaq	-VEC_SIZE(%rdi, %rdx), %rcx
+	/* Align destination for aligned stores in the loop.  Compute how much
+	   destination is misaligned.  */
+	movq	%rdi, %r8
+	andq	$(VEC_SIZE - 1), %r8
+	/* Get the negative of offset for alignment.  */
+	subq	$VEC_SIZE, %r8
+	/* Adjust source.  */
+	subq	%r8, %rsi
+	/* Adjust destination which should be aligned now.  */
+	subq	%r8, %rdi
+	/* Adjust length.  */
+	addq	%r8, %rdx
 
+	.p2align 4
+L(loop_4x_vec_forward):
+	/* Copy 4 * VEC a time forward.  */
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+	subq	$-(VEC_SIZE * 4), %rsi
+	addq	$-(VEC_SIZE * 4), %rdx
+	VMOVA	%VEC(0), (%rdi)
+	VMOVA	%VEC(1), VEC_SIZE(%rdi)
+	VMOVA	%VEC(2), (VEC_SIZE * 2)(%rdi)
+	VMOVA	%VEC(3), (VEC_SIZE * 3)(%rdi)
+	subq	$-(VEC_SIZE * 4), %rdi
+	cmpq	$(VEC_SIZE * 4), %rdx
+	ja	L(loop_4x_vec_forward)
+#endif
 	/* Store the last 4 * VEC.  */
 	VMOVU	%VEC(5), (VEC_SIZE * 3)(%rcx)
 	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rcx)
@@ -306,6 +477,7 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(4), (%rdx)
 	VZEROUPPER_RETURN
 
+
 L(more_8x_vec_backward):
 	/* Load the first 4 * VEC and last VEC to support overlapping addresses.
 	 */
@@ -314,6 +486,7 @@ L(more_8x_vec_backward):
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
+#if OPTIMIZE_8x_BACKWARD
 	/* Save stop of the destination buffer.  */
 	leaq	-(VEC_SIZE * 4 + 1)(%rdi, %rdx), %rcx
 	subq	%rdi, %rsi
@@ -344,43 +517,49 @@ L(loop_4x_vec_backward):
 
 	/* Store the last VEC.  */
 	VMOVU	%VEC(8), -VEC_SIZE(%rdi, %rdx)
-	VZEROUPPER_RETURN
+#else
+	/* Save stop of the destination buffer.  */
+	leaq	-VEC_SIZE(%rdi, %rdx), %r11
+	/* Align destination end for aligned stores in the loop.  Compute how
+	   much destination end is misaligned.  */
+	leaq	-VEC_SIZE(%rsi, %rdx), %rcx
+	movq	%r11, %r9
+	movq	%r11, %r8
+	andq	$(VEC_SIZE - 1), %r8
+	/* Adjust source.  */
+	subq	%r8, %rcx
+	/* Adjust the end of destination which should be aligned now.  */
+	subq	%r8, %r9
+	/* Adjust length.  */
+	subq	%r8, %rdx
 
-#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
-L(movsb):
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
-	ja	L(large_memcpy_2x)
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
-	jae	L(more_8x_vec)
-	cmpq	%rsi, %rdi
-	jb	1f
-	/* Source == destination is less common.  */
-	je	L(nop)
-	leaq	(%rsi, %rdx), %r9
-	cmpq	%r9, %rdi
-	/* Avoid slow backward REP MOVSB.  */
-	jb	L(more_8x_vec_backward)
-# if AVOID_SHORT_DISTANCE_REP_MOVSB
-	movq	%rdi, %rcx
-	subq	%rsi, %rcx
-	jmp	2f
-# endif
-1:
-# if AVOID_SHORT_DISTANCE_REP_MOVSB
-	movq	%rsi, %rcx
-	subq	%rdi, %rcx
-2:
-	/* Avoid "rep movsb" if RCX, the distance between source and
-	   destination, is N*4GB + [1..63] with N >= 0.  */
-	cmpl	$63, %ecx
-	/* Avoid "rep movsb" if ECX <= 63.  */
-	jbe	L(more_8x_vec_forward)
-# endif
-	mov	%RDX_LP, %RCX_LP
-	rep	movsb
-L(nop):
-	ret
+	.p2align 4
+L(loop_4x_vec_backward):
+	/* Copy 4 * VEC a time backward.  */
+	VMOVU	(%rcx), %VEC(0)
+	VMOVU	-VEC_SIZE(%rcx), %VEC(1)
+	VMOVU	-(VEC_SIZE * 2)(%rcx), %VEC(2)
+	VMOVU	-(VEC_SIZE * 3)(%rcx), %VEC(3)
+	addq	$-(VEC_SIZE * 4), %rcx
+	addq	$-(VEC_SIZE * 4), %rdx
+	VMOVA	%VEC(0), (%r9)
+	VMOVA	%VEC(1), -VEC_SIZE(%r9)
+	VMOVA	%VEC(2), -(VEC_SIZE * 2)(%r9)
+	VMOVA	%VEC(3), -(VEC_SIZE * 3)(%r9)
+	addq	$-(VEC_SIZE * 4), %r9
+	cmpq	$(VEC_SIZE * 4), %rdx
+	ja	L(loop_4x_vec_backward)
+
+	VMOVU	%VEC(5), (%rcx)
+	VMOVU	%VEC(6), -VEC_SIZE(%rcx)
+	VMOVU	%VEC(7), -(VEC_SIZE * 2)(%rcx)
+	VMOVU	%VEC(8), -(VEC_SIZE * 3)(%rcx)
+	/* Store the first VEC.  */
+	VMOVU	%VEC(4), (%r11)
+
 #endif
+
+	VZEROUPPER_RETURN
 
 
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
