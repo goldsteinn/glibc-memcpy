@@ -147,8 +147,8 @@ check_memcpy(const uint8_t * s1_start,
 }
 
 static void
-run_small_nooverlapp_tests_kernel(const memcpy_info_t * memcpy_def,
-                                  uint64_t              sz) {
+run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
+                                   uint64_t              sz) {
     const char *      name        = memcpy_def->name;
     const memcpy_func func        = memcpy_def->run_memcpy;
     size_t            progress_sz = sz;
@@ -209,4 +209,20 @@ run_small_nooverlapp_tests_kernel(const memcpy_info_t * memcpy_def,
             }
         }
     }
+}
+
+
+void
+run_small_tests(const memcpy_info_t * memcpy_def, int32_t with_overlap) {
+    fprintf(stderr, progress_fmt, memcpy_def->name, 0UL, 4 * nalignments);
+    for (uint64_t sz = PAGE_SIZE; sz <= 2 * PAGE_SIZE; sz += PAGE_SIZE) {
+        if (with_overlap) {
+            // todo
+        }
+        else {
+            run_small_no_overlapp_tests_kernel(memcpy_def, sz);
+        }
+    }
+    fprintf(stderr, progress_fmt "\n", memcpy_def->name, 4 * nalignments,
+            4 * nalignments);
 }
