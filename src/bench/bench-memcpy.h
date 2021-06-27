@@ -19,10 +19,7 @@
 #define run_fixed_bench CAT(run_fixed_bench_, NAME)
 #define bench_rand      CAT(bench_rand_, NAME)
 #define bench_fixed     CAT(bench_fixed_, NAME)
-
-#ifndef MEASURE_LATENCY
-#define MEASURE_LATENCY()
-#endif
+#define MEASURE_LATENCY
 
 static BENCH_FUNC void
 run_rand_bench(const bench_conf_t * restrict confs,
@@ -34,7 +31,8 @@ run_rand_bench(const bench_conf_t * restrict confs,
         // prevent OOE between loops
         LIGHT_SERIALIZE();
         ALIGN_CODE(6);
-        uint64_t start = get_cycles();
+        uint64_t latency_tmp = 0;
+        uint64_t start       = get_cycles();
         for (uint32_t i = nrand_confs; i; --i) {
             // potentially some overhead readying loop_confs if it false aliases
             // with dst. Possibly worth splitting 4k address alignment but
@@ -43,8 +41,16 @@ run_rand_bench(const bench_conf_t * restrict confs,
             bench_char_t * dst  = mem + conf.al_dst;
             bench_char_t * src  = mem + conf.al_src;
             uint32_t       sz   = conf.sz;
+#ifdef MEASURE_LATENCY
+            dst += latency_tmp;
+            src += latency_tmp;
+            sz += latency_tmp;
+            bench_char_t * ret = NAME(dst, src, sz);
+            DO_NOT_OPTIMIZE_OUT(ret);
+            latency_tmp = (ret - dst);
+#else
             DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
-            MEASURE_LATENCY();
+#endif
         }
         uint64_t end = get_cycles();
         LIGHT_SERIALIZE();
@@ -66,7 +72,7 @@ run_fixed_bench(bench_conf_t            conf,
         (conf.direction ? mem_lo : mem_hi) + conf.al_dst;
     uint64_t sz = conf.sz;
     DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
-    
+
     // idea is we want both want to get a sense of variance but not add too much
     // overhead from timing. inner_trials is constant defined in bench-common.h.
     // Best to keep below 22 to avoid the LSD.
@@ -76,7 +82,7 @@ run_fixed_bench(bench_conf_t            conf,
         uint64_t start = get_cycles();
         for (uint32_t i = inner_trials; i; --i) {
             DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
-            MEASURE_LATENCY();
+            //            MEASURE_LATENCY();
         }
         uint64_t end = get_cycles();
         LIGHT_SERIALIZE();

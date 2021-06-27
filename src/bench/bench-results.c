@@ -9,13 +9,13 @@
     "10s\n"
 
 #define csv_body                                                               \
-    "%-24s,%-16s,%-8u,%-7u,%-7u,%-9u,%-7u,%-12u,%-10.2E,%-10.2E,%-10.2E,%-10." \
+    "%-24s,%-16s,%-8u,%-7u,%-7u,%-9u,%-7u,%-12u,%-10.3E,%-10.3E,%-10.3E,%-10." \
     "2E,%-"                                                                    \
-    "10.2E,%-10.2E\n"
+    "10.3E,%-10.3E\n"
 
 #define hr_csv_hdr "%-16s,%-8s,%-7s,%-7s,%-9s,%-10s\n"
 
-#define hr_csv_body "%-16s,%-8u,%-7u,%-7u,%-9u,%-10.2E\n"
+#define hr_csv_body "%-16s,%-8u,%-7u,%-7u,%-9u,%-10.4E\n"
 
 extern char *  file_path;
 extern int32_t human_readable;

@@ -161,9 +161,11 @@ L(exactly_32):
 	/* From 16 to 31.  No branch when size == 16.  */
 L(between_16_31):
 	VMOVU	(%rsi), %XMM0
+	je	L(exactly_16)
 	VMOVU	-16(%rsi, %rdx), %XMM1
-	VMOVU	%XMM0, (%rdi)
 	VMOVU	%XMM1, -16(%rdi, %rdx)
+L(exactly_16):
+	VMOVU	%XMM0, (%rdi)
 	ret
 #endif
 	.p2align 4
@@ -212,17 +214,19 @@ L(between_32_63):
 	.p2align 4
 L(between_8_15):
 	/* From 8 to 15.  No branch when size == 8.  */
-	movq	-8(%rsi, %rdx), %rcx
-	movq	(%rsi), %rsi
-	movq	%rcx, -8(%rdi, %rdx)
-	movq	%rsi, (%rdi)
+	movq	(%rsi), %rcx
+	je	L(exactly_8)
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rsi, -8(%rdi, %rdx)
+L(exactly_8):
+	movq	%rcx, (%rdi)
 	ret
 L(between_4_7):
 	/* From 4 to 7.  No branch when size == 4.  */
-	movl	-4(%rsi, %rdx), %ecx
-	movl	(%rsi), %esi
-	movl	%ecx, -4(%rdi, %rdx)
-	movl	%esi, (%rdi)
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
 	ret
 	.p2align 4
 L(between_2_3):
@@ -240,11 +244,6 @@ L(between_2_3):
 	ret
 
 	.p2align 4
-#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
-L(movsb_more_2x_vec):
-	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
-	ja	L(movsb)
-#endif
 L(more_2x_vec):
 	/* More than 2 * VEC and there may be overlap between destination and
 	   source.  */
@@ -316,84 +315,12 @@ L(last_4x_vec):
 	VZEROUPPER_RETURN
 #endif
 
-#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
 	.p2align 4
-L(movsb):
-# if OPTIMIZE_MOVSB
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
-	jae	L(more_8x_vec)
-	cmpq	%rsi, %rdi
-	jb	1f
-	/* Source == destination is less common.  */
-	je	L(nop)
-	leaq	(%rsi, %rdx), %r9
-	cmpq	%r9, %rdi
-	/* Avoid slow backward REP MOVSB.  */
-	jb	L(more_8x_vec_backward)
-#  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	movq	%rdi, %rcx
-	subq	%rsi, %rcx
-	/* Avoid "rep movsb" if RCX, the distance between source and
-	   destination, is N*4GB + [1..63] with N >= 0.  */
-	cmpl	$63, %ecx
-	/* Avoid "rep movsb" if ECX <= 63.  */
-	jbe	L(more_8x_vec_backward)
-	mov	%RDX_LP, %RCX_LP
-	rep	movsb
-	ret
-#  endif
-1:
-#  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	movq	%rsi, %rcx
-	subq	%rdi, %rcx
-	cmpl	$63, %ecx
-	/* Avoid "rep movsb" if ECX <= 63.  */
-	jbe	L(more_8x_vec_forward)
-#  endif
-	mov	%RDX_LP, %RCX_LP
-	rep	movsb
-L(nop):
-	ret
-# else
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
-	jae	L(more_8x_vec)
-	cmpq	%rsi, %rdi
-	jb	1f
-	/* Source == destination is less common.  */
-	je	L(nop)
-	leaq	(%rsi, %rdx), %r9
-	cmpq	%r9, %rdi
-	/* Avoid slow backward REP MOVSB.  */
-	jb	L(more_8x_vec_backward)
-#  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	movq	%rdi, %rcx
-	subq	%rsi, %rcx
-	jmp	2f
-#  endif
-1:
-#  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	movq	%rsi, %rcx
-	subq	%rdi, %rcx
-2:
-	/* Avoid "rep movsb" if RCX, the distance between source and
-	   destination, is N*4GB + [1..63] with N >= 0.  */
-	cmpl	$63, %ecx
-	/* Avoid "rep movsb" if ECX <= 63.  */
-	jbe	L(more_8x_vec_check)
-#  endif
-	mov	%RDX_LP, %RCX_LP
-	rep	movsb
-L(nop):
-	ret
-# endif
-#endif
-
 L(more_8x_vec):
-	/* Check if non-temporal move candidate.  */
-#ifdef USE_WITH_MULTIARCH_AND_LIBC
-	/* Check non-temporal store threshold.  */
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
-	ja	L(large_memcpy_2x)
+#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
+L(movsb_more_2x_vec):
+	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+	ja	L(movsb)
 #endif
 	/* Entry if rdx is greater than non-temporal threshold but there is
 	   overlap.  */
@@ -556,10 +483,83 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(8), -(VEC_SIZE * 3)(%rcx)
 	/* Store the first VEC.  */
 	VMOVU	%VEC(4), (%r11)
-
 #endif
-
 	VZEROUPPER_RETURN
+
+
+#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
+L(movsb):
+	/* Check if non-temporal move candidate.  */
+	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	ja	L(large_memcpy_2x)
+# if OPTIMIZE_MOVSB
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	jae	L(more_8x_vec_check)
+	cmpq	%rsi, %rdi
+	jb	1f
+	/* Source == destination is less common.  */
+	je	L(nop)
+	leaq	(%rsi, %rdx), %r9
+	cmpq	%r9, %rdi
+	/* Avoid slow backward REP MOVSB.  */
+	jb	L(more_8x_vec_backward)
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rdi, %rcx
+	subq	%rsi, %rcx
+	/* Avoid "rep movsb" if RCX, the distance between source and
+	   destination, is N*4GB + [1..63] with N >= 0.  */
+	cmpl	$63, %ecx
+	/* Avoid "rep movsb" if ECX <= 63.  */
+	jbe	L(more_8x_vec_backward)
+	mov	%RDX_LP, %RCX_LP
+	rep	movsb
+	ret
+#  endif
+1:
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rsi, %rcx
+	subq	%rdi, %rcx
+	cmpl	$63, %ecx
+	/* Avoid "rep movsb" if ECX <= 63.  */
+	jbe	L(more_8x_vec_forward)
+#  endif
+	mov	%RDX_LP, %RCX_LP
+	rep	movsb
+L(nop):
+	ret
+# else
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	jae	L(more_8x_vec_check)
+	cmpq	%rsi, %rdi
+	jb	1f
+	/* Source == destination is less common.  */
+	je	L(nop)
+	leaq	(%rsi, %rdx), %r9
+	cmpq	%r9, %rdi
+	/* Avoid slow backward REP MOVSB.  */
+	jb	L(more_8x_vec_backward)
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rdi, %rcx
+	subq	%rsi, %rcx
+	jmp	2f
+#  endif
+1:
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	movq	%rsi, %rcx
+	subq	%rdi, %rcx
+2:
+	/* Avoid "rep movsb" if RCX, the distance between source and
+	   destination, is N*4GB + [1..63] with N >= 0.  */
+	cmpl	$63, %ecx
+	/* Avoid "rep movsb" if ECX <= 63.  */
+	jbe	L(more_8x_vec_check)
+#  endif
+	mov	%RDX_LP, %RCX_LP
+	rep	movsb
+L(nop):
+	ret
+# endif
+#endif
 
 
 #ifdef USE_WITH_MULTIARCH_AND_LIBC

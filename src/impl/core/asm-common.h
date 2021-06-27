@@ -4,7 +4,7 @@
 #define L(name) .L##name
 
 #ifndef ALIGN_BASE
-#define ALIGN_BASE 2048
+#define ALIGN_BASE 1024
 #endif
 
 #ifndef ALIGN_ENTRY
