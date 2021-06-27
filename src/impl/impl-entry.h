@@ -3,8 +3,6 @@
 
 #include <stddef.h>
 
-void * memcpy_glibc_v32_movsb(void *, const void *, size_t);
-void * memcpy_dev_v32_movsb(void *, const void *, size_t);
 
 
 #endif

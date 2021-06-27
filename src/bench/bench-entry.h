@@ -3,9 +3,11 @@
 
 #include "bench-params.h"
 
+#include <memcpy-defs.h>
+
 void run_benchmarks(const bench_params_t * params,
                     uint64_t               nparams,
-                    const bench_t *        bench_info,
+                    const memcpy_info_t *  memcpy_info,
                     int32_t                core);
 
 #endif

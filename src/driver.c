@@ -3,8 +3,8 @@
 #include "arg.h"
 #include "error-util.h"
 
-extern const bench_t  bench_funcs[];
-extern const uint64_t nbench_funcs;
+extern const memcpy_info_t memcpy_defs[];
+extern const uint64_t      nmemcpy_defs;
 
 
 uint32_t verbose        = 0;
@@ -45,21 +45,21 @@ main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments\n");
     die_assert(large_trials | medium_trials | small_trials | rand_trials,
                "No benchmark requested\n");
-    uint64_t        dst_al_offset = no_4k_alias ? 2048 : 0;
-    const bench_t * bench_func    = NULL;
+    uint64_t              dst_al_offset = no_4k_alias ? 2048 : 0;
+    const memcpy_info_t * memcpy_def    = NULL;
     die_assert(func_name != NULL);
-    for (uint64_t i = 0; i < nbench_funcs; ++i) {
-        if (!strcmp(func_name, bench_funcs[i].name)) {
-            bench_func = &bench_funcs[i];
+    for (uint64_t i = 0; i < nmemcpy_defs; ++i) {
+        if (!strcmp(func_name, memcpy_defs[i].name)) {
+            memcpy_def = &memcpy_defs[i];
             break;
         }
     }
-    if (UNLIKELY(bench_func == NULL)) {
+    if (UNLIKELY(memcpy_def == NULL)) {
         fprintf(stderr,
                 "Unknown bench function: %s\nAvailable Functions are:\n",
                 func_name);
-        for (uint64_t i = 0; i < nbench_funcs; ++i) {
-            fprintf(stderr, "%-2lu: %-24s\n", i, bench_funcs[i].name);
+        for (uint64_t i = 0; i < nmemcpy_defs; ++i) {
+            fprintf(stderr, "%-2lu: %-24s\n", i, memcpy_defs[i].name);
         }
         abort();
     }
@@ -98,6 +98,6 @@ main(int argc, char ** argv) {
         ++nparams;
     }
 
-    run_benchmarks(params, nparams, bench_func, core);
+    run_benchmarks(params, nparams, memcpy_def, core);
     destroy_params(params, nparams);
 }

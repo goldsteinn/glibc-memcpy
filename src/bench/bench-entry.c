@@ -1,10 +1,13 @@
-#include "bench-entry.h"
+
 #include <error-util.h>
 #include <memory-util.h>
 #include <sched.h>
 #include <unistd.h>
+
 #include "bench-constants.h"
+#include "bench-entry.h"
 #include "bench-results.h"
+
 static void
 prep_bench_memory(bench_char_t * mem) {
     // set -1 so that 0-over-0 writeback optimization is disabled
@@ -53,7 +56,7 @@ bench_finish(uint64_t         nresults,
 void
 run_benchmarks(const bench_params_t * params,
                uint64_t               nparams,
-               const bench_t *        bench_info,
+               const memcpy_info_t *  memcpy_info,
                int32_t                core) {
     die_assert(inner_trials < LSD_START || inner_trials > 256,
                "Benchmarkings will have unreasonable overhead from branch "
@@ -68,7 +71,7 @@ run_benchmarks(const bench_params_t * params,
         err_assert(sched_getaffinity(0, sizeof(cpu_set_t), &cur_set) >= 0);
         CPU_SET(core, &bench_set);
         err_assert(sched_setaffinity(0, sizeof(cpu_set_t), &bench_set) >= 0);
-        while(sched_getcpu() != core) {
+        while (sched_getcpu() != core) {
             sched_yield();
         }
     }
@@ -76,8 +79,8 @@ run_benchmarks(const bench_params_t * params,
     bench_result_t * results;
     bench_char_t *   mem_lo;
     bench_char_t *   mem_hi;
-    const bench_func func = bench_info->func;
-    bench_init(params, nparams, bench_info->name, &results, &mem_lo, &mem_hi);
+    const bench_func func = memcpy_info->run_bench;
+    bench_init(params, nparams, memcpy_info->name, &results, &mem_lo, &mem_hi);
     PRINTFFL;
     for (uint64_t i = 0; i < nparams; ++i) {
         PRINTFFL;
