@@ -4,8 +4,8 @@
 #define HAS_VECS 1
 
 #define VEC_SIZE 32
-#define XMM0     xmm16
-#define XMM1     xmm17
+#define XMM0     xmm0
+#define XMM1     xmm1
 #define YMM0     ymm16
 #define YMM1     ymm17
 #define VEC0     ymm16

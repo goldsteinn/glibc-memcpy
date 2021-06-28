@@ -19,7 +19,7 @@
 #define run_fixed_bench CAT(run_fixed_bench_, NAME)
 #define bench_rand      CAT(bench_rand_, NAME)
 #define bench_fixed     CAT(bench_fixed_, NAME)
-#define MEASURE_LATENCY
+//#define MEASURE_LATENCY
 
 static BENCH_FUNC void
 run_rand_bench(const bench_conf_t * restrict confs,
@@ -32,6 +32,7 @@ run_rand_bench(const bench_conf_t * restrict confs,
         LIGHT_SERIALIZE();
         ALIGN_CODE(6);
         uint64_t latency_tmp = 0;
+        (void)(latency_tmp);
         uint64_t start       = get_cycles();
         for (uint32_t i = nrand_confs; i; --i) {
             // potentially some overhead readying loop_confs if it false aliases

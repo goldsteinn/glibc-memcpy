@@ -117,6 +117,7 @@ make_data_dist(const freq_data_t * freq_in,
     for (uint64_t i = 0; i < freq_in_sz; ++i) {
         for (uint64_t j = 0; j < freq_in[i].freq; ++j) {
             freq_out[n] = freq_in[i].val;
+            ++n;
         }
     }
     return freq_out;
@@ -137,22 +138,20 @@ make_rand_confs() {
     uint32_t * size_dist =
         make_data_dist(size_freq, n_size_freq, &size_dist_sz);
 
-
     bench_conf_t * confs =
         (bench_conf_t *)safe_calloc(nrand_confs, sizeof(bench_conf_t));
-    die_assert(nrand_confs >= size_dist_sz);
+    die_assert(nrand_confs <= size_dist_sz);
 
     for (uint64_t i = 0; i < nrand_confs; ++i) {
         int      direction = rand() % 2;
-        uint32_t al_dst    = dst_align_dist[rand() % align_dist_sz] + direction
-                                 ? 1 * PAGE_SIZE
-                                 : 2 * PAGE_SIZE;
-        uint32_t al_src    = src_align_dist[rand() % align_dist_sz] + direction
-                                 ? 0 * PAGE_SIZE
-                                 : 3 * PAGE_SIZE;
+        uint32_t dst_idx   = rand() % align_dist_sz;
+        uint32_t al_dst    = dst_align_dist[dst_idx] +
+                          (direction ? 0 * PAGE_SIZE : 2 * PAGE_SIZE);
+        uint32_t al_src = src_align_dist[rand() % align_dist_sz] + PAGE_SIZE;
         uint32_t sz =
-            size_dist[nrand_confs == size_dist_sz ? i
-                                                  : (rand() % size_dist_sz)];
+            size_dist[(nrand_confs == size_dist_sz) ? i
+                                                    : (rand() % size_dist_sz)];
+
         make_conf(confs[i], al_dst, al_src, direction, sz);
     }
     if (nrand_confs == size_dist_sz) {
@@ -165,6 +164,7 @@ make_rand_confs() {
             memcpy(confs + idx1, &tmp, sizeof(bench_conf_t));
         }
     }
+
 
     safe_free(scaled_src_align_freq);
     safe_free(scaled_dst_align_freq);
