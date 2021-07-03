@@ -236,6 +236,7 @@ L(more_2x_vec):
 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
+	.p2align 4
 L(last_4x_vec):
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
