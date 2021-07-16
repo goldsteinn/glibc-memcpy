@@ -4,9 +4,13 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include <perf/perf-ev-init.h>
+
 #include "bench-constants.h"
 #include "bench-entry.h"
 #include "bench-results.h"
+
+extern const perf_ev_t perf_events_in_use[];
 
 static void
 prep_bench_memory(bench_char_t * mem) {
@@ -54,10 +58,11 @@ bench_finish(uint64_t         nresults,
 
 
 void
-run_benchmarks(const bench_params_t * params,
-               uint64_t               nparams,
-               const memcpy_info_t *  memcpy_info,
-               int32_t                core) {
+_run_benchmarks(const bench_params_t *        params,
+                uint64_t                      nparams,
+                const memcpy_info_t *         memcpy_info,
+                int32_t                       core,
+                const perf_ev_initializer_t * pev_initializer) {
     die_assert(inner_trials < LSD_START || inner_trials > 256,
                "Benchmarkings will have unreasonable overhead from branch "
                "misses in the inner loop");
@@ -75,6 +80,8 @@ run_benchmarks(const bench_params_t * params,
             sched_yield();
         }
     }
+    int pev_group_fd = init_events(pev_initializer);
+    enable_perf(pev_group_fd);
 
     bench_result_t * results;
     bench_char_t *   mem_lo;
@@ -85,7 +92,8 @@ run_benchmarks(const bench_params_t * params,
     for (uint64_t i = 0; i < nparams; ++i) {
         PRINTFFL;
         prep_bench_memory(mem_lo);
-        func(params + i, results[i].times, mem_lo, mem_hi);
+        func(params + i, results[i].times, results[i].ev_results.counters,
+             mem_lo, mem_hi);
         PRINTFFL;
     }
     if (core >= 0) {
@@ -96,4 +104,19 @@ run_benchmarks(const bench_params_t * params,
     PRINTFFL;
     bench_finish(nparams, results, mem_lo);
     PRINTFFL;
+}
+
+void
+run_benchmarks(const bench_params_t * params,
+               uint64_t               nparams,
+               const memcpy_info_t *  memcpy_info,
+               int32_t                core) {
+#if PERF_EVENTS
+    struct perf_event_attr       ev_attrs[PERF_EV_NEVENTS];
+    perf_ev_initializer_t pev_initializer = { perf_events_in_use, ev_attrs,
+                                              PERF_EV_NEVENTS };
+    _run_benchmarks(params, nparams, memcpy_info, core, &pev_initializer);
+#else
+    _run_benchmarks(params, nparams, memcpy_info, core, NULL);
+#endif
 }

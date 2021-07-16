@@ -4,14 +4,18 @@
 #include <common.h>
 #include <macro.h>
 #include <memory-util.h>
-#include "bench-stats.h"
+#include <perf/perf-ev-results.h>
+
 #include "bench-params.h"
+#include "bench-stats.h"
+
 
 typedef struct bench_result {
     uint64_t *             times;
     bench_stats_t *        stats;
     const char *           impl_name;
     const bench_params_t * params;
+    perf_ev_result_t       ev_results;
 } bench_result_t;
 
 

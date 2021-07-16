@@ -43,6 +43,18 @@ static ArgOption args[] = {
 static ArgDefs argp = { args, "Driver for glibc qsort development", NULL,
                         NULL };
 
+void EXIT_FUNC
+list_funcs_and_die() {
+    fprintf(stderr,
+            "Unknown implementation function: %s\nAvailable "
+            "implementations are:\n",
+            func_name);
+    for (uint64_t i = 0; i < nmemcpy_defs; ++i) {
+        fprintf(stderr, "%-2lu: %-24s\n", i, memcpy_defs[i].name);
+    }
+    abort();
+}
+
 int
 main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments\n");
@@ -50,22 +62,17 @@ main(int argc, char ** argv) {
                "No benchmark requested\n");
     uint64_t              dst_al_offset = no_4k_alias ? 2048 : 0;
     const memcpy_info_t * memcpy_def    = NULL;
-    die_assert(func_name != NULL);
+    if (func_name == NULL) {
+        list_funcs_and_die();
+    }
     for (uint64_t i = 0; i < nmemcpy_defs; ++i) {
         if (!strcmp(func_name, memcpy_defs[i].name)) {
             memcpy_def = &memcpy_defs[i];
             break;
         }
     }
-    if (UNLIKELY(memcpy_def == NULL)) {
-        fprintf(stderr,
-                "Unknown implementation function: %s\nAvailable "
-                "implementations are:\n",
-                func_name);
-        for (uint64_t i = 0; i < nmemcpy_defs; ++i) {
-            fprintf(stderr, "%-2lu: %-24s\n", i, memcpy_defs[i].name);
-        }
-        abort();
+    if (memcpy_def == NULL) {
+        list_funcs_and_die();
     }
     if (test) {
         run_small_tests(memcpy_def, 0);
