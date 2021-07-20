@@ -10,7 +10,6 @@ display_counters_hdr(FILE * fp, const perf_ev_t * perf_events) {
         }
         fprintf(fp, "%-10s", perf_events[i].desc);
     }
-}
 #else
     (void)(fp);
     (void)(perf_events);
@@ -40,7 +39,6 @@ display_counters(FILE *                   fp,
             fprintf(fp, "%-10lu", ((uint64_t)(results->counters[i])));
         }
     }
-}
 #else
     (void)(fp);
     (void)(results);
