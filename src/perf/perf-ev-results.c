@@ -27,16 +27,17 @@ display_counters(FILE *                   fp,
         fprintf(fp, "\nPERF COUNTER VALUES\n");
     }
     for (uint64_t i = 0; i < PERF_EV_NEVENTS; ++i) {
+        uint64_t counter_val = results->counters[i];
         if (human_readable) {
-            fprintf(fp, "%-24s -> %-12lu -> %-.1E\n", perf_events[i].desc,
-                    (uint64_t)(results->counters[i]),
-                    (double)(results->counters[i]));
+            fprintf(fp, "%-28s -> %-12lu -> %-.1E\n", perf_events[i].desc,
+                    counter_val,
+                    (double)counter_val);
         }
         else {
             if (i) {
                 fprintf(fp, ",");
             }
-            fprintf(fp, "%-10lu", ((uint64_t)(results->counters[i])));
+            fprintf(fp, "%-12lu", counter_val);
         }
     }
 #else

@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 typedef struct perf_ev_result {
-    ev_counter_t counters[PERF_EV_NEVENTS];
+    ev_counter_t counters[8];
 } perf_ev_result_t __attribute__((aligned(8 * sizeof(ev_counter_t))));
 
 

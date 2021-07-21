@@ -47,6 +47,7 @@
 # define END(name)	.size	name,	.-	name
 # define L(name)	.L##name
 
+	.p2align 12
 ENTRY(read_events_start):
 	.cfi_startproc
 	lfence

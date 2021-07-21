@@ -4,9 +4,12 @@
 #include "bench-constants.h"
 
 void
-init_rand_params(bench_params_t * params_out, int32_t trials) {
+init_rand_params(bench_params_t * params_out,
+                 int32_t          trials,
+                 uint32_t         min_val,
+                 uint32_t         max_val) {
     die_assert(trials != 0, "Trials must be > 0");
-    params_out->confs     = make_rand_confs();
+    params_out->confs     = make_rand_confs(min_val, max_val);
     params_out->nconfs    = 1;
     params_out->test_name = "rand SPEC2017";
     params_out->trials    = trials < 0 ? DEFAULT_RAND_TRIALS : (uint32_t)trials;

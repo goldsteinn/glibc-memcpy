@@ -28,7 +28,10 @@ run_rand_bench(const bench_conf_t * restrict confs,
                ev_counter_t * restrict       ev_results,
                uint32_t                      trials,
                bench_char_t * restrict       mem) {
+    IMPOSSIBLE(trials == 0);
+
     read_events_start(ev_results);
+
     for (; trials; --trials) {
         const bench_conf_t * loop_confs = confs;
         // prevent OOE between loops
@@ -73,6 +76,7 @@ run_fixed_bench(bench_conf_t            conf,
     // idea is we want both want to get a sense of variance but not add too much
     // overhead from timing. inner_trials is constant defined in bench-common.h.
     // Best to keep below 22 to avoid the LSD.
+    IMPOSSIBLE(trials == 0);
     for (; trials; --trials) {
         LIGHT_SERIALIZE();
         ALIGN_CODE(6);

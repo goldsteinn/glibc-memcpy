@@ -104,27 +104,44 @@ scale_align_freq(const freq_data_t * align_freq) {
 }
 
 static uint32_t *
-make_data_dist(const freq_data_t * freq_in,
-               uint64_t            freq_in_sz,
-               uint32_t *          dist_sz) {
+_make_data_dist(const freq_data_t * freq_in,
+                uint64_t            freq_in_sz,
+                uint32_t *          dist_sz,
+                uint32_t            min_val,
+                uint32_t            max_val) {
     uint64_t n = 0;
     for (uint64_t i = 0; i < freq_in_sz; ++i) {
+        if (freq_in[i].val < min_val || freq_in[i].val > max_val) {
+            continue;
+        }
         n += freq_in[i].freq;
     }
     uint32_t * freq_out = (uint32_t *)safe_calloc(n, sizeof(uint32_t));
     *dist_sz            = n;
     n                   = 0;
     for (uint64_t i = 0; i < freq_in_sz; ++i) {
+        if (freq_in[i].val < min_val || freq_in[i].val > max_val) {
+            continue;
+        }
         for (uint64_t j = 0; j < freq_in[i].freq; ++j) {
             freq_out[n] = freq_in[i].val;
             ++n;
         }
     }
+    die_assert(n == (*dist_sz));
     return freq_out;
 }
 
+static uint32_t *
+make_data_dist(const freq_data_t * freq_in,
+               uint64_t            freq_in_sz,
+               uint32_t *          dist_sz) {
+    return _make_data_dist(freq_in, freq_in_sz, dist_sz, 0, UINT32_MAX);
+}
+
 bench_conf_t *
-make_rand_confs() {
+make_rand_confs(uint32_t min_val, uint32_t max_val) {
+    die_assert(min_val <= max_val);
     freq_data_t * scaled_src_align_freq = scale_align_freq(src_align_freq);
     freq_data_t * scaled_dst_align_freq = scale_align_freq(dst_align_freq);
 
@@ -135,12 +152,12 @@ make_rand_confs() {
         scaled_src_align_freq, n_scaled_align_freq, &align_dist_sz);
     uint32_t * dst_align_dist = make_data_dist(
         scaled_dst_align_freq, n_scaled_align_freq, &align_dist_sz);
-    uint32_t * size_dist =
-        make_data_dist(size_freq, n_size_freq, &size_dist_sz);
+    uint32_t * size_dist = _make_data_dist(size_freq, n_size_freq,
+                                           &size_dist_sz, min_val, max_val);
 
     bench_conf_t * confs =
         (bench_conf_t *)safe_calloc(nrand_confs, sizeof(bench_conf_t));
-    die_assert(nrand_confs <= size_dist_sz);
+    die_assert(nrand_confs <= size_dist_sz, "Not enough confs!");
 
     for (uint64_t i = 0; i < nrand_confs; ++i) {
         int      direction = rand() % 2;

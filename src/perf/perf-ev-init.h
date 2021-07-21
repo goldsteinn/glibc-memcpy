@@ -1,7 +1,7 @@
 #ifndef _PERF_EV_INIT_H_
 #define _PERF_EV_INIT_H_
-#include <stdint.h>
 #include <linux/perf_event.h>
+#include <stdint.h>
 
 static const uint32_t MAX_HW_EVENTS     = 7;
 static const uint32_t PERF_EV_INIT_SKIP = 0;
@@ -18,6 +18,7 @@ typedef struct perf_ev_initializer {
 } perf_ev_initializer_t;
 
 void enable_perf(int group_fd);
+void disable_perf(int group_fd);
 int  init_events(const perf_ev_initializer_t * initializer);
 
 

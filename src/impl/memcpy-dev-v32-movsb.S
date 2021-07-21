@@ -4,4 +4,4 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 
-#include "core/memcpy-dev-v2.S"
+#include "core/memcpy-dev-v3.S"

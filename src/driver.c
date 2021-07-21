@@ -17,6 +17,8 @@ uint32_t no_4k_alias    = 0;
 int32_t  human_readable = 0;
 uint32_t test           = 0;
 uint32_t bench          = 0;
+uint32_t min_rand_size  = 0;
+uint32_t max_rand_size  = UINT32_MAX;
 
 char * func_name = NULL;
 char * file_path = NULL;
@@ -34,6 +36,8 @@ static ArgOption args[] = {
   {     KindOption,     String,		"--func",	0,      &func_name,     "Memcpy implementation to benchmark" },
   {     KindOption,     Set,		"--hr",     0,      &human_readable,"Set to make output more human readable" },
   {     KindOption,     Set, 		"--test",	0,      &test,          "Set to test" },
+  {     KindOption,     Integer, 	"--min",    0,      &min_rand_size, "Min size for random distribution" },
+  {     KindOption,     Integer, 	"--max",    0,      &max_rand_size, "Max size for random distribution" },
 
   {     KindHelp,       Help,       "-h",       0,      NULL,           ""  },
   {     KindEnd,        EndOptions, "",         0,      NULL,           ""  }
@@ -97,7 +101,8 @@ main(int argc, char ** argv) {
         }
 
         if (rand_trials) {
-            init_rand_params(params + nparams, rand_trials);
+            init_rand_params(params + nparams, rand_trials, min_rand_size,
+                             max_rand_size);
             ++nparams;
         }
 

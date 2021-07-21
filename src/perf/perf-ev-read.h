@@ -6,6 +6,7 @@
 void read_events_start(ev_counter_t * counter_values);
 void read_events_end(ev_counter_t * counter_values);
 #else
+
 static void
 read_events_start(ev_counter_t * counter_values) {
     (void)(counter_values);

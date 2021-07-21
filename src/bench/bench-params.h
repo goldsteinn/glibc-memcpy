@@ -17,7 +17,7 @@ typedef struct bench_params {
 } bench_params_t;
 
 
-void init_rand_params(bench_params_t * params_out, int32_t trials);
+void init_rand_params(bench_params_t * params_out, int32_t trials, uint32_t min_val, uint32_t max_val);
 void init_small_params(bench_params_t * params_out,
                        uint32_t         dst_al_offset,
                        int32_t          trials);

@@ -1,7 +1,26 @@
+	// log2 of alignment of L(less_vec) label (i.e 4 -> .p2align 4, etc...)
+#define LESS_VEC_ALIGNMENT	5
+	// Entry alignment (alignment on function)
+#define ALIGN_ENTRY	64
+	// LSD is disabled by mismatching push/pop instructions. This is unsafe for
+	// a variety of reasons but should generally be fine
+#define DISABLE_LSD	1
+
+#if DISABLE_LSD
+# define DISABLE_LSD_PREFIX	pushq	%rsp
+# define DISABLE_LSD_POSTFIX	addq	$8,	%rsp
+#else
+# define DISABLE_LSD_PREFIX
+# define DISABLE_LSD_POSTFIX
+#endif
+
+
 #include "asm-common.h"
-	// Tigerlake
+	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
+
+
 
 #ifndef XMM0
 # define XMM0	xmm0
@@ -114,7 +133,7 @@
 
 	.section SECTION(.text), "ax", @progbits
 ENTRY(MEMCPY):
-
+	DISABLE_LSD_PREFIX
 	movq	%rdi, %rax
 L(start_erms):
 #ifdef __ILP32__
@@ -132,119 +151,12 @@ L(last_2x_vec):
 	VMOVU	%VEC(0), (%rdi)
 	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
 L(return):
+	DISABLE_LSD_POSTFIX
 #if VEC_SIZE > 16
 	ZERO_UPPER_VEC_REGISTERS_RETURN
 #else
 	ret
 #endif
-//    nop
-	.p2align 4
-L(less_vec):
-
-	/* Less than 1 VEC.  */
-#if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
-# error Unsupported VEC_SIZE!
-#endif
-#if VEC_SIZE > 32
-	cmpb	$32, %dl
-	jae	L(between_32_63)
-#endif
-#if VEC_SIZE > 16
-	cmpl	$16, %edx
-	jae	L(between_16_31)
-#endif
-	cmpl	$8, %edx
-	jae	L(between_8_15)
-	cmpl	$4, %edx
-	jae	L(between_4_7)
-	cmpl	$1, %edx
-	ja	L(between_2_3)
-	jb	1f
-	movzbl	(%rsi), %ecx
-	movb	%cl, (%rdi)
-1:
-	ret
-#if VEC_SIZE > 32
-L(between_32_63):
-	/* From 32 to 63.  No branch when size == 32.  */
-	VMOVU	(%rsi), %YMM0
-	VMOVU	-32(%rsi, %rdx), %YMM1
-	VMOVU	%YMM0, (%rdi)
-	VMOVU	%YMM1, -32(%rdi, %rdx)
-	VZEROUPPER_RETURN
-#endif
-#if VEC_SIZE > 16
-	/* From 16 to 31.  No branch when size == 16.  */
-L(between_16_31):
-	VMOVU	(%rsi), %XMM0
-	VMOVU	-16(%rsi, %rdx), %XMM1
-	VMOVU	%XMM0, (%rdi)
-	VMOVU	%XMM1, -16(%rdi, %rdx)
-	ret
-#endif
-L(between_8_15):
-	/* From 8 to 15.  No branch when size == 8.  */
-	movq	-8(%rsi, %rdx), %rcx
-	movq	(%rsi), %rsi
-	movq	%rcx, -8(%rdi, %rdx)
-	movq	%rsi, (%rdi)
-	ret
-L(between_4_7):
-	/* From 4 to 7.  No branch when size == 4.  */
-	movl	-4(%rsi, %rdx), %ecx
-	movl	(%rsi), %esi
-	movl	%ecx, -4(%rdi, %rdx)
-	movl	%esi, (%rdi)
-	ret
-L(between_2_3):
-	/* From 2 to 3.  No branch when size == 2.  */
-	movzwl	-2(%rsi, %rdx), %ecx
-	movzwl	(%rsi), %esi
-	movw	%cx, -2(%rdi, %rdx)
-	movw	%si, (%rdi)
-	ret
-
-#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
-L(movsb_more_2x_vec):
-	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
-	ja	L(movsb)
-#endif
-L(more_2x_vec):
-	/* More than 2 * VEC and there may be overlap between destination and
-	   source.  */
-	cmpq	$(VEC_SIZE * 8), %rdx
-	ja	L(more_8x_vec)
-	cmpq	$(VEC_SIZE * 4), %rdx
-	jbe	L(last_4x_vec)
-	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
-	VMOVU	(%rsi), %VEC(0)
-	VMOVU	VEC_SIZE(%rsi), %VEC(1)
-	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
-	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
-	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
-	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(7)
-	VMOVU	%VEC(0), (%rdi)
-	VMOVU	%VEC(1), VEC_SIZE(%rdi)
-	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
-	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
-	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
-	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
-	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
-	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
-	VZEROUPPER_RETURN
-L(last_4x_vec):
-	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
-	VMOVU	(%rsi), %VEC(0)
-	VMOVU	VEC_SIZE(%rsi), %VEC(1)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
-	VMOVU	%VEC(0), (%rdi)
-	VMOVU	%VEC(1), VEC_SIZE(%rdi)
-	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
-	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
-	VZEROUPPER_RETURN
 
 #if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
 L(movsb):
@@ -277,9 +189,122 @@ L(movsb):
 	mov	%RDX_LP, %RCX_LP
 	rep	movsb
 L(nop):
+	DISABLE_LSD_POSTFIX
 	ret
 #endif
-
+	.p2align LESS_VEC_ALIGNMENT
+L(less_vec):
+	/* Less than 1 VEC.  */
+#if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
+# error Unsupported VEC_SIZE!
+#endif
+#if VEC_SIZE > 32
+	cmpb	$32, %dl
+	jae	L(between_32_63)
+#endif
+#if VEC_SIZE > 16
+	cmpb	$16, %dl
+	jae	L(between_16_31)
+#endif
+	cmpb	$8, %dl
+	jae	L(between_8_15)
+	cmpb	$4, %dl
+	jae	L(between_4_7)
+	cmpb	$1, %dl
+	ja	L(between_2_3)
+	jb	1f
+	movzbl	(%rsi), %ecx
+	movb	%cl, (%rdi)
+1:
+	DISABLE_LSD_POSTFIX
+	ret
+#if VEC_SIZE > 32
+L(between_32_63):
+	/* From 32 to 63.  No branch when size == 32.  */
+	VMOVU	(%rsi), %YMM0
+	VMOVU	-32(%rsi, %rdx), %YMM1
+	VMOVU	%YMM0, (%rdi)
+	VMOVU	%YMM1, -32(%rdi, %rdx)
+	DISABLE_LSD_POSTFIX
+	VZEROUPPER_RETURN
+#endif
+#if VEC_SIZE > 16
+	/* From 16 to 31.  No branch when size == 16.  */
+L(between_16_31):
+	VMOVU	(%rsi), %XMM0
+	VMOVU	-16(%rsi, %rdx), %XMM1
+	VMOVU	%XMM0, (%rdi)
+	VMOVU	%XMM1, -16(%rdi, %rdx)
+	DISABLE_LSD_POSTFIX
+	VZEROUPPER_RETURN
+#endif
+L(between_8_15):
+	/* From 8 to 15.  No branch when size == 8.  */
+	movq	-8(%rsi, %rdx), %rcx
+	movq	(%rsi), %rsi
+	movq	%rcx, -8(%rdi, %rdx)
+	movq	%rsi, (%rdi)
+	DISABLE_LSD_POSTFIX
+	ret
+L(between_4_7):
+	/* From 4 to 7.  No branch when size == 4.  */
+	movl	-4(%rsi, %rdx), %ecx
+	movl	(%rsi), %esi
+	movl	%ecx, -4(%rdi, %rdx)
+	movl	%esi, (%rdi)
+	DISABLE_LSD_POSTFIX
+	ret
+L(between_2_3):
+	/* From 2 to 3.  No branch when size == 2.  */
+	movzwl	-2(%rsi, %rdx), %ecx
+	movzwl	(%rsi), %esi
+	movw	%cx, -2(%rdi, %rdx)
+	movw	%si, (%rdi)
+	DISABLE_LSD_POSTFIX
+	ret
+#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
+L(movsb_more_2x_vec):
+	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+	ja	L(movsb)
+#endif
+L(more_2x_vec):
+	/* More than 2 * VEC and there may be overlap between destination and
+	   source.  */
+	cmpq	$(VEC_SIZE * 8), %rdx
+	ja	L(more_8x_vec)
+	cmpq	$(VEC_SIZE * 4), %rdx
+	jbe	L(last_4x_vec)
+	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
+	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
+	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
+	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(7)
+	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
+	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
+	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
+	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
+	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+	DISABLE_LSD_POSTFIX
+	VZEROUPPER_RETURN
+L(last_4x_vec):
+	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
+	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+	DISABLE_LSD_POSTFIX
+	VZEROUPPER_RETURN
 
 L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
@@ -341,6 +366,7 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(8), -(VEC_SIZE * 3)(%rcx)
 	/* Store the first VEC.  */
 	VMOVU	%VEC(4), (%r11)
+	DISABLE_LSD_POSTFIX
 	VZEROUPPER_RETURN
 
 L(more_8x_vec_backward):
@@ -389,6 +415,7 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(7), (VEC_SIZE * 3)(%rdi)
 	/* Store the last VEC.  */
 	VMOVU	%VEC(8), (%r11)
+	DISABLE_LSD_POSTFIX
 	VZEROUPPER_RETURN
 
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
@@ -512,6 +539,7 @@ L(large_memcpy_2x_end):
 	VMOVU	%VEC(1), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(2), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
+	DISABLE_LSD_POSTFIX
 	VZEROUPPER_RETURN
 
 	.p2align 4
@@ -586,6 +614,7 @@ L(large_memcpy_4x_end):
 	VMOVU	%VEC(1), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(2), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
+	DISABLE_LSD_POSTFIX
 	VZEROUPPER_RETURN
 #endif
 

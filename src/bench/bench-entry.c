@@ -80,14 +80,16 @@ _run_benchmarks(const bench_params_t *        params,
             sched_yield();
         }
     }
-    int pev_group_fd = init_events(pev_initializer);
-    enable_perf(pev_group_fd);
 
     bench_result_t * results;
     bench_char_t *   mem_lo;
     bench_char_t *   mem_hi;
     const bench_func func = memcpy_info->run_bench;
     bench_init(params, nparams, memcpy_info->name, &results, &mem_lo, &mem_hi);
+
+    int pev_group_fd = init_events(pev_initializer);
+    enable_perf(pev_group_fd);
+
     PRINTFFL;
     for (uint64_t i = 0; i < nparams; ++i) {
         PRINTFFL;
@@ -102,8 +104,10 @@ _run_benchmarks(const bench_params_t *        params,
     }
 
     PRINTFFL;
+    disable_perf(pev_group_fd);
     bench_finish(nparams, results, mem_lo);
     PRINTFFL;
+    (void)(pev_initializer);
 }
 
 void
@@ -112,8 +116,8 @@ run_benchmarks(const bench_params_t * params,
                const memcpy_info_t *  memcpy_info,
                int32_t                core) {
 #if PERF_EVENTS
-    struct perf_event_attr       ev_attrs[PERF_EV_NEVENTS];
-    perf_ev_initializer_t pev_initializer = { perf_events_in_use, ev_attrs,
+    struct perf_event_attr ev_attrs[PERF_EV_NEVENTS];
+    perf_ev_initializer_t  pev_initializer = { perf_events_in_use, ev_attrs,
                                               PERF_EV_NEVENTS };
     _run_benchmarks(params, nparams, memcpy_info, core, &pev_initializer);
 #else
