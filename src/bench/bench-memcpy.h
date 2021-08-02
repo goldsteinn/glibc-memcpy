@@ -29,9 +29,7 @@ run_rand_bench(const bench_conf_t * restrict confs,
                uint32_t                      trials,
                bench_char_t * restrict       mem) {
     IMPOSSIBLE(trials == 0);
-
     read_events_start(ev_results);
-
     for (; trials; --trials) {
         const bench_conf_t * loop_confs = confs;
         // prevent OOE between loops
@@ -55,6 +53,7 @@ run_rand_bench(const bench_conf_t * restrict confs,
         bench_store_u64(times, (end - start));
         ++times;
     }
+
     read_events_end(ev_results);
 }
 

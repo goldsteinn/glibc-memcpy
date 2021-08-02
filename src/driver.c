@@ -62,7 +62,7 @@ list_funcs_and_die() {
 int
 main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments\n");
-    die_assert(large_trials | medium_trials | small_trials | rand_trials,
+    die_assert(large_trials | medium_trials | small_trials | rand_trials | test,
                "No benchmark requested\n");
     uint64_t              dst_al_offset = no_4k_alias ? 2048 : 0;
     const memcpy_info_t * memcpy_def    = NULL;

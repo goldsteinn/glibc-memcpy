@@ -1,0 +1,6 @@
+#ifndef _CONFIG_SHIT_H_
+#define  _CONFIG_SHIT_H_
+#define ALIGN_ENTRY 32
+#define PADDING NOP816
+#define EVENT_TO_CHECK UOPS_DISPATCHED_PORT_6
+#endif

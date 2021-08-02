@@ -4,7 +4,7 @@
 #define L(name) .L##name
 
 #ifndef ALIGN_BASE
-#define ALIGN_BASE 1024
+#define ALIGN_BASE 2048
 #endif
 
 #ifndef ALIGN_ENTRY
@@ -58,5 +58,7 @@
 #define R8_LP  r8
 #define RDX_LP rdx
 #define RCX_LP rcx
+
+#include "nops.h"
 
 #endif

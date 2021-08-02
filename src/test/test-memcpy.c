@@ -182,7 +182,7 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
     uint64_t al_pairs[NPAIRS << 1] = { 0 };
     for (uint32_t repeats = 0; repeats < 2; ++repeats) {
         for (uint64_t al_idx = 0; al_idx < nalignments; ++al_idx) {
-
+            
             fprintf(stderr, progress_fmt, name,
                     (repeats + (progress_sz & (~PAGE_SIZE)) / PAGE_SIZE) *
                             nalignments +
@@ -193,6 +193,7 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
                 repeats ? (PAGE_SIZE - alignments[al_idx]) : alignments[al_idx];
             make_alignment_pairs(al_pairs, alignment);
             for (uint64_t len = 0; len < sz - alignment; ++len) {
+                //                fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
                 for (uint32_t i = 0; i < NPAIRS; ++i) {
                     test1 = s1 + al_pairs[S1_IDX(i)];
                     test2 = s2_lo + al_pairs[S1_IDX(i)];
@@ -215,7 +216,7 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
 void
 run_small_tests(const memcpy_info_t * memcpy_def, int32_t with_overlap) {
     fprintf(stderr, progress_fmt, memcpy_def->name, 0UL, 4 * nalignments);
-    for (uint64_t sz = PAGE_SIZE; sz <= 2 * PAGE_SIZE; sz += PAGE_SIZE) {
+    for (uint64_t sz = PAGE_SIZE; sz <= 1 * PAGE_SIZE; sz += PAGE_SIZE) {
         if (with_overlap) {
             // todo
         }

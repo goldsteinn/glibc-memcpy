@@ -1,10 +1,11 @@
 	// log2 of alignment of L(less_vec) label (i.e 4 -> .p2align 4, etc...)
-#define LESS_VEC_ALIGNMENT	5
+#define LESS_VEC_ALIGNMENT	0
+#define MORE_2X_ALIGNMENT	0
 	// Entry alignment (alignment on function)
 #define ALIGN_ENTRY	64
 	// LSD is disabled by mismatching push/pop instructions. This is unsafe for
 	// a variety of reasons but should generally be fine
-#define DISABLE_LSD	1
+#define DISABLE_LSD	0
 
 #if DISABLE_LSD
 # define DISABLE_LSD_PREFIX	pushq	%rsp
@@ -192,6 +193,9 @@ L(nop):
 	DISABLE_LSD_POSTFIX
 	ret
 #endif
+
+
+
 	.p2align LESS_VEC_ALIGNMENT
 L(less_vec):
 	/* Less than 1 VEC.  */
@@ -262,6 +266,7 @@ L(between_2_3):
 	movw	%si, (%rdi)
 	DISABLE_LSD_POSTFIX
 	ret
+	.p2align MORE_2X_ALIGNMENT
 #if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
 L(movsb_more_2x_vec):
 	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
@@ -305,6 +310,12 @@ L(last_4x_vec):
 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
 	DISABLE_LSD_POSTFIX
 	VZEROUPPER_RETURN
+
+
+	// nop
+	// nop
+	// nop
+	// nop
 
 L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
@@ -369,7 +380,11 @@ L(loop_4x_vec_forward):
 	DISABLE_LSD_POSTFIX
 	VZEROUPPER_RETURN
 
+
+
+	// .p2align 4
 L(more_8x_vec_backward):
+
 	/* Load the first 4 * VEC and last VEC to support overlapping addresses.
 	 */
 	VMOVU	(%rsi), %VEC(4)
@@ -385,6 +400,7 @@ L(more_8x_vec_backward):
 	movq	%r11, %r9
 	movq	%r11, %r8
 	andq	$(VEC_SIZE - 1), %r8
+
 	/* Adjust source.  */
 	subq	%r8, %rcx
 	/* Adjust the end of destination which should be aligned now.  */
