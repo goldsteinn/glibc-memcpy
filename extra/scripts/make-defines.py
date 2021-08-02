@@ -1,6 +1,8 @@
 import sys
 
 cpu_name = "UNKOWN"
+
+
 class Ev_Desc:
     def __init__(self, line):
         self.valid = False
@@ -41,6 +43,11 @@ class Ev_Desc:
         ret = ret.replace("[", "{").replace("]", "}")
         return ret
 
+    def get_name(self):
+        if self.valid is False:
+            return ""
+        return self.ev_name + "\n"
+
     def get_key(self):
         if self.valid is False:
             return ""
@@ -51,7 +58,6 @@ class Ev_Desc:
 if len(sys.argv) < 2:
     print("Usage: {} {}".format(sys.argv[0], "events file"))
     sys.exit(-1)
-
 
 try:
     ev_file = open(sys.argv[1], "r")
@@ -71,7 +77,7 @@ for line in ev_file:
 ev_file.close()
 
 ev_descs = []
-
+all_events = []
 for ev_desc_key in ev_descs_filter:
     ev_descs.append(ev_descs_filter[ev_desc_key])
 
@@ -82,5 +88,17 @@ print("#ifndef {}".format(hguard_name))
 print("#define {}\n".format(hguard_name))
 for ev_desc in ev_descs:
     print(ev_desc.make_define(), end="")
+    all_events.append(ev_desc.get_name())
 
 print("\n#endif")
+
+if len(sys.argv) > 2:
+    try:
+        list_f = open(sys.argv[2], "w+")
+        for event_name in all_events:
+            list_f.write(event_name)
+        list_f.flush()
+        list_f.close()
+    except IOError:
+        print("Error writing to {}".format(sys.argv[2]))
+        sys.exit(-1)

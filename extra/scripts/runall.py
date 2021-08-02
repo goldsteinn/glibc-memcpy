@@ -3,10 +3,21 @@
 import os
 import sys
 
+cpu = "icl"
+if len(sys.argv) > 1:
+    cpu = sys.argv[1]
+
 project_path = "/home/noah/programs/projects/memcpy"
 partial_file = "partial-results.txt"
 outfile = "res.txt"
-run_cmd = "sudo ./driver -v --core 0 --rt 200000 --func memcpy_dev_v32_movsb --hr --max 32 > " + outfile
+run_func_icl = "memcpy_dev_v32_movsb"
+run_func_skl = "memcpy_dev_v32_movsb_avx2"
+run_func = run_func_icl
+if cpu == "skl":
+    run_func = run_func_skl
+
+run_cmd = "sudo ./driver -v --core 0 --rt 200000 --func {} --hr --max 32 > {}".format(
+    run_func, outfile)
 
 align_entry = [16, 32, 48, 64]
 padding = []
@@ -16,7 +27,7 @@ while i <= 1024:
     padding.append("NOP{}".format(i + 1))
     i += 16
 
-events = [
+icl_events = [
     "INT_MISC_CLEAR_RESTEER_CYCLES", "INT_MISC_RECOVERY_CYCLES",
     "INT_MISC_UOP_DROPPING", "UOPS_RETIRED_SLOTS", "UOPS_ISSUED_ANY",
     "UOPS_EXECUTED_CORE", "IDQ_UOPS_NOT_DELIVERED_CORE", "IDQ_MS_UOPS",
@@ -29,6 +40,22 @@ events = [
     "UOPS_DISPATCHED_PORT_4_9", "UOPS_DISPATCHED_PORT_5",
     "UOPS_DISPATCHED_PORT_6", "UOPS_DISPATCHED_PORT_7_8"
 ]
+skl_events = [
+    "BACLEARS_ANY", "BRANCH_INSTRUCTIONS_RETIRED",
+    "DSB2MITE_SWITCHES_PENALTY_CYCLES", "IDQ_DSB_UOPS", "IDQ_MITE_UOPS",
+    "IDQ_MS_UOPS", "IDQ_UOPS_NOT_DELIVERED_CORE",
+    "INT_MISC_CLEAR_RESTEER_CYCLES", "INT_MISC_RECOVERY_CYCLES", "LSD_UOPS",
+    "MISPREDICTED_BRANCH_RETIRED", "UOPS_DISPATCHED_PORT_0",
+    "UOPS_DISPATCHED_PORT_1", "UOPS_DISPATCHED_PORT_2",
+    "UOPS_DISPATCHED_PORT_3", "UOPS_DISPATCHED_PORT_4",
+    "UOPS_DISPATCHED_PORT_5", "UOPS_DISPATCHED_PORT_6",
+    "UOPS_DISPATCHED_PORT_7", "UOPS_ISSUED_ALL", "UOPS_RETIRED_ANY",
+    "UOPS_RETIRED_RETIRE_SLOTS"
+]
+
+events = icl_events
+if cpu == "skl":
+    events = skl_events
 
 
 def err(s):
@@ -122,8 +149,8 @@ class Run:
             if "->" in line and self.conf.ev in line:
                 perf_line = line
 
-        assert time_line != None
-        assert perf_line != None
+        assert time_line is not None
+        assert perf_line is not None
 
         scratch = time_line.split(",")
         self.time = float(scratch[len(scratch) - 1].lstrip().rstrip())
