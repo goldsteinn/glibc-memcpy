@@ -1736,8 +1736,8 @@
     { 0x0454, PERF_TYPE_RAW, "TX_MEM_ABORT_HLE_STORE_TO_ELIDED_LOCK" }
 #define UNHALTED_REFERENCE_CYCLES                                              \
     { 0x013c, PERF_TYPE_RAW, "UNHALTED_REFERENCE_CYCLES" }
-#define UNHALTED_REFERENCE_CYCLES                                              \
-    { 0x0300, PERF_TYPE_RAW, "UNHALTED_REFERENCE_CYCLES" }
+#define UNHALTED_REFERENCE_CYCLES_REF_XCLK                                     \
+    { 0x0300, PERF_TYPE_RAW, "UNHALTED_REFERENCE_CYCLES_REF_XCLK" }
 #define UOPS_DISPATCHED_PORT_0                                                 \
     { 0x01a1, PERF_TYPE_RAW, "UOPS_DISPATCHED_PORT_0" }
 #define UOPS_DISPATCHED_PORT_1                                                 \
