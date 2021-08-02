@@ -3,6 +3,7 @@
 // NAME
 
 #include <common.h>
+#include <inl-nops.h>
 #include <macro-math.h>
 #include <memory-util.h>
 #include <perf/perf-ev-read.h>
@@ -20,7 +21,7 @@
 #define run_fixed_bench CAT(run_fixed_bench_, NAME)
 #define bench_rand      CAT(bench_rand_, NAME)
 #define bench_fixed     CAT(bench_fixed_, NAME)
-//#define MEASURE_LATENCY
+#define MEASURE_LATENCY 1
 
 static BENCH_FUNC void
 run_rand_bench(const bench_conf_t * restrict confs,
@@ -29,24 +30,33 @@ run_rand_bench(const bench_conf_t * restrict confs,
                uint32_t                      trials,
                bench_char_t * restrict       mem) {
     IMPOSSIBLE(trials == 0);
+    uint32_t dst_end = 0;
     read_events_start(ev_results);
     for (; trials; --trials) {
         const bench_conf_t * loop_confs = confs;
         // prevent OOE between loops
         LIGHT_SERIALIZE();
         ALIGN_CODE(6);
-        uint64_t latency_tmp = 0;
-        (void)(latency_tmp);
+
         uint64_t start = get_cycles();
         for (uint32_t i = nrand_confs; i; --i) {
             // potentially some overhead readying loop_confs if it false aliases
             // with dst. Possibly worth splitting 4k address alignment but
             // unsure of reasonable approach
-            bench_conf_t   conf = *(loop_confs++);
-            bench_char_t * dst  = mem + conf.al_dst;
-            bench_char_t * src  = mem + conf.al_src;
-            uint32_t       sz   = conf.sz;
+            bench_conf_t conf = *(loop_confs);
+            loop_confs += (dst_end + 1);
+            bench_char_t * dst = mem + conf.al_dst;
+            bench_char_t * src = mem + conf.al_src;
+            uint32_t       sz  = conf.sz;
             DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
+#if MEASURE_LATENCY
+            uint8_t _dst_end = *(dst + sz - 1);
+            dst_end          = _dst_end;
+            asm volatile("andl  $0, %[dst_end]\n"
+                         : [dst_end] "+r"(dst_end)
+                         :
+                         :);
+#endif
         }
         uint64_t end = get_cycles();
         LIGHT_SERIALIZE();
@@ -82,7 +92,6 @@ run_fixed_bench(bench_conf_t            conf,
         uint64_t start = get_cycles();
         for (uint32_t i = inner_trials; i; --i) {
             DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
-            //            MEASURE_LATENCY();
         }
         uint64_t end = get_cycles();
         LIGHT_SERIALIZE();
