@@ -21,7 +21,7 @@
 #define run_fixed_bench CAT(run_fixed_bench_, NAME)
 #define bench_rand      CAT(bench_rand_, NAME)
 #define bench_fixed     CAT(bench_fixed_, NAME)
-#define MEASURE_LATENCY 1
+#define MEASURE_LATENCY 0
 
 static BENCH_FUNC void
 run_rand_bench(const bench_conf_t * restrict confs,

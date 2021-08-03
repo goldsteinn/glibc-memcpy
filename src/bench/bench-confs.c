@@ -171,6 +171,7 @@ make_rand_confs(uint32_t min_val, uint32_t max_val) {
 
         make_conf(confs[i], al_dst, al_src, direction, sz);
     }
+
     if (nrand_confs == size_dist_sz) {
         for (uint64_t i = 0; i < 2 * nrand_confs; ++i) {
             uint32_t     idx0 = rand() % nrand_confs;

@@ -10,6 +10,10 @@ import statistics
 parser = argparse.ArgumentParser(
     description="Graph Performance of Memcpy Random Benchmark")
 parser.add_argument("-f", action="store", default="", help="CSV File")
+parser.add_argument("--save",
+                    action="store_true",
+                    default=False,
+                    help="Save output as PNG")
 parser.add_argument(
     "-a",
     action="store_true",
@@ -19,10 +23,16 @@ parser.add_argument("-e",
                     action="store_true",
                     default=False,
                     help="Graph multiple events with one alignment")
-parser.add_argument("--events",
-                    action="store",
-                    default="",
-                    help="CSV of events to track (empty for median cycles)")
+parser.add_argument(
+    "--levents",
+    action="store",
+    default=None,
+    help="CSV of events to track (empty position for median cycles)")
+parser.add_argument(
+    "--revents",
+    action="store",
+    default=None,
+    help="CSV of events to track (empty position for median cycles)")
 parser.add_argument(
     "--alignments",
     action="store",
@@ -38,11 +48,10 @@ parser.add_argument("--pmax",
                     action="store",
                     default="-1",
                     help="Max padding value (-1 to ignore)")
-parser.add_argument(
-    "--pmod64",
-    action="store",
-    default="-1",
-    help="Padding value == pmod64 (-1 to ignore, ignores lowest bit)")
+parser.add_argument("--pmod64",
+                    action="store",
+                    default=None,
+                    help="CSV. Padding value % 64 in pmod64 (None to ignore)")
 parser.add_argument("--pmod2",
                     action="store",
                     default="0",
@@ -70,6 +79,16 @@ def make_event_title(s):
         return "Median Ref Cycles"
     else:
         return "Event Count: {}".format(s)
+
+
+def array_to_str(arr, p):
+    if arr is None or len(arr) == 0:
+        return "empty"
+
+    arr_str = str(arr[0])
+    for i in range(1, len(arr)):
+        arr_str += p + str(arr[i])
+    return arr_str
 
 
 class Alignment_Result:
@@ -116,32 +135,53 @@ class Alignment_Result:
 
 
 class Padding_Constraint:
-    def __init__(self, min_padding, max_padding, mod_64, mod_2):
+    def __init__(self, min_padding, max_padding, mod_64_vals, mod_2):
         self.min_padding = min_padding
         self.max_padding = max_padding
-        self.mod_64 = mod_64
+        self.mod_64_vals = mod_64_vals
         self.mod_2 = mod_2
+
+    def to_str(self):
+        return "{}_{}_{}_{}".format(self.min_padding, self.max_padding,
+                                    array_to_str(self.mod_64_vals, "_"),
+                                    self.mod_2)
 
     def valid(self, padding):
         if self.min_padding != -1 and self.min_padding > padding:
             return False
         if self.max_padding != -1 and self.max_padding < padding:
             return False
-        if self.mod_64 != -1 and self.mod_64 != (
-            (int(padding % 64) >> 1) << 1):
-            return False
+        if len(self.mod_64_vals) != 0:
+            hit = False
+            v = ((int(padding % 64) >> 1) << 1)
+            for mod_64 in self.mod_64_vals:
+                if v == int(mod_64 % 64):
+                    hit = True
+                    break
+            if hit is False:
+                return False
         if self.mod_2 != -1 and self.mod_2 != int(padding % 2):
             return False
         return True
 
 
 class Grapher:
-    def __init__(self, al_entrys, padding_constraints, ev_names):
+    def __init__(self, al_entrys, padding_constraints, lev_names, rev_names,
+                 save):
         self.al_entrys = al_entrys
         self.padding_constraints = padding_constraints
-        self.ev_names = ev_names
+        self.ev_split = len(lev_names)
+        if len(lev_names) == 0:
+            self.ev_split = len(rev_names)
+        self.ev_names = lev_names + rev_names
+        self.colors = ['r', 'g', 'b', 'y', 'm', 'c']
+        self.save = save
 
-        self.colors = ['r', 'g', 'b', 'y', 'm']
+    def savename(self):
+        return "figs/{}_{}_{}_{}.png".format(array_to_str(self.al_entrys, "_"),
+                                        self.padding_constraints.to_str(),
+                                        self.ev_split,
+                                        array_to_str(self.ev_names, "_"))
 
     def include_al_entry(self, al_entry):
         return al_entry in self.al_entrys
@@ -194,26 +234,11 @@ class Grapher:
             for j_data in i_data:
                 assert j_data != 0.0, "Missing data!"
 
-    def find_seperator(self, result_values):
-        max_vals = []
-        for i_data in result_values:
-            max_vals.append(max(i_data))
-
-        max_ratio = 0.0
-        max_ratio_idx = 0
-        for i in range(0, len(max_vals) - 1):
-            lo = min(max_vals[i], max_vals[i + 1])
-            hi = max(max_vals[i], max_vals[i + 1])
-            if max_ratio < (hi / lo):
-                max_ratio_idx = i
-                max_ratio = hi / lo
-        if max_ratio > 100.0:
-            return max_ratio_idx + 1
-        return len(result_values)
-
     def plot_results_2y(self, i_indexes, j_indexes, i_seperator, ylabel, title,
                         result_values):
-        fig, ax = plt.subplots()
+        fig = plt.figure(figsize=(11, 6))
+        ax = fig.add_subplot()
+
         x_axis = np.arange(len(j_indexes))
         bar_width = 1.0 / float(len(i_indexes) + 1)
         for i in range(0, i_seperator):
@@ -223,7 +248,7 @@ class Grapher:
                    color=self.colors[i],
                    width=bar_width)
 
-        plt.xticks(x_axis, j_indexes)
+        plt.xticks(x_axis, j_indexes, fontsize=10)
         ax.set_ylabel(ylabel)
         ax.set_xlabel("Padding Bytes")
         ax2 = ax.twinx()
@@ -237,22 +262,34 @@ class Grapher:
         ax.legend(loc='upper left')
         ax2.legend(loc='upper right')
         plt.title(title)
+        plt.subplots_adjust(left=0.075, right=0.925, top=0.925, bottom=0.075)
+        if self.save:
+            sname = self.savename()
+            print("Saving as: {}".format(sname))
+            plt.savefig(sname)
         plt.show()
 
     def plot_results(self, i_indexes, j_indexes, ylabel, title, result_values):
+        fig = plt.figure(figsize=(11, 6))
+        ax = fig.add_subplot()
         x_axis = np.arange(len(j_indexes))
         bar_width = 1.0 / float(len(i_indexes) + 1)
         for i in range(0, len(i_indexes)):
-            plt.bar(x_axis + bar_width * float(i),
-                    result_values[i],
-                    label=make_event_title(i_indexes[i]),
-                    color=self.colors[i],
-                    width=bar_width)
-        plt.xticks(x_axis, j_indexes)
-        plt.ylabel(ylabel)
-        plt.xlabel("Padding Bytes")
+            ax.bar(x_axis + bar_width * float(i),
+                   result_values[i],
+                   label=make_event_title(i_indexes[i]),
+                   color=self.colors[i],
+                   width=bar_width)
+        plt.xticks(x_axis, j_indexes, fontsize=10)
+        ax.set_ylabel(ylabel)
+        ax.set_xlabel("Padding Bytes")
         plt.title(title)
         plt.legend()
+        plt.subplots_adjust(left=0.075, right=0.96, top=0.925, bottom=0.075)
+        if self.save:
+            sname = self.savename()
+            print("Saving as: {}".format(sname))
+            plt.savefig(sname)
         plt.show()
 
     def plot_ev_names(self, al_results):
@@ -265,13 +302,12 @@ class Grapher:
         for result in results_to_graph:
             for i in range(0, len(self.ev_names)):
                 j = padding_map[result.padding]
-                result_values[i][j] = result.get_result_value(self.ev_names[i])
+                result_values[i][j] = float(result.get_result_value(self.ev_names[i])) / (4096.0 * 100.0 * 100.0 * 10.0)
 
         self.verify_result_values(result_values)
 
-        i_seperator = self.find_seperator(result_values)
         self.plot_results_2y(
-            self.ev_names, padding_indexes, i_seperator, "Counter Value",
+            self.ev_names, padding_indexes, self.ev_split, "Counter Value",
             "Memcpy Perf Counters w/ Varying Padding, Align Entry = {}".format(
                 self.al_entrys[0]), result_values)
 
@@ -319,22 +355,40 @@ def parse_csv(fname):
         return all_al_results
 
 
+def init_csv_arg(csv_str, T):
+    if csv_str is None:
+        return []
+    csv_dups = csv_str.split(",")
+    csv_set = {}
+    for event in csv_dups:
+        csv_set[event] = True
+    elements = []
+    for ele in csv_set:
+        elements.append(T(ele))
+    return elements
+
+
 args = parser.parse_args()
 fname = args.f
 assert fname != "" and os.path.isfile(fname)
+
+save = args.save
 
 graph_alignments = args.a
 graph_events = args.e
 assert graph_events or graph_alignments
 assert graph_events is not graph_alignments
 
-events_dups = args.events.split(",")
-events_set = {}
-for event in events_dups:
-    events_set[event] = True
-events = []
-for event in events_set:
-    events.append(event)
+levents_str = args.levents
+revents_str = args.revents
+assert levents_str is not None or revents_str is not None
+
+levents = init_csv_arg(levents_str, str)
+revents = init_csv_arg(revents_str, str)
+for ev in revents:
+    assert ev not in levents, "Duplicate event: {}".format(ev)
+for ev in levents:
+    assert ev not in revents, "Duplicate event: {}".format(ev)
 
 al_entry_strs = args.alignments.split(",")
 assert len(al_entry_strs) > 0
@@ -346,12 +400,14 @@ for al_entry_str in al_entry_strs:
 
 pmin = int(args.pmin)
 pmax = int(args.pmax)
-pmod64 = int(args.pmod64)
+
+pmod64 = init_csv_arg(args.pmod64, int)
+
 pmod2 = int(args.pmod2)
 
-padding_contraints = Padding_Constraint(pmin, pmax, pmod64, pmod2)
+padding_constraints = Padding_Constraint(pmin, pmax, pmod64, pmod2)
 
-grapher = Grapher(al_entrys, padding_contraints, events)
+grapher = Grapher(al_entrys, padding_constraints, levents, revents, save)
 if graph_events:
     grapher.plot_ev_names(parse_csv(fname))
 else:
