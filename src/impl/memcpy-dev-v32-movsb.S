@@ -3,4 +3,4 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #include "evex-vecs.h"
-#include "core/memcpy-dev-v4.S"
+#include "core/memcpy-dev-v9.S"

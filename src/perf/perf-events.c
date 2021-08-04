@@ -1,15 +1,19 @@
-#include <config-shit.h>
 #include "cpu-event-defs/event-defs.h"
 #include "perf-ev-defines.h"
 #include "perf-ev-init.h"
 
 const perf_ev_t perf_events_in_use[] = {
 #if PERF_EV_WITH_BUILTINS
-    INST_RETIRED_ANY_P, UNHALTED_CORE_CYCLES, UNHALTED_REFERENCE_CYCLES,
+    INST_RETIRED_ANY_P,
+    UNHALTED_CORE_CYCLES,
+    UNHALTED_REFERENCE_CYCLES,
 #endif
 #if PERF_EVENTS
-    EVENT_TO_CHECK
-// UOPS_RETIRED_SLOTS
+    LSD_UOPS,
+    IDQ_UOPS_NOT_DELIVERED_CORE,
+    INT_MISC_RECOVERY_CYCLES,
+    MISPREDICTED_BRANCH_RETIRED
+// UOPS_RETIRED_SLOTS,
 // UOPS_ISSUED_ANY,
 // UOPS_EXECUTED_CORE,
 // IDQ_UOPS_NOT_DELIVERED_CORE,
