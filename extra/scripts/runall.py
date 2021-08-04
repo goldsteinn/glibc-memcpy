@@ -16,13 +16,13 @@ run_func = run_func_icl
 if cpu == "skl":
     run_func = run_func_skl
 
-run_cmd = "sudo ./driver -v --core 0 --rt 200000 --func {} --hr --max 31 > {}".format(
+run_cmd = "sudo ./driver -v --core 0 --rt 200000 --func {} --hr > {}".format(
     run_func, outfile)
 
 align_entry = [16, 32, 48, 64]
 padding = []
 i = 0
-while i <= 512:
+while i <= 128:
     padding.append("NOP{}".format(i))
     padding.append("NOP{}".format(i + 1))
     i += 16

@@ -302,7 +302,7 @@ class Grapher:
         for result in results_to_graph:
             for i in range(0, len(self.ev_names)):
                 j = padding_map[result.padding]
-                result_values[i][j] = float(result.get_result_value(self.ev_names[i])) / (4096.0 * 100.0 * 100.0 * 10.0)
+                result_values[i][j] = result.get_result_value(self.ev_names[i])
 
         self.verify_result_values(result_values)
 
