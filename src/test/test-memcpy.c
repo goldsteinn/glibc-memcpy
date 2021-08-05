@@ -216,7 +216,7 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
 void
 run_small_tests(const memcpy_info_t * memcpy_def, int32_t with_overlap) {
     fprintf(stderr, progress_fmt, memcpy_def->name, 0UL, 4 * nalignments);
-    for (uint64_t sz = PAGE_SIZE; sz <= 1 * PAGE_SIZE; sz += PAGE_SIZE) {
+    for (uint64_t sz = PAGE_SIZE; sz <= 2 * PAGE_SIZE; sz += PAGE_SIZE) {
         if (with_overlap) {
             // todo
         }

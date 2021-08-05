@@ -163,7 +163,7 @@ make_rand_confs(uint32_t min_val, uint32_t max_val) {
     die_assert(nrand_confs <= size_dist_sz, "Not enough confs!");
 
     for (uint64_t i = 0; i < nrand_confs; ++i) {
-        int      direction = 0;//rand() % 2;
+        int      direction = rand() % 2;
         uint32_t dst_idx   = rand() % align_dist_sz;
         uint32_t al_dst    = dst_align_dist[dst_idx] +
                           (direction ? 0 * PAGE_SIZE : 4 * PAGE_SIZE);
