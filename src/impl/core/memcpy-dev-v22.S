@@ -1,5 +1,5 @@
 #include "asm-common.h"
-#include "../evex-vecs.h"
+
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
