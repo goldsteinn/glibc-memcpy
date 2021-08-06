@@ -20,6 +20,7 @@ uint32_t bench           = 0;
 uint32_t min_rand_size   = 0;
 uint32_t max_rand_size   = UINT32_MAX;
 uint32_t rand_size_scale = 1;
+uint32_t nrand_confs     = num_rand_confs;
 
 char * func_name = NULL;
 char * file_path = NULL;
@@ -40,6 +41,7 @@ static ArgOption args[] = {
   {     KindOption,     Integer, 	"--min",    0,      &min_rand_size,     "Min size for random distribution" },
   {     KindOption,     Integer, 	"--max",    0,      &max_rand_size,     "Max size for random distribution" },
   {     KindOption,     Integer, 	"--scale",  0,      &rand_size_scale,   "Scale factor for random size distribution" },
+  {     KindOption,     Integer, 	"--nconfs", 0,      &nrand_confs,       "Number of rand configs. Must be power of 2." },
 
   {     KindHelp,       Help,       "-h",       0,      NULL,               ""  },
   {     KindEnd,        EndOptions, "",         0,      NULL,               ""  }
@@ -104,7 +106,7 @@ main(int argc, char ** argv) {
 
         if (rand_trials) {
             init_rand_params(params + nparams, rand_trials, min_rand_size,
-                             max_rand_size, rand_size_scale);
+                             max_rand_size, rand_size_scale, nrand_confs);
             ++nparams;
         }
 

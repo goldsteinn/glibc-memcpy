@@ -28,6 +28,7 @@ run_rand_bench(const bench_conf_t * restrict confs,
                uint64_t * restrict           times,
                ev_counter_t * restrict       ev_results,
                uint32_t                      trials,
+               uint32_t                      nrand_confs,
                bench_char_t * restrict       mem) {
     IMPOSSIBLE(trials == 0);
     uint32_t dst_end = 0;
@@ -131,13 +132,15 @@ bench_rand(const bench_params_t * restrict params,
            ev_counter_t * restrict         ev_results,
            bench_char_t * restrict         mem_lo) {
 
-    const bench_conf_t * restrict confs  = params->confs;
-    uint32_t                      trials = params->trials;
+    const bench_conf_t * restrict confs       = params->confs;
+    uint32_t                      trials      = params->trials;
+    uint32_t                      nrand_confs = params->nrand_confs;
     // warmup
-    run_rand_bench(confs, times, ev_results, (trials / 4) | 1, mem_lo);
+    run_rand_bench(confs, times, ev_results, (trials / 4) | 1, nrand_confs,
+                   mem_lo);
     LIGHT_SERIALIZE();
 
-    run_rand_bench(confs, times, ev_results, trials, mem_lo);
+    run_rand_bench(confs, times, ev_results, trials, nrand_confs, mem_lo);
     LIGHT_SERIALIZE();
 }
 

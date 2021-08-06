@@ -46,7 +46,7 @@ display_results(FILE *                 fp,
                     params_get_conf_al_dst(params, i),
                     params_get_conf_al_src(params, i),
                     params_get_conf_direction(params, i), params->trials,
-                    params->todo == FIXED ? inner_trials : nrand_confs,
+                    params->todo == FIXED ? inner_trials : params->nrand_confs,
                     stats[i].mean, stats[i].median, stats[i].gmean,
                     stats[i].min, stats[i].max, stats[i].stdev);
             display_counters(fp, &(result->ev_results), perf_events,

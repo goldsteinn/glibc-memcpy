@@ -1,18 +1,10 @@
-#! /usr/bin/env python3
-
 import os
 import sys
 
 project_path = "/home/noah/programs/projects/memcpy"
-partial_file = "partial-results.txt"
-outfile = "res.txt"
-run_func_icl = "memcpy_dev_v32_movsb"
-run_func = run_func_icl
-
-run_cmd = "./driver -v --core 0 --rt 100000 --func {} --hr --min 257 > {}".format(
-    run_func, outfile)
-
-nops = [0, 16, 32, 48]
+outfile = "results.txt"
+tmpfile = "tmp.txt"
+run_cmd = "./driver --core 0 --rt {} --func {} --min {} --max {} --scale {} --nconfs {}"
 
 
 def err(s):
@@ -20,121 +12,107 @@ def err(s):
     sys.exit(-1)
 
 
-def make_key(ae, td, ev):
-    return str(ae) + "-" + str(td) + "-" + str(ev)
-
-
-class Result:
-    def __init__(self, conf, time):
-        self.conf = conf
-        self.time = time
-
-    def get_key(self):
-        return self.conf.get_key()
-
-    def csv_out(self):
-        return "{},{}".format(self.conf.to_str(), self.time)
-
-
 class Config:
-    def __init__(self, p0, p1, p2):
-        self.p0 = str(p0)
-        self.p1 = str(p1)
-        self.p2 = str(p2)
+    def __init__(self, func, minv, maxv, scalev):
+        self.func = func
+        self.minv = minv
+        self.maxv = maxv
+        self.scalev = scalev
+        self.nconfs = 65536
 
-    def get_content(self):
-        content = [
-            "#ifndef _PADDING_CONF_H_", "#define  _PADDING_CONF_H_",
-            "#define PADDING0 [0]", "#define PADDING1 [1]",
-            "#define PADDING2 [2]", "#endif"
-        ]
-        out = ""
-        for c in content:
-            out += c.replace("[0]", "NOP" + self.p0).replace(
-                "[1]", "NOP" + self.p1).replace("[2]", "NOP" + self.p2) + "\n"
+    def handle_abort(self):
+        if self.nconfs == 2048:
+            return False
+        self.nconfs = int(self.nconfs / 2)
+        return True
+    def calculate_trials(self):
+        return int(65536 / self.nconfs) * 10000
 
-        return out
-
-    def get_key(self):
-        return make_key(self.p0, self.p1, self.p2)
-
-    def to_str(self):
-        return "{},{},{}".format(self.p0, self.p1, self.p2)
-
-    def write_config(self):
-        path = project_path + "/src/impl/core/padding-conf.h"
-        try:
-            f = open(path, "w+")
-            f.write(self.get_content())
-            f.flush()
-            f.close()
-        except IOError:
-            err("Error writing to: {}".format(path))
+    def generate_cmd(self):
+        return run_cmd.format(self.calculate_trials(), self.func, self.minv, self.maxv, self.scalev,
+                              self.nconfs)
 
 
-class Run:
-    def __init__(self, conf):
+class Runner:
+    def __init__(self, conf, first):
         self.conf = conf
-        self.time = None
-        self.has_run = False
+        self.first = first
+        self.success = False
 
     def run(self):
-        self.conf.write_config()
         ret = os.system(
             "(cd {}/build; make clean > /dev/null 2>&1; make > /dev/null 2>&1)"
             .format(project_path))
         assert ret == 0
-        ret = os.system("(cd {}/build; {})".format(project_path, run_cmd))
-        assert ret == 0
-        self.has_run = True
 
-        self.parse_output()
+        while True:
+            cmd = self.conf.generate_cmd()
+            print("\t\t{}".format(cmd))
+            ret = os.system("(cd {}/build; {} > {} 2>&1)".format(
+                project_path, cmd, tmpfile))
+            if ret != 0:
+                if self.conf.handle_abort() is False:
+                    self.success = False
+                    return False
+            else:
+                self.success = True
+                return True
 
     def parse_output(self):
-        assert self.has_run
-        lines = []
-        for line in open("{}/build/{}".format(project_path, outfile)):
-            lines.append(line)
+        if self.success is False:
+            return ""
 
-        time_line = None
-        for line in lines:
-            if "rand SPEC2017" in line:
-                time_line = line
+        hdr_content = ""
+        csv_content = ""
+        for line in open("{}/build/{}".format(project_path, tmpfile)):
+            assert "error" not in line.lower() and "abort" not in line.lower()
+            if "impl name" in line:
+                hdr_content = line
+            if "rand" in line:
+                csv_content = line
+                break
+        assert csv_content != ""
+        hdr_content = hdr_content.rstrip().lstrip()
+        csv_content = csv_content.rstrip().lstrip() + "\n"
+        if self.first is True:
+            hdr_content += "\n"
+        return hdr_content + csv_content
 
-        assert time_line is not None
 
-        scratch = time_line.split(",")
-        self.time = float(scratch[len(scratch) - 1].lstrip().rstrip())
+bounds = [[16, 256], [32, 256], [33, 256], [16, 257], [32, 257], [33, 257]]
 
-    def get_result(self):
-        assert self.has_run
-        return Result(self.conf, self.time)
+no_min_maxes = [31, 32, 64, 65, 128, 256]
+no_max_mins = [32, 33, 64, 65, 129, 257]
 
+for maxes in no_min_maxes:
+    bounds.append([0, maxes])
+for mins in no_max_mins:
+    bounds.append([mins, -1])
 
-results = {}
-
+funcs = ["memcpy_dev_v32_movsb", "memcpy_glibc_v32_movsb"]
+scales = [1, 2, 4, 8, 16, 32, 64, 128, 256]
 confs = []
-for i in range(0, 4):
-    for j in range(0, 4):
-        for k in range(0, 4):
-            confs.append(Config(nops[i], nops[j], nops[k]))
+for func in funcs:
+    for bound in bounds:
+        confs.append(Config(func, bound[0], bound[1], 1))
+    for scale in scales:
+        confs.append(Config(func, 0, -1, scale))
 
-partialf = open(partial_file, "w+")
-for conf in confs:
-    r = Run(conf)
-    r.run()
-    res = r.get_result()
-    partialf.write(res.csv_out() + "\n")
-    partialf.flush()
-    if res.get_key() in results:
-        err("{} already in results".format(res.get_key()))
-    results[res.get_key()] = res
+f = None
+try:
+    f = open(outfile, "w+")
+except IOError:
+    err("Unable to open file")
 
-partialf.close()
-res_file = "results.txt"
-f = open(res_file, "w+")
-for conf in confs:
-    res = results[conf.get_key()]
-    f.write(res.csv_out() + "\n")
-f.flush()
+first = True
+for i in range(0, len(confs)):
+    print("[{:4d} / {:4d}]:".format(i, len(confs)))
+
+    runner = Runner(confs[i], first)
+    runner.run()
+    res = runner.parse_output()
+    f.write(res)
+    f.flush()
+    first = False
+
 f.close()

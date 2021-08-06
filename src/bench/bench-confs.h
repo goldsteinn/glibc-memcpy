@@ -14,7 +14,8 @@ typedef struct bench_conf {
 
 bench_conf_t * make_rand_confs(uint32_t min_val,
                                uint32_t max_val,
-                               uint32_t size_scale);
+                               uint32_t size_scale,
+                               uint32_t nrand_confs);
 bench_conf_t * make_small_confs(uint32_t dst_al_offset, uint32_t * nconfs_out);
 bench_conf_t * make_medium_confs(uint32_t dst_al_offset, uint32_t * nconfs_out);
 bench_conf_t * make_large_confs(uint32_t * nconfs_out);

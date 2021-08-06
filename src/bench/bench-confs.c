@@ -141,7 +141,10 @@ make_data_dist(const freq_data_t * freq_in,
 }
 
 bench_conf_t *
-make_rand_confs(uint32_t min_val, uint32_t max_val, uint32_t size_scale) {
+make_rand_confs(uint32_t min_val,
+                uint32_t max_val,
+                uint32_t size_scale,
+                uint32_t nrand_confs) {
     die_assert(min_val <= max_val);
     freq_data_t * scaled_src_align_freq = scale_align_freq(src_align_freq);
     freq_data_t * scaled_dst_align_freq = scale_align_freq(dst_align_freq);
@@ -166,9 +169,9 @@ make_rand_confs(uint32_t min_val, uint32_t max_val, uint32_t size_scale) {
         int      direction = rand() % 2;
         uint32_t dst_idx   = rand() % align_dist_sz;
         uint32_t al_dst    = dst_align_dist[dst_idx] +
-                          (direction ? 0 * PAGE_SIZE : 4 * PAGE_SIZE);
+                          (direction ? 0 * PAGE_SIZE : 8 * PAGE_SIZE);
         uint32_t al_src =
-            src_align_dist[rand() % align_dist_sz] + 2 * PAGE_SIZE;
+            src_align_dist[rand() % align_dist_sz] + 4 * PAGE_SIZE;
         uint32_t sz =
             size_dist[(nrand_confs == size_dist_sz) ? i
                                                     : (rand() % size_dist_sz)];
