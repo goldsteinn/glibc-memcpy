@@ -30,7 +30,7 @@ free_buf(void * p, uint64_t sz) {
     safe_munmap(p - PAGE_SIZE, sz + 2 * PAGE_SIZE);
 }
 
-#define NPAIRS    4
+#define NPAIRS    7
 #define S1_IDX(x) ((x) << 1)
 #define S2_IDX(x) (((x) << 1) + 1)
 
@@ -45,8 +45,17 @@ make_alignment_pairs(uint64_t * pairs, uint64_t alignment) {
     pairs[S1_IDX(2)] = alignment;
     pairs[S2_IDX(2)] = alignment;
 
-    pairs[S1_IDX(3)] = (alignment * 3) / 5;
-    pairs[S2_IDX(3)] = alignment / 3;
+    pairs[S1_IDX(3)] = !!alignment;
+    pairs[S2_IDX(3)] = alignment;
+
+    pairs[S1_IDX(4)] = alignment;
+    pairs[S2_IDX(4)] = !!alignment;
+
+    pairs[S1_IDX(5)] = (alignment * 3) / 5;
+    pairs[S2_IDX(5)] = alignment / 3;
+
+    pairs[S1_IDX(6)] = alignment / 3;
+    pairs[S2_IDX(6)] = (alignment * 3) / 5;
 }
 
 #define START 1
@@ -105,8 +114,35 @@ check_region(const uint8_t * s1, const uint8_t * s2, uint64_t len) {
             return 1;
         }
     }
-    return 0;
+    return memcmp(s1, s2, len);
 }
+
+static int32_t
+check_region_mm(const uint8_t * s1, const uint8_t * s2, uint64_t len) {
+
+    return memcmp(s1, s2, len);
+}
+
+
+static void
+init_memmove(uint8_t * s1_start,
+             uint8_t * s1_end,
+             uint8_t * s1,
+             uint8_t * s2_tmp,
+             uint8_t * s2,
+             uint64_t  len) {
+    init_region(s2, len);
+#if MEMMOVE_SENTINELS
+    init_sentinel(s1_start, s1, START);
+    init_sentinel(s1 + len, s1_end, END);
+#endif
+    memcpy(s2_tmp, s2, len);
+
+    (void)(s1_start);
+    (void)(s1_end);
+    (void)(s1);
+}
+
 
 static void
 init_memcpy(uint8_t * s1_start,
@@ -150,6 +186,100 @@ check_memcpy(const uint8_t * s1_start,
     return 0;
 }
 
+static int32_t
+check_memmove(const uint8_t * s1_start,
+              const uint8_t * s1_end,
+              const uint8_t * s1,
+              const uint8_t * s2_tmp,
+              uint64_t        len) {
+#if MEMMOVE_SENTINELS
+    if (check_sentinel(s1_start, s1, START)) {
+        fprintf(stderr, "Start Sentinel Error\n");
+        return 1;
+    }
+#endif
+    if (check_region_mm(s1, s2_tmp, len)) {
+        fprintf(stderr, "Region Error\n");
+        for (uint32_t i = 0; i < len; ++i) {
+            uint32_t tmp = s1[i] == s2_tmp[i];
+            fprintf(stderr, "%u: %x vs %x --> %d\n", i, s1[i], s2_tmp[i], tmp);
+            if (!tmp) {
+                break;
+            }
+        }
+        return 2;
+    }
+#if MEMMOVE_SENTINELS
+    if (check_sentinel(s1 + len, s1_end, END)) {
+        fprintf(stderr, "End Sentinel Error\n");
+        return 3;
+    }
+#endif
+    (void)(s1_start);
+    (void)(s1_end);
+    return 0;
+}
+
+
+static void
+run_small_overlapp_tests_kernel(const memcpy_info_t * memcpy_def, uint64_t sz) {
+    const char *      name        = memcpy_def->name;
+    const memcpy_func func        = memcpy_def->run_memcpy;
+    size_t            progress_sz = sz;
+    uint8_t *         s_base      = make_buf(sz);
+    uint8_t *         s_tmp       = make_buf(sz);
+    init_region(s_base, sz);
+    init_region(s_tmp, sz);
+    uint8_t *test1, *test2;
+
+    uint64_t al_pairs[NPAIRS << 1] = { 0 };
+    for (uint32_t repeats = 0; repeats < 2; ++repeats) {
+        for (uint64_t al_idx = 0; al_idx < nalignments; ++al_idx) {
+
+            fprintf(stderr, progress_fmt, name,
+                    (repeats + (progress_sz & (~PAGE_SIZE)) / PAGE_SIZE) *
+                            nalignments +
+                        al_idx,
+                    4 * nalignments);
+
+            uint64_t alignment =
+                repeats ? (PAGE_SIZE - alignments[al_idx]) : alignments[al_idx];
+            make_alignment_pairs(al_pairs, alignment);
+            for (uint64_t len = 0; len < sz - alignment; ++len) {
+                //               fprintf(stderr, "%d:%lu:%lu\n", repeats,
+                //               al_idx, len);
+                for (uint32_t i = 0; i < NPAIRS; ++i) {
+                    test1 = s_base + al_pairs[S1_IDX(i)];
+                    test2 = s_base + al_pairs[S2_IDX(i)];
+                    init_memmove(s_base, s_base + sz, test1, s_tmp, test2, len);
+                    func(test1, test2, len);
+                    die_assert(
+                        !check_memmove(s_base, s_base + sz, test1, s_tmp, len));
+
+
+                    test1 = s_base + ((sz - len) - 0);
+                    test2 = s_base + al_pairs[S2_IDX(i)];
+                    init_memmove(s_base, s_base + sz, test1, s_tmp, test2, len);
+                    func(test1, test2, len);
+                    die_assert(
+                        !check_memmove(s_base, s_base + sz, test1, s_tmp, len));
+
+                    test1 = s_base + al_pairs[S1_IDX(i)];
+                    test2 = s_base + ((sz - len) - 0);
+                    init_memmove(s_base, s_base + sz, test1, s_tmp, test2, len);
+                    func(test1, test2, len);
+                    die_assert(
+                        !check_memmove(s_base, s_base + sz, test1, s_tmp, len));
+                }
+            }
+        }
+    }
+
+    free_buf(s_base, sz);
+    free_buf(s_tmp, sz);
+}
+
+
 static void
 run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
                                    uint64_t              sz) {
@@ -178,15 +308,16 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
             }
         }
     }
-
+    init_region(s1, sz);
     init_region(s2_lo, sz);
     init_region(s2_hi, sz);
+
     uint8_t *test1, *test2;
 
     uint64_t al_pairs[NPAIRS << 1] = { 0 };
     for (uint32_t repeats = 0; repeats < 2; ++repeats) {
         for (uint64_t al_idx = 0; al_idx < nalignments; ++al_idx) {
-            
+
             fprintf(stderr, progress_fmt, name,
                     (repeats + (progress_sz & (~PAGE_SIZE)) / PAGE_SIZE) *
                             nalignments +
@@ -197,16 +328,18 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
                 repeats ? (PAGE_SIZE - alignments[al_idx]) : alignments[al_idx];
             make_alignment_pairs(al_pairs, alignment);
             for (uint64_t len = 0; len < sz - alignment; ++len) {
-                //                                fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
+                //                                fprintf(stderr,
+                //                                "%d:%lu:%lu\n", repeats,
+                //                                al_idx, len);
                 for (uint32_t i = 0; i < NPAIRS; ++i) {
                     test1 = s1 + al_pairs[S1_IDX(i)];
-                    test2 = s2_lo + al_pairs[S1_IDX(i)];
+                    test2 = s2_lo + al_pairs[S2_IDX(i)];
                     init_memcpy_sentinels(s1, s1 + sz, test1, len);
                     func(test1, test2, len);
                     die_assert(!check_memcpy(s1, s1 + sz, test1, test2, len));
 
                     test1 = s1 + al_pairs[S1_IDX(i)];
-                    test2 = s2_hi + al_pairs[S1_IDX(i)];
+                    test2 = s2_hi + al_pairs[S2_IDX(i)];
                     init_memcpy_sentinels(s1, s1 + sz, test1, len);
                     func(test1, test2, len);
                     die_assert(!check_memcpy(s1, s1 + sz, test1, test2, len));
@@ -214,15 +347,18 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
             }
         }
     }
+    free_buf(s1, sz);
+    free_buf(s2_lo, sz);
+    free_buf(s2_hi, sz);
 }
 
 
 void
 run_small_tests(const memcpy_info_t * memcpy_def, int32_t with_overlap) {
     fprintf(stderr, progress_fmt, memcpy_def->name, 0UL, 4 * nalignments);
-    for (uint64_t sz = 1  * PAGE_SIZE; sz <= 2 * PAGE_SIZE; sz += PAGE_SIZE) {
-        if (with_overlap) {
-            // todo
+    for (uint64_t sz = 1 * PAGE_SIZE; sz <= 2 * PAGE_SIZE; sz += PAGE_SIZE) {
+        if (!with_overlap) {
+            run_small_overlapp_tests_kernel(memcpy_def, sz);
         }
         else {
             run_small_no_overlapp_tests_kernel(memcpy_def, sz);

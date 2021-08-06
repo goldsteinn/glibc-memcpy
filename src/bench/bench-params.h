@@ -14,10 +14,17 @@ typedef struct bench_params {
     const char *    test_name;
     uint32_t        trials;
     bench_options_t todo;
+    uint32_t        rand_conf_min_val;
+    uint32_t        rand_conf_max_val;
+    uint32_t        rand_conf_size_scale;
 } bench_params_t;
 
 
-void init_rand_params(bench_params_t * params_out, int32_t trials, uint32_t min_val, uint32_t max_val);
+void init_rand_params(bench_params_t * params_out,
+                      int32_t          trials,
+                      uint32_t         min_val,
+                      uint32_t         max_val,
+                      uint32_t         size_scale);
 void init_small_params(bench_params_t * params_out,
                        uint32_t         dst_al_offset,
                        int32_t          trials);
@@ -27,4 +34,13 @@ void init_medium_params(bench_params_t * params_out,
 void init_large_params(bench_params_t * params_out, int32_t trials);
 
 void destroy_params(bench_params_t * params, uint64_t nparams);
+
+uint32_t params_get_conf_sz(const bench_params_t * params, uint32_t i);
+
+uint32_t params_get_conf_al_dst(const bench_params_t * params, uint32_t i);
+
+uint32_t params_get_conf_al_src(const bench_params_t * params, uint32_t i);
+uint32_t params_get_conf_direction(const bench_params_t * params, uint32_t i);
+
+
 #endif

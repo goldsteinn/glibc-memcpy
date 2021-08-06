@@ -9,13 +9,13 @@
     "10s"
 
 #define csv_body                                                               \
-    "%-24s,%-16s,%-8u,%-7u,%-7u,%-9u,%-7u,%-12u,%-10.3E,%-10.3E,%-10.3E,%-10." \
+    "%-24s,%-16s,%-8d,%-7d,%-7d,%-9d,%-7d,%-12d,%-10.3E,%-10.3E,%-10.3E,%-10." \
     "2E,%-"                                                                    \
     "10.3E,%-10.3E"
 
 #define hr_csv_hdr "%-16s,%-8s,%-7s,%-7s,%-9s,%-10s\n"
 
-#define hr_csv_body "%-16s,%-8u,%-7u,%-7u,%-9u,%-10.4E\n"
+#define hr_csv_body "%-16s,%-8d,%-7d,%-7d,%-9d,%-10.4E\n"
 
 extern char *    file_path;
 extern int32_t   human_readable;
@@ -31,18 +31,21 @@ display_results(FILE *                 fp,
     uint64_t nconfs = params->nconfs;
     for (uint32_t i = 0; i < nconfs; ++i) {
         if (human_readable) {
-            fprintf(fp, hr_csv_body, params->test_name, params->confs[i].sz,
-                    params->confs[i].al_dst, params->confs[i].al_src,
-                    params->confs[i].direction, stats[i].gmean);
+            fprintf(fp, hr_csv_body, params->test_name,
+                    params_get_conf_sz(params, i),
+                    params_get_conf_al_dst(params, i),
+                    params_get_conf_al_src(params, i),
+                    params_get_conf_direction(params, i), stats[i].gmean);
             display_counters(fp, &(result->ev_results), perf_events,
                              human_readable);
         }
         else {
 
             fprintf(fp, csv_body, result->impl_name, params->test_name,
-                    params->confs[i].sz, params->confs[i].al_dst,
-                    params->confs[i].al_src, params->confs[i].direction,
-                    params->trials,
+                    params_get_conf_sz(params, i),
+                    params_get_conf_al_dst(params, i),
+                    params_get_conf_al_src(params, i),
+                    params_get_conf_direction(params, i), params->trials,
                     params->todo == FIXED ? inner_trials : nrand_confs,
                     stats[i].mean, stats[i].median, stats[i].gmean,
                     stats[i].min, stats[i].max, stats[i].stdev);

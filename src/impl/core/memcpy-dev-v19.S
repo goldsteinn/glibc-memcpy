@@ -229,6 +229,13 @@ L(loop_4x_vec_backward):
 
 	.p2align 4
 L(movsb):
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	jae	L(large_memcpy)
+	movq	%rdi, %rcx
+	subq	%rsi, %rcx
+	cmpq	%rdx, %rcx
+	jb	L(more_256_backward)
+
 	/* L(forward_movsb).  */
 	subq	%rdi, %rsi
 	leaq	-2(%rdi, %rdx), %rcx
@@ -246,15 +253,18 @@ L(movsb):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
 	ret
-    
-L(large_memcpy):
-	ret
 
+L(large_memcpy):
+	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
+	jb	L(more_256)
+	ret
+L(fault0):
+    movl    (%rdx), %eax
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5
 x86_rep_movsb_threshold:
-	.quad	(2048  * ((VEC_SIZE) / 16))
+	.quad	(2048 * ((VEC_SIZE) / 16))
 x86_shared_non_temporal_threshold:
 	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
 x86_rep_movsb_stop_threshold:
