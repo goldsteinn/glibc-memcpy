@@ -141,7 +141,7 @@ L(nop):
 	PADDING1
 	// NOP16
 	// 0x980
-    NOP32
+	NOP32
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -229,44 +229,32 @@ L(loop_4x_vec_backward):
 
 	.p2align 4
 L(movsb):
-#if 0
-	// Have forward / backward align
-	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
-	jae	L(large_memcpy)
-	movq	%rdi, %rcx
-	subq	%rsi, %rcx
-	jb	L(movsb_no_backward)
-	je	L(nop_movsb)
-	cmpq	%rcx, %rdx
-	jb	L(more_256_backward_movsb_entry)
-	negq	%rcx
-L(movsb_no_backward):
-	cmpl	$64, %ecx
-	jb	L(more_256_no_movsb)
-
-
+	/* L(forward_movsb).  */
 	subq	%rdi, %rsi
-	leaq	-1(%rdi, %rdx), %rcx
+	leaq	-2(%rdi, %rdx), %rcx
 	orq	$(VEC_SIZE * 2 - 1), %rdi
 	leaq	1(%rdi, %rsi), %rsi
 	subq	%rdi, %rcx
+	andq	$(VEC_SIZE * - 2), %rcx
 	incq	%rdi
 
 	rep	movsb
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-L(nop_movsb):
-#endif
-	ret
 
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	ret
+    
 L(large_memcpy):
-	// ret
+	ret
 
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5
 x86_rep_movsb_threshold:
-	.quad	(2048 * 16 * ((VEC_SIZE) / 16))
+	.quad	(2048  * ((VEC_SIZE) / 16))
 x86_shared_non_temporal_threshold:
 	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
 x86_rep_movsb_stop_threshold:

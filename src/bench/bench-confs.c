@@ -156,6 +156,7 @@ make_rand_confs(uint32_t min_val, uint32_t max_val) {
                                            &size_dist_sz, min_val, max_val);
     for(uint32_t i = 0; i < size_dist_sz; ++i) {
         size_dist[i] *= 1;
+        size_dist[i] += 0;
     }
 
     bench_conf_t * confs =

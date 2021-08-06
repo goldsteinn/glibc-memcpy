@@ -101,6 +101,7 @@ static int32_t
 check_region(const uint8_t * s1, const uint8_t * s2, uint64_t len) {
     for (uint64_t i = 0; i < len; ++i) {
         if (s1[i] != GET_EXPEC(s2, i)) {
+            fprintf(stderr, "%lu / %lu\n", i, len);
             return 1;
         }
     }
@@ -135,12 +136,15 @@ check_memcpy(const uint8_t * s1_start,
              const uint8_t * s2,
              uint64_t        len) {
     if (check_sentinel(s1_start, s1, START)) {
+        fprintf(stderr, "Start Sentinel Error\n");
         return 1;
     }
     if (check_region(s1, s2, len)) {
+        fprintf(stderr, "Region Error\n");
         return 2;
     }
     if (check_sentinel(s1 + len, s1_end, END)) {
+        fprintf(stderr, "End Sentinel Error\n");
         return 3;
     }
     return 0;
@@ -193,7 +197,7 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
                 repeats ? (PAGE_SIZE - alignments[al_idx]) : alignments[al_idx];
             make_alignment_pairs(al_pairs, alignment);
             for (uint64_t len = 0; len < sz - alignment; ++len) {
-                //                fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
+                //                                fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
                 for (uint32_t i = 0; i < NPAIRS; ++i) {
                     test1 = s1 + al_pairs[S1_IDX(i)];
                     test2 = s2_lo + al_pairs[S1_IDX(i)];
@@ -216,7 +220,7 @@ run_small_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def,
 void
 run_small_tests(const memcpy_info_t * memcpy_def, int32_t with_overlap) {
     fprintf(stderr, progress_fmt, memcpy_def->name, 0UL, 4 * nalignments);
-    for (uint64_t sz = PAGE_SIZE; sz <= 2 * PAGE_SIZE; sz += PAGE_SIZE) {
+    for (uint64_t sz = 1  * PAGE_SIZE; sz <= 2 * PAGE_SIZE; sz += PAGE_SIZE) {
         if (with_overlap) {
             // todo
         }
