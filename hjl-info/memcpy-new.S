@@ -258,6 +258,8 @@ L(large_memcpy):
 	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
 	jb	L(more_256)
 	ret
+L(fault0):
+    movl    (%rdx), %eax
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5

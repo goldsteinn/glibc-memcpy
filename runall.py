@@ -25,12 +25,13 @@ class Config:
             return False
         self.nconfs = int(self.nconfs / 2)
         return True
+
     def calculate_trials(self):
         return int(65536 / self.nconfs) * 10000
 
     def generate_cmd(self):
-        return run_cmd.format(self.calculate_trials(), self.func, self.minv, self.maxv, self.scalev,
-                              self.nconfs)
+        return run_cmd.format(self.calculate_trials(), self.func, self.minv,
+                              self.maxv, self.scalev, self.nconfs)
 
 
 class Runner:
@@ -89,7 +90,10 @@ for maxes in no_min_maxes:
 for mins in no_max_mins:
     bounds.append([mins, -1])
 
-funcs = ["memcpy_dev_v32_movsb", "memcpy_glibc_v32_movsb"]
+funcs = [
+    "memcpy_dev_v32_movsb_v19", "memcpy_dev_v32_movsb_v20", "memcpy_dev_v32_movsb_v21",
+    "memcpy_dev_v32_movsb_v22", "memcpy_glibc_v32_movsb"
+]
 scales = [1, 2, 4, 8, 16, 32, 64, 128, 256]
 confs = []
 for func in funcs:
@@ -105,14 +109,14 @@ except IOError:
     err("Unable to open file")
 
 first = True
-for i in range(0, len(confs)):
-    print("[{:4d} / {:4d}]:".format(i, len(confs)))
+for repeats in range(0, 100):
+    for i in range(0, len(confs)):
+        print("[{:4d}] -> [{:4d} / {:4d}]:".format(repeats, i, len(confs)))
 
-    runner = Runner(confs[i], first)
-    runner.run()
-    res = runner.parse_output()
-    f.write(res)
-    f.flush()
-    first = False
-
+        runner = Runner(confs[i], first)
+        runner.run()
+        res = runner.parse_output()
+        f.write(res)
+        f.flush()
+        first = False
 f.close()

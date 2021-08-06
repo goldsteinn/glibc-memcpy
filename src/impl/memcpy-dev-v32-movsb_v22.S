@@ -1,4 +1,4 @@
-#define MEMCPY	memcpy_dev_v32_movsb
+#define MEMCPY	memcpy_dev_v32_movsb_v22
 
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS

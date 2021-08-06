@@ -141,12 +141,11 @@ L(nop):
 	PADDING1
 	// NOP16
 	// 0x980
-	NOP32
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
-	NOP3
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
 	je	L(nop)
@@ -188,7 +187,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-	NOP32
+
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
