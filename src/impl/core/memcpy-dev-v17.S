@@ -5,6 +5,7 @@
     4. Branch Density
     5. rep movsb upper bound
     6. address aliasing
+    7. evex vs overlap
 */
 
 #include "asm-common.h"
@@ -36,7 +37,7 @@ ENTRY(MEMCPY):
 	jb	L(copy_0_31)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
-	NOP1
+
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_64)
 	/* L(copy_32_64).  */
@@ -93,24 +94,35 @@ L(copy_0_31):
 	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
 
-	NOP16
+	.p2align 4
+L(copy_65_128):
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
+
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
+	VZEROUPPER_RETURN
+
 	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
+    VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+    VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_65_128)
 
 	/* L(copy_129_256).  */
+    
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
+    
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
+
+
 
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
@@ -122,32 +134,21 @@ L(more_64):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rdi, %rdx)
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
-	VZEROUPPER_RETURN
-
-	.p2align 4
-L(copy_65_128):
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
-
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 L(nop):
 	VZEROUPPER_RETURN
+
 
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
 L(more_256_no_movsb):
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	NOP3
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
-
-	je	L(nop)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
+	je	L(nop)
 
 	subq	%rdi, %rsi
 	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
@@ -182,10 +183,7 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	.p2align 4
-	NOP16
-L(more_256_movsb_entry):
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+	NOP32
 L(more_256_backward):
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)

@@ -5,9 +5,11 @@
     4. Branch Density
     5. rep movsb upper bound
     6. address aliasing
+    7. Exact organization of v12???????????????????????
 */
 
 #include "asm-common.h"
+#include "padding-conf.h"
 #include "../evex-vecs.h"
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
@@ -36,7 +38,7 @@ ENTRY(MEMCPY):
 	jb	L(copy_0_31)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
-	NOP1
+
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_64)
 	/* L(copy_32_64).  */
@@ -93,15 +95,16 @@ L(copy_0_31):
 	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
 
-	NOP16
+	PADDING0
+	// 0x8d0
+
 	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-	cmpq	$(VEC_SIZE * 8), %rdx
-	ja	L(more_256)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-
+	cmpq	$(VEC_SIZE * 8), %rdx
+	ja	L(more_256)
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_65_128)
 
@@ -111,6 +114,7 @@ L(more_64):
 
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
+
 
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
@@ -123,7 +127,7 @@ L(more_64):
 	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rdi, %rdx)
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-
+	// 0x960
 	.p2align 4
 L(copy_65_128):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
@@ -134,17 +138,17 @@ L(copy_65_128):
 L(nop):
 	VZEROUPPER_RETURN
 
+	PADDING1
+	// NOP16
+	// 0x980
+    NOP32
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
-L(more_256_no_movsb):
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	NOP3
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
-
 	je	L(nop)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
@@ -154,6 +158,7 @@ L(more_256_no_movsb):
 	orq	$(VEC_SIZE * 2 - 1), %rdi
 	leaq	1(%rdi, %rsi), %rsi
 	incq	%rdi
+	// 0x9d0
 
 	.p2align 4
 L(loop_4x_vec_forward):
@@ -181,12 +186,12 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VZEROUPPER_RETURN
 
+	PADDING2
+	// 0xa60
+	NOP32
 	.p2align 4
-	NOP16
-L(more_256_movsb_entry):
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 L(more_256_backward):
+	// movl    (%rdx), %edx
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
@@ -194,8 +199,8 @@ L(more_256_backward):
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	andq	$(VEC_SIZE * -2), %rdi
 	addq	%rdi, %rsi
-
 	.p2align 4
+	// 0xa80
 L(loop_4x_vec_backward):
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(4)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(5)
@@ -261,7 +266,7 @@ L(large_memcpy):
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5
 x86_rep_movsb_threshold:
-	.quad	(2048 * ((VEC_SIZE) / 16))
+	.quad	(2048 * 16 * ((VEC_SIZE) / 16))
 x86_shared_non_temporal_threshold:
 	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
 x86_rep_movsb_stop_threshold:
