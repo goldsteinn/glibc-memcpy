@@ -3,6 +3,7 @@ import sys
 import statistics
 
 fname = sys.argv[1]
+version = sys.argv[2]
 key_order = []
 results = {}
 
@@ -10,18 +11,17 @@ results = {}
 def make_key(a, b, c):
     return str(a) + "-" + str(b) + "-" + str(c)
 
+
 def process(d):
     return statistics.median(d)
-    
+
+
 with open(fname) as csvfile:
     header = [h.strip() for h in csvfile.readline().split(',')]
     reader = csv.DictReader(csvfile, fieldnames=header)
     for line in reader:
-        impl = line["impl name"]
-        if "glibc" in impl:
-            impl = "glibc"
-        else:
-            impl = "dev"
+        impl = line["impl name"].replace("memcpy_", "").replace(
+            "_v32_movsb", "").replace("_avx2", "").lstrip().rstrip()
 
         size = line["size"].lstrip().rstrip()
         min_sz = line["al dst"].lstrip().rstrip()
@@ -40,8 +40,8 @@ with open(fname) as csvfile:
 print("{}, {}, {}, {}, {}, {}".format("size scale", "min size", "max size",
                                       "new time", "cur time", "new / cur"))
 for k in key_order:
-    res = results[k]["dev"]
-    td = process(results[k]["dev"][3])
+    res = results[k]["dev_" + version]
+    td = process(results[k]["dev_" + version][3])
     tg = process(results[k]["glibc"][3])
 
     improve = round(100.0 * float(td / tg), 2)

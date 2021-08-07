@@ -65,6 +65,7 @@ L(copy_1):
 	movb	%cl, (%rdi)
 	ret
 
+	.p2align 4
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -80,6 +81,7 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
+	.p2align 4
 L(copy_0_31):
 	cmpl	$8, %edx
 	jb	L(copy_0_7)

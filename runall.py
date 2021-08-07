@@ -77,6 +77,7 @@ class Runner:
         csv_content = csv_content.rstrip().lstrip() + "\n"
         if self.first is True:
             hdr_content += "\n"
+            hdr_content = ""
         return hdr_content + csv_content
 
 
