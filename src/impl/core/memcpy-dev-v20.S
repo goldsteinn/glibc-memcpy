@@ -10,7 +10,9 @@
 
 #include "asm-common.h"
 #include "padding-conf.h"
-
+#ifndef VZEROUPPER
+#include "../evex-vecs.h"
+#endif
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -186,7 +188,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-	NOP32
+
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx

@@ -10,6 +10,9 @@
 
 #include "asm-common.h"
 #include "padding-conf.h"
+#ifndef VZEROUPPER
+#include "../evex-vecs.h"
+#endif
 
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
@@ -46,7 +49,7 @@ ENTRY(MEMCPY):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-
+    NOP16
 	.p2align 4
 L(copy_0_7):
 	cmpl	$4, %edx
@@ -141,7 +144,7 @@ L(nop):
 	PADDING1
 	// NOP16
 	// 0x980
-	NOP32
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -188,7 +191,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-	NOP32
+
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
