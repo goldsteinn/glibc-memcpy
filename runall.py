@@ -73,11 +73,11 @@ class Runner:
                 csv_content = line
                 break
         assert csv_content != ""
-        hdr_content = hdr_content.rstrip().lstrip()
+        hdr_content = ""
         csv_content = csv_content.rstrip().lstrip() + "\n"
         if self.first is True:
-            hdr_content += "\n"
-            hdr_content = ""
+            hdr_content = "impl name               ,test name       ,size    ,al dst ,al src ,dst > src,trials ,inner trials,mean      ,median    ,geomean   ,min       ,max       ,stdev\n"
+
         return hdr_content + csv_content
 
 
@@ -92,8 +92,9 @@ for mins in no_max_mins:
     bounds.append([mins, -1])
 
 funcs = [
-    "memcpy_dev_v32_movsb_v19", "memcpy_dev_v32_movsb_v20", "memcpy_dev_v32_movsb_v21",
-    "memcpy_dev_v32_movsb_v22", "memcpy_glibc_v32_movsb"
+    "memcpy_dev_v32_movsb_v19", "memcpy_dev_v32_movsb_v20",
+    "memcpy_dev_v32_movsb_v21", "memcpy_dev_v32_movsb_v22",
+    "memcpy_glibc_v32_movsb"
 ]
 scales = [1, 2, 4, 8, 16, 32, 64, 128, 256]
 confs = []

@@ -38,11 +38,11 @@ ENTRY(MEMCPY):
 	jb	L(copy_0_31)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
-
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_64)
 	/* L(copy_32_64).  */
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
@@ -99,9 +99,9 @@ L(copy_4_7):
 	// 0x8d0
 
 	.p2align 4
+	NOP4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
@@ -126,6 +126,7 @@ L(more_64):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rdi, %rdx)
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
+
 	VZEROUPPER_RETURN
 	// 0x960
 	.p2align 4
@@ -140,13 +141,14 @@ L(nop):
 
 	PADDING1
 	// NOP16
+
 	// 0x980
-	NOP32
 	.p2align 4
+	NOP3
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
-	NOP3
+
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
 	je	L(nop)

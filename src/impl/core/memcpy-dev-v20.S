@@ -139,7 +139,7 @@ L(nop):
 	PADDING1
 	// NOP16
 	// 0x980
-	NOP32
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
