@@ -31,4 +31,5 @@
 #define VZEROUPPER vzeroupper
 #define SECTION(p) p##.evex
 
+#define USE_AS_AVX2 1
 #endif

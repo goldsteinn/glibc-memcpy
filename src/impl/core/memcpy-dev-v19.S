@@ -10,8 +10,9 @@
 
 #include "asm-common.h"
 #include "padding-conf.h"
+
 #ifndef VZEROUPPER
-#include "../evex-vecs.h"
+# include "../evex-vecs.h"
 #endif
 
 	// Tigerlake/Icelake
@@ -49,7 +50,7 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-    NOP16
+	NOP16
 	.p2align 4
 L(copy_0_7):
 	cmpl	$4, %edx
@@ -63,7 +64,7 @@ L(copy_0_7):
 	movb	%sil, -1(%rdi, %rdx)
 L(copy_0):
 	ret
-    .p2align 4
+	.p2align 4
 L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
@@ -107,8 +108,10 @@ L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
+
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_65_128)
 
@@ -192,7 +195,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-    NOP32
+	NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx

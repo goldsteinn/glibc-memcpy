@@ -30,4 +30,6 @@
 #define VMOVA    vmovdqa64
 #define VZEROUPPER
 #define SECTION(p) p##.evex
+
+#define USE_AS_EVEX 1
 #endif

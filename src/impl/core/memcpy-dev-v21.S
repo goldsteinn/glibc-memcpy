@@ -10,6 +10,7 @@
 
 #include "asm-common.h"
 #include "padding-conf.h"
+
 #ifndef VZEROUPPER
 # include "../evex-vecs.h"
 #endif
@@ -77,8 +78,8 @@ L(copy_4_7):
 	movl	%ecx, (%rdi)
 	movl	%esi, -4(%rdi, %rdx)
 	ret
-    
-    .p2align 4
+
+	.p2align 4
 L(copy_0_7):
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
@@ -91,7 +92,7 @@ L(copy_0_7):
 	movb	%sil, -1(%rdi, %rdx)
 L(copy_0):
 	ret
-    .p2align 4
+	.p2align 4
 L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
@@ -150,7 +151,7 @@ L(nop):
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
-    NOP3
+	NOP3
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
 	je	L(nop)
@@ -192,7 +193,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-    NOP32
+	NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
