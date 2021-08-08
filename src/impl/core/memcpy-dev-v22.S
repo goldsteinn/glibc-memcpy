@@ -191,7 +191,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-
+    NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
@@ -202,6 +202,7 @@ L(more_256_backward):
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	andq	$(VEC_SIZE * -2), %rdi
 	addq	%rdi, %rsi
+
 	.p2align 4
 	// 0xa80
 L(loop_4x_vec_backward):

@@ -188,7 +188,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-
+    NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
