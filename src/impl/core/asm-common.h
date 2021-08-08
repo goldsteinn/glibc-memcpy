@@ -10,15 +10,19 @@
 #ifndef ALIGN_ENTRY
 #define ALIGN_ENTRY 64
 #endif
+#define NAME_LABEL(name) name##:
+#define ENTRY_END(name)                                                        \
+    .globl name;                                                               \
+    .type  name, @function;                                                    \
+    NAME_LABEL(name)                                                           \
+    NOP4
 
 #if ALIGN_ENTRY == 0 || ALIGN_ENTRY == ALIGN_BASE || ALIGN_ENTRY == 64
 #define ENTRY(name)                                                            \
     .align 4096;                                                               \
     nop;                                                                       \
     .align ALIGN_BASE;                                                         \
-    .globl name;                                                               \
-    .type  name, @function;                                                    \
-    name
+    ENTRY_END(name)
 #else
 #if ALIGN_ENTRY == 48
 #define ENTRY(name)                                                            \
@@ -29,9 +33,7 @@
     .align 32;                                                                 \
     nop;                                                                       \
     .align 16;                                                                 \
-    .globl name;                                                               \
-    .type  name, @function;                                                    \
-    name
+    ENTRY_END(name)
 
 #else
 
@@ -41,9 +43,7 @@
     .align ALIGN_BASE;                                                         \
     nop;                                                                       \
     .align ALIGN_ENTRY;                                                        \
-    .globl name;                                                               \
-    .type  name, @function;                                                    \
-    name
+    ENTRY_END(name)
 #endif
 #endif
 

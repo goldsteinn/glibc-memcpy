@@ -34,7 +34,7 @@
 
 
 	.section SECTION(.text), "ax", @progbits
-ENTRY(MEMCPY):
+ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
 	jb	L(copy_0_31)
@@ -48,7 +48,6 @@ ENTRY(MEMCPY):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-
 	.p2align 4
 L(copy_0_31):
 	cmpl	$8, %edx
@@ -63,6 +62,7 @@ L(copy_0_31):
 	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
 
+
 	.p2align 4
 L(copy_8_15):
 	movq	(%rsi), %rcx
@@ -71,6 +71,14 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
+L(copy_4_7):
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
+	ret
+    
+    .p2align 4
 L(copy_0_7):
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
@@ -83,25 +91,18 @@ L(copy_0_7):
 	movb	%sil, -1(%rdi, %rdx)
 L(copy_0):
 	ret
+    .p2align 4
 L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
 
-	.p2align 4
-L(copy_4_7):
-	movl	(%rsi), %ecx
-	movl	-4(%rsi, %rdx), %esi
-	movl	%ecx, (%rdi)
-	movl	%esi, -4(%rdi, %rdx)
-	ret
 
 
 	PADDING0
 	// 0x8d0
 
 	.p2align 4
-	NOP4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
@@ -131,7 +132,7 @@ L(more_64):
 
 	VZEROUPPER_RETURN
 	// 0x960
-//	.p2align 4
+	.p2align 4
 L(copy_65_128):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)

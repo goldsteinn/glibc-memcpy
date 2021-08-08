@@ -115,7 +115,7 @@
 #endif
 
 	.section SECTION(.text), "ax", @progbits
-ENTRY(MEMCPY):
+ENTRY(MEMCPY)
 	movq	%rdi, %rax
 L(start_erms):
 #ifdef __ILP32__

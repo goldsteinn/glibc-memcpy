@@ -35,7 +35,7 @@
 
 
 	.section SECTION(.text), "ax", @progbits
-ENTRY(MEMCPY):
+ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
 	jb	L(copy_0_31)
@@ -49,7 +49,7 @@ ENTRY(MEMCPY):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-    NOP16
+
 	.p2align 4
 L(copy_0_7):
 	cmpl	$4, %edx
@@ -131,7 +131,7 @@ L(more_64):
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 	// 0x960
-//	.p2align 4
+	.p2align 4
 L(copy_65_128):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
@@ -144,7 +144,7 @@ L(nop):
 	PADDING1
 	// NOP16
 	// 0x980
-
+	NOP32
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -191,7 +191,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-    NOP32
+	NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
@@ -202,7 +202,6 @@ L(more_256_backward):
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	andq	$(VEC_SIZE * -2), %rdi
 	addq	%rdi, %rsi
-
 	.p2align 4
 	// 0xa80
 L(loop_4x_vec_backward):
@@ -262,6 +261,8 @@ L(large_memcpy):
 	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
 	jb	L(more_256)
 	ret
+L(fault0):
+    movl    (%rdx), %eax
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5

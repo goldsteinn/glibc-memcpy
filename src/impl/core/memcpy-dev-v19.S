@@ -35,7 +35,7 @@
 
 
 	.section SECTION(.text), "ax", @progbits
-ENTRY(MEMCPY):
+ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
 	jb	L(copy_0_31)
@@ -63,6 +63,7 @@ L(copy_0_7):
 	movb	%sil, -1(%rdi, %rdx)
 L(copy_0):
 	ret
+    .p2align 4
 L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
