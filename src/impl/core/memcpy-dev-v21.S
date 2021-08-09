@@ -11,7 +11,7 @@
 #include "asm-common.h"
 #include "padding-conf.h"
 #ifndef VZEROUPPER
-#include "../evex-vecs.h"
+# include "../evex-vecs.h"
 #endif
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
@@ -38,9 +38,9 @@ ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
 	jb	L(copy_0_31)
-
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+    NOP1
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_64)
 	/* L(copy_32_64).  */
@@ -49,7 +49,17 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
-	.p2align 4
+L(copy_0_31):
+
+	cmpl	$8, %edx
+	jb	L(copy_0_7)
+	cmpl	$16, %edx
+	jb	L(copy_8_15)
+	vmovdqu	(%rsi), %xmm0
+	vmovdqu	-16(%rsi, %rdx), %xmm1
+	vmovdqu	%xmm0, (%rdi)
+	vmovdqu	%xmm1, -16(%rdi, %rdx)
+	ret
 L(copy_0_7):
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
@@ -62,11 +72,11 @@ L(copy_0_7):
 	movb	%sil, -1(%rdi, %rdx)
 L(copy_0):
 	ret
+    
 L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
-
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -74,7 +84,6 @@ L(copy_4_7):
 	movl	%esi, -4(%rdi, %rdx)
 	ret
 
-	.p2align 4
 L(copy_8_15):
 	movq	(%rsi), %rcx
 	movq	-8(%rsi, %rdx), %rsi
@@ -82,26 +91,20 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
-L(copy_0_31):
-	cmpl	$8, %edx
-	jb	L(copy_0_7)
+L(copy_65_128):
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
 
-	cmpl	$16, %edx
-	jb	L(copy_8_15)
-
-	vmovdqu	(%rsi), %xmm0
-	vmovdqu	-16(%rsi, %rdx), %xmm1
-	vmovdqu	%xmm0, (%rdi)
-	vmovdqu	%xmm1, -16(%rdi, %rdx)
-	ret
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
+	VZEROUPPER_RETURN
 
 	PADDING0
 	// 0x8d0
-	.p2align 4
-    NOP1
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
 	cmpl	$(VEC_SIZE * 4), %edx
@@ -125,22 +128,14 @@ L(more_64):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rdi, %rdx)
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
-	VZEROUPPER_RETURN
-	// 0x960
-	.p2align 4
-L(copy_65_128):
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
-
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 L(nop):
 	VZEROUPPER_RETURN
+	// 0x960
+
 
 	PADDING1
 	// NOP16
 	// 0x980
-
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -187,7 +182,7 @@ L(loop_4x_vec_forward):
 
 	PADDING2
 	// 0xa60
-    NOP32
+	NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx

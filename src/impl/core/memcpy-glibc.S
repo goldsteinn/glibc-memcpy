@@ -1,5 +1,8 @@
 #include "asm-common.h"
-	//	Tigerlake
+#ifndef VZEROUPPER
+# include "../evex-vecs.h"
+#endif
+	// Tigerlake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
 
@@ -42,14 +45,12 @@
 # define LARGE_LOAD_SIZE	(VEC_SIZE	*	4)
 #endif
 
-	/* Amount to shift rdx by to compare for
-	   memcpy_large_4x.  */
+	/* Amount to shift rdx by to compare for memcpy_large_4x.  */
 #ifndef LOG_4X_MEMCPY_THRESH
 # define LOG_4X_MEMCPY_THRESH	4
 #endif
 
-	/* Avoid short distance rep movsb only with non-
-	   SSE vector.  */
+	/* Avoid short distance rep movsb only with non- SSE vector.  */
 #ifndef AVOID_SHORT_DISTANCE_REP_MOVSB
 # define AVOID_SHORT_DISTANCE_REP_MOVSB	(VEC_SIZE	>	16)
 #else
@@ -127,8 +128,7 @@ L(start_erms):
 	cmp	$(VEC_SIZE * 2), %RDX_LP
 	ja	L(movsb_more_2x_vec)
 L(last_2x_vec):
-	/* From VEC and to 2 * VEC.  No branch when size
-	   == VEC_SIZE.  */
+	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
 	VMOVU	(%rsi), %VEC(0)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(1)
 	VMOVU	%VEC(0), (%rdi)
@@ -162,9 +162,8 @@ L(movsb):
 	movq	%rsi, %rcx
 	subq	%rdi, %rcx
 2:
-	/* Avoid "rep movsb" if RCX, the distance between
-	   source and destination, is N*4GB + [1..63] with N >= 0.
-	 */
+	/* Avoid "rep movsb" if RCX, the distance between source and
+	   destination, is N*4GB + [1..63] with N >= 0.  */
 	cmpl	$63, %ecx
 	/* Avoid "rep movsb" if ECX <= 63.  */
 	jbe	L(more_2x_vec)
@@ -245,14 +244,13 @@ L(movsb_more_2x_vec):
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
-	/* More than 2 * VEC and there may be overlap
-	   between destination and source.  */
+	/* More than 2 * VEC and there may be overlap between destination and
+	   source.  */
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_8x_vec)
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(last_4x_vec)
-	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.
-	 */
+	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
 	VMOVU	(%rsi), %VEC(0)
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
@@ -271,8 +269,7 @@ L(more_2x_vec):
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 L(last_4x_vec):
-	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.
-	 */
+	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
 	VMOVU	(%rsi), %VEC(0)
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
@@ -290,34 +287,32 @@ L(more_8x_vec):
 	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
 #endif
-	/* Entry if rdx is greater than non-temporal
-	   threshold but there is overlap.  */
+	/* Entry if rdx is greater than non-temporal threshold but there is
+	   overlap.  */
 L(more_8x_vec_check):
 	cmpq	%rsi, %rdi
 	ja	L(more_8x_vec_backward)
 	/* Source == destination is less common.  */
 	je	L(nop)
-	/* Load the first VEC and last 4 * VEC to support
-	   overlapping addresses.  */
+	/* Load the first VEC and last 4 * VEC to support overlapping addresses.
+	 */
 	VMOVU	(%rsi), %VEC(4)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(5)
 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
 	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(8)
-	/* Save start and stop of the destination buffer.
-	 */
+	/* Save start and stop of the destination buffer.  */
 	movq	%rdi, %r11
 	leaq	-VEC_SIZE(%rdi, %rdx), %rcx
-	/* Align destination for aligned stores in the
-	   loop.  Compute how much destination is misaligned.  */
+	/* Align destination for aligned stores in the loop.  Compute how much
+	   destination is misaligned.  */
 	movq	%rdi, %r8
 	andq	$(VEC_SIZE - 1), %r8
 	/* Get the negative of offset for alignment.  */
 	subq	$VEC_SIZE, %r8
 	/* Adjust source.  */
 	subq	%r8, %rsi
-	/* Adjust destination which should be aligned now.
-	 */
+	/* Adjust destination which should be aligned now.  */
 	subq	%r8, %rdi
 	/* Adjust length.  */
 	addq	%r8, %rdx
@@ -348,8 +343,8 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 L(more_8x_vec_backward):
-	/* Load the first 4 * VEC and last VEC to support
-	   overlapping addresses.  */
+	/* Load the first 4 * VEC and last VEC to support overlapping addresses.
+	 */
 	VMOVU	(%rsi), %VEC(4)
 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
@@ -357,16 +352,15 @@ L(more_8x_vec_backward):
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
 	/* Save stop of the destination buffer.  */
 	leaq	-VEC_SIZE(%rdi, %rdx), %r11
-	/* Align destination end for aligned stores in the
-	   loop.  Compute how much destination end is misaligned.  */
+	/* Align destination end for aligned stores in the loop.  Compute how
+	   much destination end is misaligned.  */
 	leaq	-VEC_SIZE(%rsi, %rdx), %rcx
 	movq	%r11, %r9
 	movq	%r11, %r8
 	andq	$(VEC_SIZE - 1), %r8
 	/* Adjust source.  */
 	subq	%r8, %rcx
-	/* Adjust the end of destination which should be
-	   aligned now.  */
+	/* Adjust the end of destination which should be aligned now.  */
 	subq	%r8, %r9
 	/* Adjust length.  */
 	subq	%r8, %rdx
@@ -399,8 +393,8 @@ L(loop_4x_vec_backward):
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
 	.p2align 4
 L(large_memcpy_2x):
-	/* Compute absolute value of difference between
-	   source and destination.  */
+	/* Compute absolute value of difference between source and destination.
+	 */
 	movq	%rdi, %r9
 	subq	%rsi, %r9
 	movq	%r9, %r8
@@ -408,14 +402,13 @@ L(large_memcpy_2x):
 	sarq	$63, %r8
 	xorq	%r8, %r9
 	subq	%r8, %r9
-	/* Don't use non-temporal store if there is
-	   overlap between destination and source since destination
-	   may be in cache when source is loaded.  */
+	/* Don't use non-temporal store if there is overlap between destination
+	   and source since destination may be in cache when source is loaded.  */
 	cmpq	%r9, %rdx
 	ja	L(more_8x_vec_check)
 
-	/* Cache align destination. First store the first
-	   64 bytes then adjust alignments.  */
+	/* Cache align destination. First store the first 64 bytes then adjust
+	   alignments.  */
 	VMOVU	(%rsi), %VEC(8)
 # if VEC_SIZE < 64
 	VMOVU	VEC_SIZE(%rsi), %VEC(9)
@@ -439,15 +432,13 @@ L(large_memcpy_2x):
 	subq	$64, %r8
 	/* Adjust source.  */
 	subq	%r8, %rsi
-	/* Adjust destination which should be aligned now.
-	 */
+	/* Adjust destination which should be aligned now.  */
 	subq	%r8, %rdi
 	/* Adjust length.  */
 	addq	%r8, %rdx
 
-	/* Test if source and destination addresses will
-	   alias. If they do the larger pipeline in large_memcpy_4x
-	   alleviated the performance drop.  */
+	/* Test if source and destination addresses will alias. If they do the
+	   larger pipeline in large_memcpy_4x alleviated the performance drop.  */
 	testl	$(PAGE_SIZE - VEC_SIZE * 8), %ecx
 	jz	L(large_memcpy_4x)
 
@@ -456,8 +447,7 @@ L(large_memcpy_2x):
 	cmp	x86_shared_non_temporal_threshold(%rip), %r10
 	jae	L(large_memcpy_4x)
 
-	/* edx will store remainder size for copying tail.
-	 */
+	/* edx will store remainder size for copying tail.  */
 	andl	$(PAGE_SIZE * 2 - 1), %edx
 	/* r10 stores outer loop counter.  */
 	shrq	$((LOG_PAGE_SIZE + 1) - LOG_4X_MEMCPY_THRESH), %r10
@@ -493,8 +483,7 @@ L(loop_large_memcpy_2x_inner):
 
 	/* Handle the last 2 * PAGE_SIZE bytes.  */
 L(loop_large_memcpy_2x_tail):
-	/* Copy 4 * VEC a time forward with non-temporal
-	   stores.  */
+	/* Copy 4 * VEC a time forward with non-temporal stores.  */
 	PREFETCH_ONE_SET (1, (%rsi), PREFETCHED_LOAD_SIZE)
 	PREFETCH_ONE_SET (1, (%rdi), PREFETCHED_LOAD_SIZE)
 	VMOVU	(%rsi), %VEC(0)
@@ -527,8 +516,7 @@ L(large_memcpy_2x_end):
 	.p2align 4
 L(large_memcpy_4x):
 	movq	%rdx, %r10
-	/* edx will store remainder size for copying tail.
-	 */
+	/* edx will store remainder size for copying tail.  */
 	andl	$(PAGE_SIZE * 4 - 1), %edx
 	/* r10 stores outer loop counter.  */
 	shrq	$(LOG_PAGE_SIZE + 2), %r10
@@ -538,8 +526,8 @@ L(loop_large_memcpy_4x_outer):
 	/* ecx stores inner loop counter.  */
 	movl	$(PAGE_SIZE / LARGE_LOAD_SIZE), %ecx
 L(loop_large_memcpy_4x_inner):
-	/* Only one prefetch set per page as doing 4 pages
-	   give more time for prefetcher to keep up.  */
+	/* Only one prefetch set per page as doing 4 pages give more time for
+	   prefetcher to keep up.  */
 	PREFETCH_ONE_SET(1, (%rsi), PREFETCHED_LOAD_SIZE)
 	PREFETCH_ONE_SET(1, (%rsi), PAGE_SIZE + PREFETCHED_LOAD_SIZE)
 	PREFETCH_ONE_SET(1, (%rsi), PAGE_SIZE * 2 + PREFETCHED_LOAD_SIZE)
@@ -569,8 +557,7 @@ L(loop_large_memcpy_4x_inner):
 
 	/* Handle the last 4  * PAGE_SIZE bytes.  */
 L(loop_large_memcpy_4x_tail):
-	/* Copy 4 * VEC a time forward with non-temporal
-	   stores.  */
+	/* Copy 4 * VEC a time forward with non-temporal stores.  */
 	PREFETCH_ONE_SET (1, (%rsi), PREFETCHED_LOAD_SIZE)
 	PREFETCH_ONE_SET (1, (%rdi), PREFETCHED_LOAD_SIZE)
 	VMOVU	(%rsi), %VEC(0)

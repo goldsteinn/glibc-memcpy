@@ -84,7 +84,7 @@ class Runner:
 bounds = [[16, 256], [32, 256], [33, 256], [16, 257], [32, 257], [33, 257]]
 
 no_min_maxes = [31, 32, 64, 65, 128, 256]
-no_max_mins = [32, 33, 64, 65, 129, 257]
+no_max_mins = [16, 32, 33, 64, 65, 129, 257]
 
 for maxes in no_min_maxes:
     bounds.append([0, maxes])
@@ -96,7 +96,7 @@ funcs = [
     "memcpy_dev_v32_movsb_v21", "memcpy_dev_v32_movsb_v22",
     "memcpy_glibc_v32_movsb"
 ]
-scales = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+scales = [1, 2, 4, 8, 16, 32, 64]
 confs = []
 for func in funcs:
     for bound in bounds:
