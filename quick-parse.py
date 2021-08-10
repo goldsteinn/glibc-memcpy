@@ -3,10 +3,18 @@ import sys
 import statistics
 
 fname = sys.argv[1]
-v1 = "dev_" + sys.argv[2]
+v1 = "dev"
 v2 = "glibc"
-if len(sys.argv) > 3:
-    v2 = "dev_" + sys.argv[3]
+if len(sys.argv) > 4:
+    v2 = "dev"
+if sys.argv[2] == "avx2":
+    v1 += "_avx2"
+    v2 += "_avx2"
+
+if len(sys.argv) > 4:
+    v2 += "_" + sys.argv[4]
+v1 += "_" + sys.argv[3]
+    
 key_order = []
 results = {}
 
