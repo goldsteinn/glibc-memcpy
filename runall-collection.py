@@ -135,7 +135,7 @@ except IOError:
     err("Unable to open file")
 
 first = True
-for repeats in range(0, 1):
+for repeats in range(0, 100):
     for i in range(0, len(confs)):
         print("[{:4d}] -> [{:4d} / {:4d}]:".format(repeats, i, len(confs)))
         runner = Runner(confs[i], first)
