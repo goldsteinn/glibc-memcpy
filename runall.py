@@ -91,18 +91,31 @@ for maxes in no_min_maxes:
 for mins in no_max_mins:
     bounds.append([mins, -1])
 
-funcs = [
+funcs_evex = [
     "memcpy_dev_v32_movsb_v19", "memcpy_dev_v32_movsb_v20",
     "memcpy_dev_v32_movsb_v21", "memcpy_dev_v32_movsb_v22",
-    "memcpy_glibc_v32_movsb"
+    "memcpy_dev_v32_movsb_v23", "memcpy_glibc_v32_movsb"
 ]
-scales = [1, 2, 4, 8, 16, 32, 64]
+funcs_avx2 = [
+    "memcpy_dev_v32_movsb_avx2_v19", "memcpy_dev_v32_movsb_avx2_v20",
+    "memcpy_dev_v32_movsb_avx2_v21", "memcpy_dev_v32_movsb_avx2_v22",
+    "memcpy_glibc_v32_movsb_avx2"
+]
+funcs = []
+if len(sys.argv) == 1:
+    funcs += funcs_evex
+funcs += funcs_avx2
+
+scales = [1, 2, 4]
 confs = []
 for func in funcs:
     for bound in bounds:
         confs.append(Config(func, bound[0], bound[1], 1))
     for scale in scales:
         confs.append(Config(func, 0, -1, scale))
+        c = Config(func, 0, -1, scale)
+        c.nconfs = 8192
+        confs.append(c)
 
 f = None
 try:

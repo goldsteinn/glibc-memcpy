@@ -11,7 +11,7 @@
 #include "asm-common.h"
 #include "padding-conf.h"
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx2-vecs.h"
 #endif
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
@@ -39,11 +39,11 @@ ENTRY(MEMCPY)
 	cmpq	$(VEC_SIZE * 1), %rdx
 	jb	L(copy_0_31)
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
-
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_64)
 	/* L(copy_32_64).  */
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
@@ -95,9 +95,8 @@ L(copy_8_15):
 //    NOP15
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-    NOP1
+//    NOP1
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
 
@@ -124,7 +123,6 @@ L(more_64):
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 	// 0x960
-	.p2align 4
 L(copy_65_128):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
@@ -142,7 +140,6 @@ L(nop):
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
-    NOP3
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
 	je	L(nop)

@@ -3,4 +3,4 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #include "avx2-vecs.h"
-#include "core/memcpy-dev-v21.S"
+#include "core/memcpy-dev-avx2-v21.S"

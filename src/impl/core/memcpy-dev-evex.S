@@ -97,7 +97,7 @@ L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-    NOP1
+//    NOP1
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
 
@@ -142,7 +142,6 @@ L(nop):
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
-    NOP3
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
 	je	L(nop)

@@ -8,6 +8,7 @@ void * memcpy_dev_v32_movsb_v19(void *, const void *, size_t);
 void * memcpy_dev_v32_movsb_v20(void *, const void *, size_t);
 void * memcpy_dev_v32_movsb_v21(void *, const void *, size_t);
 void * memcpy_dev_v32_movsb_v22(void *, const void *, size_t);
+void * memcpy_dev_v32_movsb_v23(void *, const void *, size_t);
 void * memcpy_dev_v32_movsb_avx2(void *, const void *, size_t);
 void * memcpy_glibc_v32_movsb_avx2(void *, const void *, size_t);
 void * memcpy_dev_v32_movsb_avx2(void *, const void *, size_t);
@@ -36,6 +37,10 @@ void * memcpy_dev_v32_movsb_avx2_v22(void *, const void *, size_t);
 #include <bench/bench-memcpy.h>
 #undef NAME
 #define NAME memcpy_dev_v32_movsb_v22
+#include <bench/bench-memcpy.h>
+#undef NAME
+
+#define NAME memcpy_dev_v32_movsb_v23
 #include <bench/bench-memcpy.h>
 #undef NAME
 
@@ -74,6 +79,7 @@ const memcpy_info_t memcpy_defs[] = {
     make_memcpy_info(memcpy_dev_v32_movsb_v20),
     make_memcpy_info(memcpy_dev_v32_movsb_v21),
     make_memcpy_info(memcpy_dev_v32_movsb_v22),
+    make_memcpy_info(memcpy_dev_v32_movsb_v23),
     make_memcpy_info(memcpy_glibc_v32_movsb_avx2),
     make_memcpy_info(memcpy_dev_v32_movsb_avx2),
     make_memcpy_info(memcpy_dev_v32_movsb_avx2_v19),
