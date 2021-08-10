@@ -3,7 +3,10 @@ import sys
 import statistics
 
 fname = sys.argv[1]
-version = sys.argv[2]
+v1 = "dev_" + sys.argv[2]
+v2 = "glibc"
+if len(sys.argv) > 3:
+    v2 = "dev_" + sys.argv[3]
 key_order = []
 results = {}
 
@@ -40,9 +43,9 @@ with open(fname) as csvfile:
 print("{}, {}, {}, {}, {}, {}".format("size scale", "min size", "max size",
                                       "new time", "cur time", "new / cur"))
 for k in key_order:
-    res = results[k]["dev_" + version]
-    td = process(results[k]["dev_" + version][3])
-    tg = process(results[k]["glibc"][3])
+    res = results[k][v1]
+    td = process(results[k][v1][3])
+    tg = process(results[k][v2][3])
 
     improve = round(100.0 * float(td / tg), 2)
     print("{}, {}, {}, {}, {}, {}".format(res[0], res[1], res[2], round(td, 3),
