@@ -54,7 +54,6 @@ class Runner:
         if self.has_built is True:
             return
         copy_cmd = self.conf.generate_copy_cmd()
-        print("running: {}".format(copy_cmd))
         ret = os.system(copy_cmd)
         assert ret == 0
 
