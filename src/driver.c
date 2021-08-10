@@ -7,20 +7,21 @@ extern const memcpy_info_t memcpy_defs[];
 extern const uint64_t      nmemcpy_defs;
 
 
-uint32_t verbose         = 0;
-int32_t  core            = -1;
-int32_t  large_trials    = 0;
-int32_t  medium_trials   = 0;
-int32_t  small_trials    = 0;
-int32_t  rand_trials     = 0;
-uint32_t no_4k_alias     = 0;
-int32_t  human_readable  = 0;
-uint32_t test            = 0;
-uint32_t bench           = 0;
-uint32_t min_rand_size   = 0;
-uint32_t max_rand_size   = UINT32_MAX;
-uint32_t rand_size_scale = 1;
-uint32_t nrand_confs     = num_rand_confs;
+uint32_t          verbose         = 0;
+int32_t           core            = -1;
+int32_t           large_trials    = 0;
+int32_t           medium_trials   = 0;
+int32_t           small_trials    = 0;
+int32_t           rand_trials     = 0;
+uint32_t          no_4k_alias     = 0;
+int32_t           human_readable  = 0;
+uint32_t          test            = 0;
+uint32_t          bench           = 0;
+uint32_t          min_rand_size   = 0;
+uint32_t          max_rand_size   = UINT32_MAX;
+uint32_t          rand_size_scale = 1;
+uint32_t          nrand_confs     = num_rand_confs;
+bench_direction_t rand_direction  = BIDIRECTIONAL;
 
 char * func_name = NULL;
 char * file_path = NULL;
@@ -42,6 +43,7 @@ static ArgOption args[] = {
   {     KindOption,     Integer, 	"--max",    0,      &max_rand_size,     "Max size for random distribution" },
   {     KindOption,     Integer, 	"--scale",  0,      &rand_size_scale,   "Scale factor for random size distribution" },
   {     KindOption,     Integer, 	"--nconfs", 0,      &nrand_confs,       "Number of rand configs. Must be power of 2." },
+  {     KindOption,     Integer, 	"--dir",    0,      &rand_direction,    "Rand direction. 0 -> FORWARD, 1 -> BACKWARD, 2 -> BIDIRECTIONAL" },
 
   {     KindHelp,       Help,       "-h",       0,      NULL,               ""  },
   {     KindEnd,        EndOptions, "",         0,      NULL,               ""  }
@@ -106,7 +108,8 @@ main(int argc, char ** argv) {
 
         if (rand_trials) {
             init_rand_params(params + nparams, rand_trials, min_rand_size,
-                             max_rand_size, rand_size_scale, nrand_confs);
+                             max_rand_size, rand_size_scale, rand_direction,
+                             nrand_confs);
             ++nparams;
         }
 

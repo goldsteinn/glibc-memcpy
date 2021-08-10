@@ -4,18 +4,19 @@
 #include "bench-constants.h"
 
 void
-init_rand_params(bench_params_t * params_out,
-                 int32_t          trials,
-                 uint32_t         min_val,
-                 uint32_t         max_val,
-                 uint32_t         size_scale,
-                 uint32_t         nrand_confs) {
+init_rand_params(bench_params_t *  params_out,
+                 int32_t           trials,
+                 uint32_t          min_val,
+                 uint32_t          max_val,
+                 uint32_t          size_scale,
+                 bench_direction_t direction,
+                 uint32_t          nrand_confs) {
     die_assert(nrand_confs >= 2048 && nrand_confs <= num_rand_confs &&
                    (!(nrand_confs & (nrand_confs - 1))),
                "Invalid nrand_confs values!")
         die_assert(trials != 0, "Trials must be > 0");
     params_out->confs =
-        make_rand_confs(min_val, max_val, size_scale, nrand_confs);
+        make_rand_confs(min_val, max_val, size_scale, direction, nrand_confs);
     params_out->nconfs    = 1;
     params_out->test_name = "rand SPEC2017";
     params_out->trials    = trials < 0 ? DEFAULT_RAND_TRIALS : (uint32_t)trials;
@@ -23,6 +24,7 @@ init_rand_params(bench_params_t * params_out,
     params_out->rand_conf_min_val    = min_val;
     params_out->rand_conf_max_val    = max_val;
     params_out->rand_conf_size_scale = size_scale;
+    params_out->rand_conf_direction  = direction;
     params_out->nrand_confs          = nrand_confs;
 }
 
@@ -87,6 +89,6 @@ params_get_conf_al_src(const bench_params_t * params, uint32_t i) {
 }
 uint32_t
 params_get_conf_direction(const bench_params_t * params, uint32_t i) {
-    return params->todo == RAND ? params->nrand_confs
+    return params->todo == RAND ? params->rand_conf_direction
                                 : params->confs[i].direction;
 }

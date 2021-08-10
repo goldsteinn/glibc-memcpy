@@ -10,6 +10,7 @@
 
 #include "asm-common.h"
 
+
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -43,6 +44,7 @@
 
 #include "asm-common.h"
 
+
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -68,6 +70,7 @@ ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
 	jb	L(copy_0_31)
+
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 
 	cmpq	$(VEC_SIZE * 2), %rdx
@@ -77,19 +80,8 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-    .p2align 4,,6
-L(copy_0_31):
-	cmpl	$8, %edx
-	jb	L(copy_0_7)
-	cmpl	$16, %edx
-	jb	L(copy_8_15)
-	vmovdqu	(%rsi), %xmm0
-	vmovdqu	-16(%rsi, %rdx), %xmm1
-	vmovdqu	%xmm0, (%rdi)
-	vmovdqu	%xmm1, -16(%rdi, %rdx)
-	ret
-    
-    .p2align 4,,1
+	NOP16
+	.p2align 4
 L(copy_0_7):
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
@@ -102,10 +94,13 @@ L(copy_0_7):
 	movb	%sil, -1(%rdi, %rdx)
 L(copy_0):
 	ret
+	.p2align 4
 L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
+
+	.p2align 4
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -113,6 +108,7 @@ L(copy_4_7):
 	movl	%esi, -4(%rdi, %rdx)
 	ret
 
+	.p2align 4
 L(copy_8_15):
 	movq	(%rsi), %rcx
 	movq	-8(%rsi, %rdx), %rsi
@@ -120,13 +116,28 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
+	.p2align 4
+L(copy_0_31):
+	cmpl	$8, %edx
+	jb	L(copy_0_7)
+
+	cmpl	$16, %edx
+	jb	L(copy_8_15)
+
+	vmovdqu	(%rsi), %xmm0
+	vmovdqu	-16(%rsi, %rdx), %xmm1
+	vmovdqu	%xmm0, (%rdi)
+	vmovdqu	%xmm1, -16(%rdi, %rdx)
+	ret
+
 	// 0x8d0
-//    NOP15
+
+	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-//    NOP1
+
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
 
@@ -170,6 +181,7 @@ L(nop):
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
+	NOP3
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
 	je	L(nop)
@@ -210,7 +222,7 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	// 0xa60
-	NOP16
+	NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx

@@ -9,10 +9,40 @@
 */
 
 #include "asm-common.h"
-#include "padding-conf.h"
-#ifndef VZEROUPPER
-# include "../avx2-vecs.h"
+
+	// Tigerlake/Icelake
+#define L3_CACHE_SIZE	(12288	*	1024)
+#define NCORES	8
+
+
+#ifndef PAGE_SIZE
+# define PAGE_SIZE	4096
 #endif
+
+#if PAGE_SIZE != 4096
+# error Unsupported PAGE_SIZE
+#endif
+
+
+#ifndef SECTION
+# error SECTION is not defined!
+#endif
+
+
+
+	.section SECTION(.text), "ax", @progbits
+/*
+    1. BPU (BHT and/or BPU)
+    2. Uop Cache
+    3. Uops Delivered
+    4. Branch Density
+    5. rep movsb upper bound
+    6. address aliasing
+    7. Exact organization of v12???????????????????????
+*/
+
+#include "asm-common.h"
+
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -90,7 +120,6 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
-	PADDING0
 	// 0x8d0
 //    NOP15
 L(more_64):
@@ -134,7 +163,6 @@ L(copy_65_128):
 L(nop):
 	VZEROUPPER_RETURN
 
-	PADDING1
 	// NOP16
 	// 0x980
     NOP32
@@ -181,7 +209,6 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VZEROUPPER_RETURN
 
-	PADDING2
 	// 0xa60
 	NOP16
 	.p2align 4

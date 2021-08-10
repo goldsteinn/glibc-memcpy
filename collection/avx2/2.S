@@ -9,7 +9,6 @@
 */
 
 #include "asm-common.h"
-#include "padding-conf.h"
 
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
@@ -32,7 +31,7 @@
 
 
 	.section SECTION(.text), "ax", @progbits
-ENTRY(MEMCPY):
+ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
 	jb	L(copy_0_31)
@@ -95,7 +94,6 @@ L(copy_0_31):
 	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
 
-	PADDING0
 	// 0x8d0
 
 	.p2align 4
@@ -138,7 +136,6 @@ L(copy_65_128):
 L(nop):
 	VZEROUPPER_RETURN
 
-	PADDING1
 	// NOP16
 	// 0x980
 	NOP32
@@ -186,8 +183,7 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VZEROUPPER_RETURN
 
-	PADDING2
-	// 0xa60
+ 	// 0xa60
 	NOP32
 	.p2align 4
 L(more_256_backward):
