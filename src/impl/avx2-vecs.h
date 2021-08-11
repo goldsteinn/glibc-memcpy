@@ -24,7 +24,7 @@
 #define VEC13      ymm13
 #define VEC14      ymm14
 #define VEC15      ymm15
-#define VEC(i)     VEC##i
+#define VEC(i)     ymm##i
 #define VMOVNT     vmovntdq
 #define VMOVU      vmovdqu
 #define VMOVA      vmovdqa
