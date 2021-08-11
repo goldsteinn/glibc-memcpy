@@ -1,7 +1,7 @@
 import os
 import sys
 
-project_path = "~/programs/projects/memcpy"
+project_path = "/home/noah/programs/projects/memcpy"
 collection_path = project_path + "/collection/{}/{}.S"
 impl_path = project_path + "/src/impl/core/memcpy-dev.S"
 outfile = "results.txt"
@@ -113,8 +113,11 @@ for mins in no_max_mins:
 
 funcs = []
 for i in range(0, 100):
+    print("is: {}".format(collection_path.format(isa, i)))
     if os.path.isfile(collection_path.format(isa, i)):
         funcs.append(i)
+print(str(funcs))
+sys.exit(0)
 
 scales = [1]
 directions = [0, 1, 2]
@@ -136,6 +139,7 @@ except IOError:
 
 first = True
 ret = os.system("(cd {}/build; cmake ..)".format(project_path))
+assert ret == 0
 for repeats in range(0, 100):
     for i in range(0, len(confs)):
         print("[{:4d}] -> [{:4d} / {:4d}]:".format(repeats, i, len(confs)))
