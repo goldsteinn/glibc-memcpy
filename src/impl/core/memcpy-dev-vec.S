@@ -28,28 +28,67 @@
 # error SECTION is not defined!
 #endif
 
+	/* COPY_32 only used if evex is available for VEC_SIZE == 64.  */
+#define COPY_32	\
+	vmovdqu64 (%rsi), %ymm16; \
+	vmovdqu64 -16(%rsi, %rdx), %ymm16; \
+	vmovdqu64 %ymm16, (%rdi); \
+	vmovdqu64 %ymm16, -16(%rdi, %rdx)
 
+#define COPY_16	\
+	vmovdqu	(%rsi), %xmm0; \
+	vmovdqu	-16(%rsi, %rdx), %xmm1; \
+	vmovdqu	%xmm0, (%rdi); \
+	vmovdqu	%xmm1, -16(%rdi, %rdx)
+
+#define COPY_8	\
+	movq	(%rsi), %rcx; \
+	movq	-8(%rsi, %rdx), %rsi; \
+	movq	%rcx, (%rdi); \
+	movq	%rsi, -8(%rdi, %rdx)
+
+#define COPY_4	\
+	movl	(%rsi), %ecx; \
+	movl	-4(%rsi, %rdx), %esi; \
+	movl	%ecx, (%rdi); \
+	movl	%esi, -4(%rdi, %rdx)
+
+#define COPY_2	\
+	movzwl	(%rsi), %ecx; \
+	movzbl	-1(%rsi, %rdx), %esi; \
+	movw	%cx, (%rdi); \
+	movb	%sil, -1(%rdi, %rdx)
+
+#define COPY_1	\
+	movzbl	(%rsi), %ecx; \
+	movb	%cl, (%rdi)
 
 	.section SECTION(.text), "ax", @progbits
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
-	jb	L(copy_0_31)
+	jb	L(less_1x)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 
 	cmpq	$(VEC_SIZE * 2), %rdx
-	ja	L(more_64)
-	/* L(copy_32_64).  */
+	ja	L(more_2x)
+	/* [1x, 2x].  */
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
 	.p2align 4
-L(copy_0_7):
+L(less_quarter_x):
+#if VEC_SIZE == 64
+	cmpl	$8, %edx
+	jae	L(copy_8_15)
+#endif
+#if VEC_SIZE >= 32
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
+#endif
 	cmpl	$1, %edx
 	je	L(copy_1)
 	jb	L(copy_0)
@@ -63,14 +102,8 @@ L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
-
-L(copy_4_7):
-	movl	(%rsi), %ecx
-	movl	-4(%rsi, %rdx), %esi
-	movl	%ecx, (%rdi)
-	movl	%esi, -4(%rdi, %rdx)
-	ret
-
+    
+#if VEC_SIZE >= 64
 	.p2align 4
 L(copy_8_15):
 	movq	(%rsi), %rcx
@@ -78,40 +111,65 @@ L(copy_8_15):
 	movq	%rcx, (%rdi)
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
+#endif
+#if VEC_SIZE >= 32
+L(copy_4_7):
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
+	ret
+#endif
 
-L(copy_0_31):
-	cmpl	$8, %edx
-	jb	L(copy_0_7)
+	.p2align 4
+L(copy_half_x):
+#if VEC_SIZE == 64
+	COPY_16
+#elif VEC_SIZE == 32
+	COPY_8
+#elif VEC_SIZE == 16
+	COPY_4
+#else
+# error Unsupported VEC_SIZE
+#endif
+	ret
 
-	cmpl	$16, %edx
-	jb	L(copy_8_15)
+L(less_1x):
+	cmpl	$(VEC_SIZE / 4), %edx
+	jb	L(less_quarter_x)
 
-	vmovdqu	(%rsi), %xmm0
-	vmovdqu	-16(%rsi, %rdx), %xmm1
-	vmovdqu	%xmm0, (%rdi)
-	vmovdqu	%xmm1, -16(%rdi, %rdx)
+	cmpl	$(VEC_SIZE / 2), %edx
+	jb	L(copy_half_x)
+
+#if VEC_SIZE == 64
+	COPY_32
+#elif VEC_SIZE == 32
+	COPY_16
+#elif VEC_SIZE == 16
+	COPY_8
+#else
+# error Unsupported VEC_SIZE
+#endif
 	ret
 
 	// 0x8d0
 
 	.p2align 4
-L(more_64):
+L(more_2x):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	cmpq	$(VEC_SIZE * 8), %rdx
-	ja	L(more_256)
+	ja	L(more_8x)
 	cmpl	$(VEC_SIZE * 4), %edx
-	jbe	L(copy_65_128)
+	jbe	L(copy_2x_4x)
 
-	/* L(copy_129_256).  */
+	/* [4x + 1, 8x].  */
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
-
-
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
@@ -125,7 +183,7 @@ L(more_64):
 	VZEROUPPER_RETURN
 	// 0x960
 	.p2align 4
-L(copy_65_128):
+L(copy_2x_4x):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
 
@@ -138,12 +196,12 @@ L(nop):
 	// 0x980
 	NOP32
 	.p2align 4
-L(more_256):
+L(more_8x):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
 	NOP3
 	cmpq	%rsi, %rdi
-	ja	L(more_256_backward)
+	ja	L(more_8x_backward)
 	je	L(nop)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
@@ -153,7 +211,6 @@ L(more_256):
 	orq	$(VEC_SIZE * 2 - 1), %rdi
 	leaq	1(%rdi, %rsi), %rsi
 	incq	%rdi
-	// 0x9d0
 
 	.p2align 4
 L(loop_4x_vec_forward):
@@ -181,15 +238,13 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VZEROUPPER_RETURN
 
-	// 0xa60
 #ifdef USE_AS_AVX2
 	NOP32
 #else
 	NOP16
 #endif
 	.p2align 4
-L(more_256_backward):
-	// movl    (%rdx), %edx
+L(more_8x_backward):
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
@@ -197,8 +252,8 @@ L(more_256_backward):
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	andq	$(VEC_SIZE * -2), %rdi
 	addq	%rdi, %rsi
+
 	.p2align 4
-	// 0xa80
 L(loop_4x_vec_backward):
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(4)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(5)
@@ -232,7 +287,7 @@ L(movsb):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
 	cmpq	%rdx, %rcx
-	jb	L(more_256_backward)
+	jb	L(more_8x_backward)
 
 	/* L(forward_movsb).  */
 	subq	%rdi, %rsi

@@ -85,7 +85,7 @@ main(int argc, char ** argv) {
         list_funcs_and_die();
     }
     if (test) {
-        run_small_tests(memcpy_def, 0);
+        run_all_tests(memcpy_def);
     }
     else {
 

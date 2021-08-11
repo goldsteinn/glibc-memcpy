@@ -367,3 +367,8 @@ run_small_tests(const memcpy_info_t * memcpy_def, int32_t with_overlap) {
     fprintf(stderr, progress_fmt "\n", memcpy_def->name, 4 * nalignments,
             4 * nalignments);
 }
+
+void run_all_tests(const memcpy_info_t * memcpy_def) {
+    run_small_tests(memcpy_def, 1);
+    run_small_tests(memcpy_def, 0);
+}
