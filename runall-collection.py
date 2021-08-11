@@ -2,7 +2,7 @@ import os
 import sys
 
 project_path = "/home/noah/programs/projects/memcpy"
-collection_path = project_path + "/collection/both/{}/{}.S"
+collection_path = project_path + "/collection/run11/{}/{}.S"
 impl_path = project_path + "/src/impl/core/memcpy-dev.S"
 outfile = "results.txt"
 tmpfile = "tmp.txt"

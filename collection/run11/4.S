@@ -176,7 +176,7 @@ L(nop):
 
 	// 0x980
 	.p2align 4
-	NOP16
+    
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
