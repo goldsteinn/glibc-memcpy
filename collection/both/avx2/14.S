@@ -97,7 +97,6 @@ L(copy_1):
 	movb	%cl, (%rdi)
 	ret
 
-	.p2align 4
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -113,7 +112,6 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
-	.p2align 4
 L(copy_0_31):
 	cmpl	$8, %edx
 	jb	L(copy_0_7)
@@ -128,9 +126,7 @@ L(copy_0_31):
 	ret
 
 	// 0x8d0
-
 	.p2align 4
-    NOP4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
@@ -172,7 +168,7 @@ L(nop):
 
 	// NOP16
 	// 0x980
-	NOP32
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -218,7 +214,7 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	// 0xa60
-	NOP32
+    NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
@@ -288,8 +284,6 @@ L(large_memcpy):
 	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
 	jb	L(more_256)
 	ret
-L(fault0):
-    movl    (%rdx), %eax
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5

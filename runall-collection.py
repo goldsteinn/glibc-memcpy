@@ -2,7 +2,7 @@ import os
 import sys
 
 project_path = "/home/noah/programs/projects/memcpy"
-collection_path = project_path + "/collection/{}/{}.S"
+collection_path = project_path + "/collection/both/{}/{}.S"
 impl_path = project_path + "/src/impl/core/memcpy-dev.S"
 outfile = "results.txt"
 tmpfile = "tmp.txt"
@@ -124,7 +124,7 @@ confs = []
 for func in funcs:
     for scale in scales:
         for direction in directions:
-            confs.append(Config(func, 0, -1, scale, direction))
+#            confs.append(Config(func, 0, -1, scale, direction))
 
             c = Config(func, 0, -1, scale, direction)
             c.nconfs = 8192

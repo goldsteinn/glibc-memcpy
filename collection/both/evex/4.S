@@ -130,7 +130,6 @@ L(copy_0_31):
 	// 0x8d0
 
 	.p2align 4
-    NOP4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
