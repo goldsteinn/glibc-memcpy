@@ -10,6 +10,38 @@
 
 #include "asm-common.h"
 
+	// Tigerlake/Icelake
+#define L3_CACHE_SIZE	(12288	*	1024)
+#define NCORES	8
+
+
+#ifndef PAGE_SIZE
+# define PAGE_SIZE	4096
+#endif
+
+#if PAGE_SIZE != 4096
+# error Unsupported PAGE_SIZE
+#endif
+
+
+#ifndef SECTION
+# error SECTION is not defined!
+#endif
+
+
+
+	.section SECTION(.text), "ax", @progbits
+/*
+    1. BPU (BHT and/or BPU)
+    2. Uop Cache
+    3. Uops Delivered
+    4. Branch Density
+    5. rep movsb upper bound
+    6. address aliasing
+    7. Exact organization of v12???????????????????????
+*/
+
+#include "asm-common.h"
 
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
@@ -94,7 +126,6 @@ L(copy_0_31):
 	ret
 
 	// 0x8d0
-
 	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -183,7 +214,7 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	// 0xa60
-	NOP32
+    NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx

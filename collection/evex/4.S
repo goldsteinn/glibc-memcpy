@@ -10,7 +10,6 @@
 
 #include "asm-common.h"
 
-
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -43,7 +42,6 @@
 */
 
 #include "asm-common.h"
-
 
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
@@ -289,6 +287,8 @@ L(large_memcpy):
 	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
 	jb	L(more_256)
 	ret
+L(fault0):
+    movl    (%rdx), %eax
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5

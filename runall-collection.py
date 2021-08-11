@@ -1,7 +1,7 @@
 import os
 import sys
 
-project_path = "/home/noah/programs/projects/memcpy"
+project_path = "~/programs/projects/memcpy"
 collection_path = project_path + "/collection/{}/{}.S"
 impl_path = project_path + "/src/impl/core/memcpy-dev.S"
 outfile = "results.txt"
@@ -135,6 +135,7 @@ except IOError:
     err("Unable to open file")
 
 first = True
+ret = os.system("(cd {}/build; cmake ..)".format(project_path))
 for repeats in range(0, 100):
     for i in range(0, len(confs)):
         print("[{:4d}] -> [{:4d} / {:4d}]:".format(repeats, i, len(confs)))

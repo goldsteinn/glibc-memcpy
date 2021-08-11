@@ -32,7 +32,7 @@ with open(fname) as csvfile:
     reader = csv.DictReader(csvfile, fieldnames=header)
     for line in reader:
         impl = line["impl name"].replace("memcpy_", "").replace(
-            "_v32_movsb", "").lstrip().rstrip()
+            "_movsb", "").lstrip().rstrip()
 
         size = line["size"].lstrip().rstrip()
         min_sz = line["al dst"].lstrip().rstrip()

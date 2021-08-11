@@ -64,7 +64,6 @@ L(copy_1):
 	movb	%cl, (%rdi)
 	ret
 
-	.p2align 4
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -80,7 +79,6 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
-	.p2align 4
 L(copy_0_31):
 	cmpl	$8, %edx
 	jb	L(copy_0_7)
@@ -95,7 +93,6 @@ L(copy_0_31):
 	ret
 
 	// 0x8d0
-
 	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -138,7 +135,7 @@ L(nop):
 
 	// NOP16
 	// 0x980
-	NOP32
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -183,8 +180,8 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VZEROUPPER_RETURN
 
- 	// 0xa60
-	NOP32
+	// 0xa60
+    NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx

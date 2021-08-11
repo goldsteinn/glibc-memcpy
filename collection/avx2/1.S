@@ -10,6 +10,7 @@
 
 #include "asm-common.h"
 
+
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -136,6 +137,7 @@ L(nop):
 
 	// NOP16
 	// 0x980
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -153,7 +155,7 @@ L(more_256):
 	leaq	1(%rdi, %rsi), %rsi
 	incq	%rdi
 	// 0x9d0
-	NOP32
+
 	.p2align 4
 L(loop_4x_vec_forward):
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(4)
@@ -180,8 +182,8 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VZEROUPPER_RETURN
 
-	NOP32
 	// 0xa60
+	NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
