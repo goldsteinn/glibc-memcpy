@@ -35,7 +35,8 @@ class Config:
         return int(65536 / self.nconfs) * 10000
 
     def generate_copy_cmd(self):
-        return "cp {} {}".format(collection_path.format(isa, self.func), impl_path)
+        return "cp {} {}".format(collection_path.format(isa, self.func),
+                                 impl_path)
 
     def generate_cmd(self):
         return run_cmd.format(self.calculate_trials(), isa, self.minv,
@@ -113,11 +114,9 @@ for mins in no_max_mins:
 
 funcs = []
 for i in range(0, 100):
-    print("is: {}".format(collection_path.format(isa, i)))
+
     if os.path.isfile(collection_path.format(isa, i)):
         funcs.append(i)
-print(str(funcs))
-sys.exit(0)
 
 scales = [1]
 directions = [0, 1, 2]
