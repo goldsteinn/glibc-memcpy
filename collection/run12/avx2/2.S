@@ -182,7 +182,7 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	// 0xa60
-	NOP0
+	NOP32
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
