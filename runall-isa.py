@@ -75,9 +75,6 @@ class Runner:
 
     def run(self):
         self.build()
-
-        os.system("(cd {}/build; {})".format(project_path, self.conf.generate_test_cmd()))
-        return
         while True:
             cmd = self.conf.generate_cmd()
             print("\t\t{}".format(cmd))
