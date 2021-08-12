@@ -2,7 +2,8 @@ import os
 import sys
 
 project_path = "/home/noah/programs/projects/memcpy"
-collection_path = project_path + "/collection/run{}/{}/{}.S"
+collection_path = project_path + "/collection/run" + str(
+    sys.argv[1]) + "/{}/{}.S"
 impl_path = project_path + "/src/impl/core/memcpy-dev.S"
 outfile = "results.txt"
 tmpfile = "tmp.txt"
@@ -74,7 +75,8 @@ class Runner:
 
     def run(self):
         self.build()
-        os.system(self.conf.generate_test_cmd())
+
+        os.system("(cd {}/build; {})".format(project_path, self.conf.generate_test_cmd()))
         return
         while True:
             cmd = self.conf.generate_cmd()

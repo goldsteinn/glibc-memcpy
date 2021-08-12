@@ -9,7 +9,7 @@
 */
 
 #include "asm-common.h"
-#include "../avx512-vecs.h"
+
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -34,47 +34,30 @@
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
-	jb	L(less_vec)
+	jbe	L(copy_0_31)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	cmpq	$(VEC_SIZE * 2), %rdx
-	ja	L(more_2x)
-	/* L(copy_32_64).  */
 
+	cmpq	$(VEC_SIZE * 2), %rdx
+	ja	L(more_64)
+	/* L(copy_32_64).  */
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
-	.p2align 4
-L(copy_8_15):
-	movq	(%rsi), %rcx
-	movq	-8(%rsi, %rdx), %rsi
-	movq	%rcx, (%rdi)
-	movq	%rsi, -8(%rdi, %rdx)
-	ret
-L(copy_32_63):
+L(copy_0_31):
+	cmpl	$8, %edx
+	jb	L(copy_0_7)
+
+	cmpl	$16, %edx
+	jb	L(copy_8_15)
+
 	vmovdqu	(%rsi), %xmm0
 	vmovdqu	-16(%rsi, %rdx), %xmm1
 	vmovdqu	%xmm0, (%rdi)
 	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
-
-	.p2align 4
-L(less_vec):
-	cmpl	$16, %edx
-	jb	L(copy_0_15)
-
-	cmpl	$32, %edx
-	jbe	L(copy_32_63)
-
-	vmovdqu64 (%rsi), %ymm16
-	vmovdqu64 -32(%rsi, %rdx), %ymm17
-	vmovdqu64 %ymm16, (%rdi)
-	vmovdqu64 %ymm17, -32(%rdi, %rdx)
-	ret
-
-	.p2align 4
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -83,9 +66,14 @@ L(copy_4_7):
 	ret
 
 	.p2align 4
-L(copy_0_15):
-	cmpl	$8, %edx
-	jae	L(copy_8_15)
+L(copy_8_15):
+	movq	(%rsi), %rcx
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rcx, (%rdi)
+	movq	%rsi, -8(%rdi, %rdx)
+	ret
+
+L(copy_0_7):
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
 	cmpl	$1, %edx
@@ -101,23 +89,27 @@ L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
+
 	// 0x8d0
 
 	.p2align 4
-L(more_2x):
-	cmpq	$(VEC_SIZE * 8), %rdx
-	ja	L(more_8x)
+L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-	cmpq	$(VEC_SIZE * 4), %rdx
-	jbe	L(copy_leq_4x)
+	cmpq	$(VEC_SIZE * 8), %rdx
+	ja	L(more_256)
+	cmpl	$(VEC_SIZE * 4), %edx
+	jbe	L(copy_65_128)
 
-
+	/* L(copy_129_256).  */
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
+
+
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
@@ -131,7 +123,7 @@ L(more_2x):
 	VZEROUPPER_RETURN
 	// 0x960
 	.p2align 4
-L(copy_leq_4x):
+L(copy_65_128):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
 
@@ -142,22 +134,21 @@ L(nop):
 
 	// NOP16
 	// 0x980
-
+	NOP32
 	.p2align 4
-L(more_8x):
+L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
 	NOP3
 	cmpq	%rsi, %rdi
-	ja	L(more_8x_backward)
+	ja	L(more_256_backward)
 	je	L(nop)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
 
 	subq	%rdi, %rsi
 	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
-	orq	$63, %rdi
+	orq	$(VEC_SIZE * 2 - 1), %rdi
 	leaq	1(%rdi, %rsi), %rsi
 	incq	%rdi
 	// 0x9d0
@@ -185,19 +176,24 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VZEROUPPER_RETURN
 
 	// 0xa60
+#ifdef USE_AS_AVX2
+	NOP32
+#else
+	NOP16
+#endif
 	.p2align 4
-L(more_8x_backward):
+L(more_256_backward):
 	// movl    (%rdx), %edx
-	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
 	subq	%rdi, %rsi
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
-	andq	$-64, %rdi
+	andq	$(VEC_SIZE * -2), %rdi
 	addq	%rdi, %rsi
 	.p2align 4
 	// 0xa80
@@ -223,6 +219,7 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
 	VZEROUPPER_RETURN
 
@@ -233,26 +230,29 @@ L(movsb):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
 	cmpq	%rdx, %rcx
-	jb	L(more_8x_backward)
+	jb	L(more_256_backward)
 
 	/* L(forward_movsb).  */
 	subq	%rdi, %rsi
 	leaq	-2(%rdi, %rdx), %rcx
-	orq	$63, %rdi
+	orq	$(VEC_SIZE * 2 - 1), %rdi
 	leaq	1(%rdi, %rsi), %rsi
 	subq	%rdi, %rcx
-	andq	$-64, %rcx
+	andq	$(VEC_SIZE * - 2), %rcx
 	incq	%rdi
 
 	rep	movsb
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
+
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
 	ret
 
 L(large_memcpy):
 	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
-	jb	L(more_8x)
+	jb	L(more_256)
 	ret
 
 	.section SECTION(.rodata), "aM", @progbits, 8

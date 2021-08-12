@@ -54,10 +54,10 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 L(copy_32_63):
-	vmovdqu	(%rsi), %xmm0
-	vmovdqu	-16(%rsi, %rdx), %xmm1
-	vmovdqu	%xmm0, (%rdi)
-	vmovdqu	%xmm1, -16(%rdi, %rdx)
+	vmovdqu64 (%rsi), %ymm16
+	vmovdqu64 -32(%rsi, %rdx), %ymm17
+	vmovdqu64 %ymm16, (%rdi)
+	vmovdqu64 %ymm17, -32(%rdi, %rdx)
 	ret
 
 	.p2align 4
@@ -66,15 +66,15 @@ L(less_vec):
 	jb	L(copy_0_15)
 
 	cmpl	$32, %edx
-	jbe	L(copy_32_63)
+	ja	L(copy_32_63)
 
-	vmovdqu64 (%rsi), %ymm16
-	vmovdqu64 -32(%rsi, %rdx), %ymm17
-	vmovdqu64 %ymm16, (%rdi)
-	vmovdqu64 %ymm17, -32(%rdi, %rdx)
+	vmovdqu	(%rsi), %xmm0
+	vmovdqu	-16(%rsi, %rdx), %xmm1
+	vmovdqu	%xmm0, (%rdi)
+	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
 
-	.p2align 4
+    .p2align 4
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -101,8 +101,12 @@ L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
-	// 0x8d0
 
+
+
+
+	// 0x8d0
+    NOP16
 	.p2align 4
 L(more_2x):
 	cmpq	$(VEC_SIZE * 8), %rdx
@@ -187,7 +191,6 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 	VZEROUPPER_RETURN
 
-	// 0xa60
 	.p2align 4
 L(more_8x_backward):
 	// movl    (%rdx), %edx
