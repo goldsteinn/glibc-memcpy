@@ -3,11 +3,8 @@ import sys
 import statistics
 
 fname = sys.argv[1]
-v1 = "{}_evex"
-v2 = "{}_evex"
-if sys.argv[2] == "avx2":
-    v1 = "{}_avx2"
-    v2 = "{}_avx2"
+v1 = "{}_" + sys.argv[2]
+v2 = v1
 
 v1 = v1.format(sys.argv[3])
 v2 = v2.format(sys.argv[4])
