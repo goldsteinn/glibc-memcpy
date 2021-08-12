@@ -7,7 +7,7 @@
     6. address aliasing
     7. Exact organization of v12???????????????????????
 */
-
+#define V1 1
 #include "asm-common.h"
 
 	// Tigerlake/Icelake
@@ -34,7 +34,7 @@
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
-	jb	L(copy_0_31)
+	jbe	L(copy_0_31)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 
@@ -45,7 +45,7 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-
+#if V1
 	.p2align 4
 L(copy_0_7):
 	cmpl	$4, %edx
@@ -91,7 +91,52 @@ L(copy_0_31):
 	vmovdqu	%xmm0, (%rdi)
 	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
+#else
+L(copy_0_31):
+	cmpl	$8, %edx
+	jb	L(copy_0_7)
 
+	cmpl	$16, %edx
+	jb	L(copy_8_15)
+
+	vmovdqu	(%rsi), %xmm0
+	vmovdqu	-16(%rsi, %rdx), %xmm1
+	vmovdqu	%xmm0, (%rdi)
+	vmovdqu	%xmm1, -16(%rdi, %rdx)
+	ret
+L(copy_4_7):
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
+	ret
+
+	.p2align 4
+L(copy_8_15):
+	movq	(%rsi), %rcx
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rcx, (%rdi)
+	movq	%rsi, -8(%rdi, %rdx)
+	ret
+
+L(copy_0_7):
+	cmpl	$4, %edx
+	jae	L(copy_4_7)
+	cmpl	$1, %edx
+	je	L(copy_1)
+	jb	L(copy_0)
+	movzwl	(%rsi), %ecx
+	movzbl	-1(%rsi, %rdx), %esi
+	movw	%cx, (%rdi)
+	movb	%sil, -1(%rdi, %rdx)
+L(copy_0):
+	ret
+L(copy_1):
+	movzbl	(%rsi), %ecx
+	movb	%cl, (%rdi)
+	ret
+
+#endif
 	// 0x8d0
 
 	.p2align 4

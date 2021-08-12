@@ -9,7 +9,7 @@
 */
 
 #include "asm-common.h"
-
+#include "../avx-vecs.h"
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -37,16 +37,15 @@ ENTRY(MEMCPY)
 	jb	L(less_vec)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
-
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_2x)
 	/* L(copy_32_64).  */
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-
-	.p2align 4
+    
 L(less_vec):
 	cmpl	$8, %edx
 	jae	L(copy_8_15)
@@ -65,14 +64,7 @@ L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
-
-L(copy_4_7):
-	movl	(%rsi), %ecx
-	movl	-4(%rsi, %rdx), %esi
-	movl	%ecx, (%rdi)
-	movl	%esi, -4(%rdi, %rdx)
-	ret
-
+    
 	.p2align 4
 L(copy_8_15):
 	movq	(%rsi), %rcx
@@ -81,18 +73,25 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
+L(copy_4_7):
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
+	ret
+
+    NOP16
 	.p2align 4
 L(more_2x):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(copy_leq_4x)
-	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
-	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
-
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
+    
+	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_8x)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
@@ -118,7 +117,6 @@ L(nop):
 
 	// NOP16
 	// 0x980
-	NOP32
 	.p2align 4
 L(more_8x):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -165,11 +163,8 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	// 0xa60
-#ifdef USE_AS_AVX2
-	NOP32
-#else
-	NOP16
-#endif
+
+
 	.p2align 4
 L(more_8x_backward):
 	subq	%rdi, %rsi
