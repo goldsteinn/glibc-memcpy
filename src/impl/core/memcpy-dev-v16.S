@@ -34,7 +34,7 @@
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE * 1), %rdx
-	jb	L(less_vec)
+	jbe	L(less_vec)
 
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
@@ -115,7 +115,7 @@ L(copy_leq_4x):
 L(nop):
 	VZEROUPPER_RETURN
 
-	// NOP16
+	NOP16
 	// 0x980
 	.p2align 4
 L(more_8x):

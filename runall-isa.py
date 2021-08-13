@@ -4,7 +4,7 @@ import sys
 project_path = "/home/noah/programs/projects/memcpy"
 collection_path = project_path + "/collection/run" + str(
     sys.argv[1]) + "/{}/{}.S"
-impl_path = project_path + "/src/impl/core/memcpy-dev.S"
+impl_path = project_path + "/src/impl/core/memcpy-dev-v{}.S"
 outfile = "results.txt"
 tmpfile = "tmp.txt"
 run_cmd = "./driver --core 0 --rt {} --func memcpy_dev_{}_movsb --min {} --max {} --scale {} --dir {} --nconfs {}"
@@ -14,6 +14,7 @@ for i in range(2, len(sys.argv)):
     isa_list.append(sys.argv[i])
 
 assert len(isa_list) > 0
+isa_to_size = {"avx": 16, "avx2": 32, "evex": 32, "avx512": 64}
 
 
 def err(s):
@@ -42,7 +43,7 @@ class Config:
 
     def generate_copy_cmd(self):
         return "cp {} {}".format(collection_path.format(self.isa, self.func),
-                                 impl_path)
+                                 impl_path.format(isa_to_size[self.isa]))
 
     def generate_test_cmd(self):
         return "./driver --func memcpy_dev_{}_movsb --test".format(self.isa)
