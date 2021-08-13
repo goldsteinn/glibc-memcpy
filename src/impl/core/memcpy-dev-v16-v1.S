@@ -57,7 +57,7 @@ L(less_vec):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
-    
+
 L(copy_4_7):
 	movl	(%rsi), %ecx
 	movl	-4(%rsi, %rdx), %esi
@@ -82,7 +82,6 @@ L(copy_1):
     
 
 
-	NOP16
 	.p2align 4
 L(more_2x):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -116,7 +115,6 @@ L(copy_leq_4x):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 L(nop):
 	VZEROUPPER_RETURN
-	NOP16
 	// NOP16
 	// 0x980
 	.p2align 4
@@ -163,9 +161,7 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rax)
 	VZEROUPPER_RETURN
-
 	// 0xa60
-
 	.p2align 4
 L(more_8x_backward):
 	subq	%rdi, %rsi

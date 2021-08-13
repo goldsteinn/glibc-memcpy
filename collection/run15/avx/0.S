@@ -80,6 +80,7 @@ L(copy_4_7):
 	movl	%esi, -4(%rdi, %rdx)
 	ret
 
+	NOP16
 	.p2align 4
 L(more_2x):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -113,6 +114,8 @@ L(copy_leq_4x):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 L(nop):
 	VZEROUPPER_RETURN
+
+	NOP16
 	// 0x980
 	.p2align 4
 L(more_8x):
@@ -160,6 +163,8 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	// 0xa60
+
+    NOP16
 	.p2align 4
 L(more_8x_backward):
 	subq	%rdi, %rsi

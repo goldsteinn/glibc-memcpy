@@ -92,7 +92,7 @@ L(copy_0_31):
 	ret
 
 	// 0x8d0
-
+	NOP16    
 	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -134,7 +134,7 @@ L(nop):
 
 	// NOP16
 	// 0x980
-	NOP32
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -183,7 +183,7 @@ L(loop_4x_vec_forward):
 #ifdef USE_AS_AVX2
 	NOP32
 #else
-	NOP16
+//	NOP16
 #endif
 	.p2align 4
 L(more_256_backward):

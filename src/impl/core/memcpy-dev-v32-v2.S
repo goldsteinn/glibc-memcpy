@@ -9,7 +9,9 @@
 */
 
 #include "asm-common.h"
-
+#ifndef VZEROUPPER
+#include "../evex-vecs.h"
+#endif
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -132,7 +134,7 @@ L(nop):
 
 	// NOP16
 	// 0x980
-	NOP32
+
 	.p2align 4
 L(more_256):
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -179,9 +181,9 @@ L(loop_4x_vec_forward):
 
 	// 0xa60
 #ifdef USE_AS_AVX2
-	NOP32
+
 #else
-	NOP16
+//    NOP32
 #endif
 	.p2align 4
 L(more_256_backward):
