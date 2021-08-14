@@ -5,4 +5,4 @@
 
 #include "avx512-vecs.h"
 
-#include "core/memcpy-dev-v64-v0.S"
+#include "core/memcpy-dev-v64.S"
