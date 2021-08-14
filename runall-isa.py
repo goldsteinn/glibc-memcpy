@@ -153,8 +153,7 @@ for isa in isa_list:
                 confs.append(Config(func, isa, 0, -1, scale, direction, 8192))
                 if do_test_mode:
                     break
-                if isa == "avx":
-                    continue
+                continue
                 for bound in bounds:
                     confs.append(
                         Config(func, isa, bound[0], bound[1], scale, direction,
