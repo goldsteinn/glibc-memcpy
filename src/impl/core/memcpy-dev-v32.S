@@ -8,10 +8,13 @@
     7. Exact organization of v12???????????????????????
 */
 
+	// USE THIS FOR AVX2
+
 #include "asm-common.h"
 #ifndef VZEROUPPER
-#include "../evex-vecs.h"
+# include "../evex-vecs.h"
 #endif
+
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -43,6 +46,7 @@ ENTRY(MEMCPY)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_64)
 	/* L(copy_32_64).  */
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
@@ -92,7 +96,7 @@ L(copy_1):
 	ret
 
 	// 0x8d0
-    
+	NOP16
 	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -131,8 +135,6 @@ L(copy_65_128):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 L(nop):
 	VZEROUPPER_RETURN
-
-	// NOP16
 	// 0x980
 
 	.p2align 4
@@ -180,7 +182,10 @@ L(loop_4x_vec_forward):
 	VZEROUPPER_RETURN
 
 	// 0xa60
-    NOP32
+#ifdef USE_AS_AVX2
+
+#else
+#endif
 	.p2align 4
 L(more_256_backward):
 	// movl    (%rdx), %edx
