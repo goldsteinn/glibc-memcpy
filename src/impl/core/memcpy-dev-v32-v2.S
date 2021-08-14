@@ -92,7 +92,7 @@ L(copy_1):
 	ret
 
 	// 0x8d0
-
+    
 	.p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)

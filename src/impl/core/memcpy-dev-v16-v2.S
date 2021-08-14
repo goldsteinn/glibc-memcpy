@@ -41,36 +41,10 @@ ENTRY(MEMCPY)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(more_2x)
 	/* L(copy_32_64).  */
-
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-L(copy_1):
-	movzbl	(%rsi), %ecx
-	movb	%cl, (%rdi)
-	ret
-    
-	.p2align 4
-L(copy_8_15):
-	movq	(%rsi), %rcx
-	movq	-8(%rsi, %rdx), %rsi
-	movq	%rcx, (%rdi)
-	movq	%rsi, -8(%rdi, %rdx)
-	ret
-
-    .p2align 4
-L(copy_4_7):
-	movl	(%rsi), %ecx
-	movl	-4(%rsi, %rdx), %esi
-	movl	%ecx, (%rdi)
-	movl	%esi, -4(%rdi, %rdx)
-	ret
-    .p2align 4    
-L(less_vec):
-	cmpl	$8, %edx
-	jae	L(copy_8_15)
-	cmpl	$4, %edx
-	jae	L(copy_4_7)
+L(copy_0_3):
 	cmpl	$1, %edx
 	je	L(copy_1)
 	jb	L(copy_0)
@@ -80,8 +54,36 @@ L(less_vec):
 	movb	%sil, -1(%rdi, %rdx)
 L(copy_0):
 	ret
+L(copy_1):
+	movzbl	(%rsi), %ecx
+	movb	%cl, (%rdi)
+	ret
 
-    .p2align 4
+	.p2align 4
+L(copy_4_7):
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
+	ret
+
+
+
+	.p2align 4
+L(less_vec):
+	cmpl	$4, %edx
+	jb	L(copy_0_3)
+	cmpl	$8, %edx
+	jb	L(copy_4_7)
+
+	movq	(%rsi), %rcx
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rcx, (%rdi)
+	movq	%rsi, -8(%rdi, %rdx)
+	ret
+
+    NOP16
+	.p2align 4
 L(more_2x):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
@@ -89,7 +91,7 @@ L(more_2x):
 	jbe	L(copy_leq_4x)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
-    
+
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 	cmpq	$(VEC_SIZE * 8), %rdx
@@ -114,6 +116,8 @@ L(copy_leq_4x):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 L(nop):
 	VZEROUPPER_RETURN
+//	NOP16
+	// NOP16
 	// 0x980
 	.p2align 4
 L(more_8x):
@@ -156,11 +160,12 @@ L(loop_4x_vec_forward):
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-    VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
+	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rax)
 	VZEROUPPER_RETURN
 
 	// 0xa60
+	NOP16
 	.p2align 4
 L(more_8x_backward):
 	subq	%rdi, %rsi
@@ -191,7 +196,7 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 
-    VMOVU	%VEC(12), (VEC_SIZE * -4)(%rax, %rdx)
+	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rax, %rdx)
 	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rax, %rdx)
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
@@ -219,10 +224,10 @@ L(movsb):
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-    VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
+	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rax)
-    
-    VMOVU	%VEC(12), (VEC_SIZE * -4)(%rax, %rdx)
+
+	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rax, %rdx)
 	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rax, %rdx)
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
