@@ -10,8 +10,12 @@ tmpfile = "tmp.txt"
 run_cmd = "./driver --core 0 --rt {} --func memcpy_dev_{}_movsb --min {} --max {} --scale {} --dir {} --nconfs {}"
 
 isa_list = []
+do_test_mode = False
 for i in range(2, len(sys.argv)):
-    isa_list.append(sys.argv[i])
+    if sys.argv[i] == "test":
+        do_test_mode = True
+    else:
+        isa_list.append(sys.argv[i])
 
 assert len(isa_list) > 0
 isa_to_size = {"avx": 16, "avx2": 32, "evex": 32, "avx512": 64}
@@ -23,20 +27,23 @@ def err(s):
 
 
 class Config:
-    def __init__(self, func, isa, minv, maxv, scalev, direction):
+    def __init__(self, func, isa, minv, maxv, scalev, direction, nconfs):
         self.func = func
         self.isa = isa
         self.minv = minv
         self.maxv = maxv
         self.scalev = scalev
         self.direction = direction
-        self.nconfs = 65536
+        self.nconfs = nconfs
 
     def handle_abort(self):
         if self.nconfs == 2048:
             return False
         self.nconfs = int(self.nconfs / 2)
         return True
+
+    def current(self):
+        return "{}_{}".format(self.func, self.isa)
 
     def calculate_trials(self):
         return (int(65536 / self.nconfs) * 10000) + 20000
@@ -67,17 +74,22 @@ class Runner:
         copy_cmd = self.conf.generate_copy_cmd()
         ret = os.system(copy_cmd)
         assert ret == 0
-
         ret = os.system(
             "(cd {}/build; make clean > /dev/null 2>&1; make > /dev/null 2>&1)"
             .format(project_path))
         assert ret == 0
+        if do_test_mode:
+            print("Testing: {}".format(self.conf.current()))
+            ret = os.system("(cd {}/build; {})".format(
+                project_path, self.conf.generate_test_cmd()))
+            #assert ret == 0
+
         self.has_built = True
 
     def run(self):
         self.build()
-        #print(self.conf.generate_copy_cmd())
-        #os.system("(cd {}/build; {})".format(project_path, self.conf.generate_test_cmd()))
+        if do_test_mode:
+            return
         while True:
             cmd = self.conf.generate_cmd()
             print("\t\t{}".format(cmd))
@@ -138,9 +150,21 @@ for isa in isa_list:
     for func in funcs[isa]:
         for scale in scales:
             for direction in directions:
-                c = Config(func, isa, 0, -1, scale, direction)
-                c.nconfs = 8192
-                confs.append(c)
+                confs.append(Config(func, isa, 0, -1, scale, direction, 8192))
+                if do_test_mode:
+                    break
+                if isa == "avx":
+                    continue
+                for bound in bounds:
+                    confs.append(
+                        Config(func, isa, bound[0], bound[1], scale, direction,
+                               8192))
+                for maximum in no_min_maxes:
+                    confs.append(
+                        Config(func, isa, 0, maximum, scale, direction, 8192))
+                for minimum in no_max_mins:
+                    confs.append(
+                        Config(func, isa, minimum, -1, scale, direction, 8192))
 
 f = None
 try:
