@@ -50,7 +50,7 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-
+    
 L(copy_0_31):
 	cmpl	$8, %edx
 	jb	L(copy_0_7)

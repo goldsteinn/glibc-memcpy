@@ -143,6 +143,7 @@ L(more_256):
 	cmpq	%rsi, %rdi
 	ja	L(more_256_backward)
 	je	L(nop)
+L(more_256_forward):    
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
 
@@ -231,7 +232,8 @@ L(movsb):
 	subq	%rsi, %rcx
 	cmpq	%rdx, %rcx
 	jb	L(more_256_backward)
-
+    cmpq    $-64, %rcx
+    jl  L(more_256_forward)
 	/* L(forward_movsb).  */
 	subq	%rdi, %rsi
 	leaq	-2(%rdi, %rdx), %rcx
