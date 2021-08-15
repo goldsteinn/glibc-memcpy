@@ -5,4 +5,4 @@
 
 #include "evex-vecs.h"
 
-#include "core/memcpy-dev-evex-final.S"
+#include "core/memcpy-dev-v32.S"
