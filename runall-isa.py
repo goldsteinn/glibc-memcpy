@@ -128,7 +128,7 @@ class Runner:
 
 bounds = [[16, 256], [32, 256], [33, 256], [16, 257], [32, 257], [33, 257]]
 
-no_min_maxes = [31, 32, 64, 65, 128, 256]
+no_min_maxes = [31, 32]
 no_max_mins = [16, 32, 33, 64, 65, 129, 257]
 
 for maxes in no_min_maxes:
@@ -153,11 +153,6 @@ for isa in isa_list:
                 confs.append(Config(func, isa, 0, -1, scale, direction, 8192))
                 if do_test_mode:
                     break
-                continue
-                for bound in bounds:
-                    confs.append(
-                        Config(func, isa, bound[0], bound[1], scale, direction,
-                               8192))
                 for maximum in no_min_maxes:
                     confs.append(
                         Config(func, isa, 0, maximum, scale, direction, 8192))
