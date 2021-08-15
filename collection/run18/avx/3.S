@@ -166,6 +166,19 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
+	.p2align 4
+L(lt_1x):
+	cmpl	$4, %edx
+	jb	L(copy_0_3)
+	cmpl	$8, %edx
+	jb	L(copy_4_7)
+
+	movq	(%rsi), %rcx
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rcx, (%rdi)
+	movq	%rsi, -8(%rdi, %rdx)
+	ret
+	.p2align 4
 L(copy_0_3):
 	cmpl	$1, %edx
 	je	L(copy_1)
@@ -189,27 +202,18 @@ L(copy_4_7):
 	movl	%esi, -4(%rdi, %rdx)
 	ret
 
-	.p2align 4
-L(lt_1x):
-	cmpl	$4, %edx
-	jb	L(copy_0_3)
-	cmpl	$8, %edx
-	jb	L(copy_4_7)
 
-	movq	(%rsi), %rcx
-	movq	-8(%rsi, %rdx), %rsi
-	movq	%rcx, (%rdi)
-	movq	%rsi, -8(%rdi, %rdx)
-	ret
 
 	/* NOP16 to avoid branch conflicts.  */
-	NOP16
 	.p2align 4
 L(gt_2x):
 
 	/* Will need to load VEC(1) and VEC(14) no matter what.  */
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+	cmpq	$(VEC_SIZE * 8), %rdx
+	ja	L(gt_8x)
+
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(copy_gt_2x_leq_4x)
 
@@ -221,8 +225,6 @@ L(gt_2x):
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
-	cmpq	$(VEC_SIZE * 8), %rdx
-	ja	L(gt_8x)
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
@@ -272,6 +274,9 @@ L(gt_8x_check):
 	/* Target if L(movsb) or L(large_memcpy) are not optimal despite the
 	   size.  */
 L(gt_8x_forward):
+	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
+	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
+
 	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
 	   src (rsi) can be properly adjusted.  */
 	subq	%rdi, %rsi
@@ -279,7 +284,7 @@ L(gt_8x_forward):
 	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
 	/* 64 byte align dst (rdi). Note VEC(0), VEC(1), VEC(2), and VEC(3)
 	   where already loaded in earlier logic.  */
-	orq	$63, %rdi
+	orq	$31, %rdi
 	/* Readjusted src (rsi).  */
 	leaq	1(%rdi, %rsi), %rsi
 	/* Finish aligning dst (rdi).  */
@@ -316,14 +321,14 @@ L(loop_4x_vec_forward):
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
-	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rax)
 	VZEROUPPER_RETURN
 
-	NOP16
 
 	.p2align 4
 L(gt_8x_backward):
+	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+
 	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
 	   src (rsi) can be properly adjusted.  */
 	subq	%rdi, %rsi
@@ -332,7 +337,7 @@ L(gt_8x_backward):
 	   those VECs where already loaded. -1 for aligning dst (rdi).  */
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	/* Align dst (rdi).  */
-	andq	$-64, %rdi
+	andq	$-32, %rdi
 	/* Readjust src (rsi).  */
 	addq	%rdi, %rsi
 
@@ -365,13 +370,12 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 
 	/* Store VECs loaded for aligning dst (rdi).  */
-	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rax, %rdx)
-	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rax, %rdx)
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VZEROUPPER_RETURN
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
 # ifdef USE_WITH_ERMS
+
 	.p2align 4
 L(movsb):
 	/* If size > __x86_rep_movsb_stop_threshold go to large copy.  */
@@ -386,7 +390,7 @@ L(movsb):
 	subq	%rsi, %rcx
 	cmpq	%rdx, %rcx
 	jb	L(gt_8x_backward)
-#  if 1
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
 	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
 	// __x86_string_control(%rip)
 	// jz      L(movsb_aligned)
@@ -407,12 +411,12 @@ L(movsb_align):
 	   byte aligned.  */
 	leaq	-2(%rdi, %rdx), %rcx
 	/* Aligned dst (rdi).  */
-	orq	$63, %rdi
+	orq	$31, %rdi
 	/* Restore src (rsi).  */
 	leaq	1(%rdi, %rsi), %rsi
 	/* Store proper size in rcx.  */
 	subq	%rdi, %rcx
-	andq	$-64, %rcx
+	andq	$-32, %rcx
 	incq	%rdi
 
 	rep	movsb
@@ -422,13 +426,9 @@ L(movsb_align):
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
-	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rax)
 
-	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rax, %rdx)
-	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rax, %rdx)
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	ret
 # endif
 	.p2align 4
