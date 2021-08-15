@@ -8,13 +8,10 @@
     7. Exact organization of v12???????????????????????
 */
 
-	// USE THIS FOR AVX2
-
 #include "asm-common.h"
 #ifndef VZEROUPPER
 # include "../evex-vecs.h"
 #endif
-
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
@@ -50,7 +47,7 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-    
+	.p2align 4,, 6
 L(copy_0_31):
 	cmpl	$8, %edx
 	jb	L(copy_0_7)
@@ -71,13 +68,6 @@ L(copy_4_7):
 	ret
 
 	.p2align 4
-L(copy_8_15):
-	movq	(%rsi), %rcx
-	movq	-8(%rsi, %rdx), %rsi
-	movq	%rcx, (%rdi)
-	movq	%rsi, -8(%rdi, %rdx)
-	ret
-
 L(copy_0_7):
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
@@ -94,14 +84,21 @@ L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
-
-	// 0x8d0
-	NOP16
 	.p2align 4
+L(copy_8_15):
+	movq	(%rsi), %rcx
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rcx, (%rdi)
+	movq	%rsi, -8(%rdi, %rdx)
+	ret
+    NOP15
+	// 0x8d0
+	// .p2align 4
 L(more_64):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_256)
 	cmpl	$(VEC_SIZE * 4), %edx
@@ -127,7 +124,7 @@ L(more_64):
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 	// 0x960
-	.p2align 4
+	.p2align 4,,6
 L(copy_65_128):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
@@ -136,6 +133,8 @@ L(copy_65_128):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 L(nop):
 	VZEROUPPER_RETURN
+
+	// NOP16
 	// 0x980
 
 	.p2align 4
@@ -186,6 +185,7 @@ L(loop_4x_vec_forward):
 #ifdef USE_AS_AVX2
 
 #else
+	// NOP32
 #endif
 	.p2align 4
 L(more_256_backward):
