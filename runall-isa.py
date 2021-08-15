@@ -129,7 +129,7 @@ class Runner:
 bounds = [[16, 256], [32, 256], [33, 256], [16, 257], [32, 257], [33, 257]]
 
 no_min_maxes = [31, 32]
-no_max_mins = [16, 32, 33, 64, 65, 129, 257]
+no_max_mins = [16, 32, 33, 257]
 
 for maxes in no_min_maxes:
     bounds.append([0, maxes])
@@ -143,7 +143,7 @@ for isa in isa_list:
         if os.path.isfile(collection_path.format(isa, i)):
             funcs[isa].append(i)
 
-scales = [1]
+scales = [1, 2]
 directions = [0, 1, 2]
 confs = []
 for isa in isa_list:
