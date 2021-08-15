@@ -46,7 +46,7 @@ class Config:
         return "{}_{}".format(self.func, self.isa)
 
     def calculate_trials(self):
-        return (int(65536 / self.nconfs) * 10000) + 20000
+        return (int(65536 / self.nconfs) * 10000)
 
     def generate_copy_cmd(self):
         return "cp {} {}".format(collection_path.format(self.isa, self.func),
