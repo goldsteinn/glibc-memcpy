@@ -13,6 +13,7 @@ int32_t           large_trials    = 0;
 int32_t           medium_trials   = 0;
 int32_t           small_trials    = 0;
 int32_t           rand_trials     = 0;
+int32_t           custom_trials   = 0;
 uint32_t          no_4k_alias     = 0;
 int32_t           human_readable  = 0;
 uint32_t          test            = 0;
@@ -36,6 +37,7 @@ static ArgOption args[] = {
   {     KindOption,     Integer, 	"--mt",     0,      &medium_trials,     "Set to number of trials for medium params. (0 skips, -1 sets trials to default)" },
   {     KindOption,     Integer, 	"--lt",     0,      &large_trials,      "Set to number of trials for large params. (0 skips, -1 sets trials to default)" },
   {     KindOption,     Integer, 	"--rt",     0,      &rand_trials,       "Set to number of trials for rand params. (0 skips, -1 sets trials to default)" },
+  {     KindOption,     Integer, 	"--ct",     0,      &custom_trials,     "Set to number of trials for custom params (0 skips, -1 sets trials to default))." },
   {     KindOption,     String,		"--func",	0,      &func_name,         "Memcpy implementation to benchmark" },
   {     KindOption,     Set,		"--hr",     0,      &human_readable,    "Set to make output more human readable" },
   {     KindOption,     Set, 		"--test",	0,      &test,              "Set to test" },
@@ -68,7 +70,8 @@ list_funcs_and_die() {
 int
 main(int argc, char ** argv) {
     die_assert(!doParse(&argp, argc, argv), "Error parsing arguments\n");
-    die_assert(large_trials | medium_trials | small_trials | rand_trials | test,
+    die_assert(large_trials | medium_trials | small_trials | rand_trials |
+                   test | custom_trials,
                "No benchmark requested\n");
     uint64_t              dst_al_offset = no_4k_alias ? 2048 : 0;
     const memcpy_info_t * memcpy_def    = NULL;
@@ -110,6 +113,11 @@ main(int argc, char ** argv) {
             init_rand_params(params + nparams, rand_trials, min_rand_size,
                              max_rand_size, rand_size_scale, rand_direction,
                              nrand_confs);
+            ++nparams;
+        }
+        if (custom_trials) {
+            init_custom_params(params + nparams, custom_trials, min_rand_size,
+                               max_rand_size, rand_direction, rand_size_scale);
             ++nparams;
         }
 

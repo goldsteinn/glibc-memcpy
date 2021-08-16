@@ -38,6 +38,13 @@ void init_medium_params(bench_params_t * params_out,
                         uint32_t         dst_al_offset,
                         int32_t          trials);
 void init_large_params(bench_params_t * params_out, int32_t trials);
+void init_custom_params(bench_params_t * params_out,
+                        int32_t          trials,
+                        uint32_t         al_dst,
+                        uint32_t         al_src,
+                        uint32_t         direction,
+                        uint32_t         sz);
+void init_summary_params(bench_params_t * params_out, int32_t trials);
 
 void destroy_params(bench_params_t * params, uint64_t nparams);
 

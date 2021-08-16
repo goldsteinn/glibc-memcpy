@@ -52,6 +52,37 @@ init_medium_params(bench_params_t * params_out,
     params_out->todo   = FIXED;
 }
 
+void
+init_summary_params(bench_params_t * params_out, int32_t trials) {
+    die_assert(trials > 0, "Trials must be > 0");
+    params_out->confs     = make_summary_confs(&(params_out->nconfs));
+    params_out->test_name = "fixed medium";
+    params_out->trials    = trials;
+    params_out->todo      = FIXED;
+}
+
+
+static uint32_t
+default_custom_trials(uint32_t sz) {
+    return (1UL << 34) / ((uint64_t)sz);
+}
+
+void
+init_custom_params(bench_params_t * params_out,
+                   int32_t          trials,
+                   uint32_t         al_dst,
+                   uint32_t         al_src,
+                   uint32_t         direction,
+                   uint32_t         sz) {
+    die_assert(trials != 0, "Trials must be > 0");
+    params_out->confs =
+        make_custom_confs(&(params_out->nconfs), al_dst, al_src, direction, sz);
+    params_out->test_name = "fixed medium";
+    params_out->trials =
+        trials < 0 ? default_custom_trials(sz) : (uint32_t)trials;
+    params_out->todo = FIXED;
+}
+
 
 void
 init_large_params(bench_params_t * params_out, int32_t trials) {

@@ -94,6 +94,7 @@ init_results(const bench_params_t * params,
         (bench_result_t *)safe_calloc(nparams, sizeof(bench_result_t));
 
     for (uint64_t i = 0; i < nparams; ++i) {
+        die_assert(params[i].nconfs > 0);
         results[i].times = (uint64_t *)safe_calloc(
             params[i].nconfs * params[i].trials, sizeof(uint64_t));
         results[i].stats     = (bench_stats_t *)safe_calloc(params[i].nconfs,

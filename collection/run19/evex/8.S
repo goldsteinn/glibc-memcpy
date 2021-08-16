@@ -219,7 +219,7 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
-
+    .p2align 4
 L(gt_2x):
 	/* Will need to load VEC(1), VEC(14), and VEC(15) no matter what.  */
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)

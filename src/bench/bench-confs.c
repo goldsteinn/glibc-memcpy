@@ -112,7 +112,8 @@ _make_data_dist(const freq_data_t * freq_in,
                 uint32_t            scale) {
     uint64_t n = 0;
     for (uint64_t i = 0; i < freq_in_sz; ++i) {
-        if (freq_in[i].val < min_val || freq_in[i].val > max_val) {
+        if (freq_in[i].val * scale < min_val ||
+            freq_in[i].val * scale > max_val) {
             continue;
         }
         n += freq_in[i].freq;
@@ -121,7 +122,8 @@ _make_data_dist(const freq_data_t * freq_in,
     *dist_sz            = n;
     n                   = 0;
     for (uint64_t i = 0; i < freq_in_sz; ++i) {
-        if (freq_in[i].val < min_val || freq_in[i].val > max_val) {
+        if (freq_in[i].val * scale < min_val ||
+            freq_in[i].val * scale > max_val) {
             continue;
         }
         for (uint64_t j = 0; j < freq_in[i].freq; ++j) {
@@ -166,7 +168,6 @@ make_rand_confs(uint32_t          min_val,
     die_assert(nrand_confs <= size_dist_sz, "Not enough confs!");
 
     for (uint64_t i = 0; i < nrand_confs; ++i) {
-        // 1 == forward, 0 == backward
         int dir;
         if (direction == BIDIRECTIONAL) {
             dir = rand() % 2;
@@ -248,20 +249,160 @@ make_small_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
     return confs;
 }
 
+bench_conf_t *
+make_custom_confs(uint32_t * nconfs_out,
+                  uint32_t   al_dst,
+                  uint32_t   al_src,
+                  uint32_t   direction,
+                  uint32_t   sz) {
+    bench_conf_t * confs = (bench_conf_t *)safe_calloc(2, sizeof(bench_conf_t));
+    make_conf(confs[0], al_dst, al_src, !!direction, sz);
+    uint32_t n = 1;
+    if (direction == BIDIRECTIONAL) {
+        make_conf(confs[1], al_dst, al_src, 0, sz);
+        n = 2;
+    }
+    *nconfs_out = n;
+    return confs;
+}
 
 bench_conf_t *
-make_medium_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
+make_summary_confs(uint32_t * nconfs_out) {
     uint32_t       cur_sz  = 0;
     uint32_t       cur_cap = 128 * 64;
     bench_conf_t * confs =
         (bench_conf_t *)safe_calloc(cur_cap, sizeof(bench_conf_t));
-    for (uint32_t i = 128; i < 4096; i += 16) {
+    for (uint32_t d = 0; d < 2; ++d) {
+        for (uint32_t i = 0; i <= 64; i <<= 1) {
+            make_conf_check(confs[cur_sz], 0, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 1024, 0, d, i, cur_sz, cur_cap,
+                            confs);
+        }
+
+        for (uint32_t i = 80; i <= 256; i += 16) {
+            make_conf_check(confs[cur_sz], 0, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 1, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 1, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 63, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 63, 0, d, i, cur_sz, cur_cap, confs);
+
+            make_conf_check(confs[cur_sz], 1024, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 1, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 1, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 63, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 63, 0, d, i, cur_sz, cur_cap,
+                            confs);
+        }
+
+        for (uint32_t i = 256 + 64; i <= 1024; i += 64) {
+            make_conf_check(confs[cur_sz], 0, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 1, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 1, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 63, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 63, 0, d, i, cur_sz, cur_cap, confs);
+
+            make_conf_check(confs[cur_sz], 1024, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 1, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 1, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 63, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 63, 0, d, i, cur_sz, cur_cap,
+                            confs);
+        }
+
+        for (uint32_t i = 1024 + 256; i <= 2048; i += 256) {
+            make_conf_check(confs[cur_sz], 0, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 1, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 1, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 63, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 63, 0, d, i, cur_sz, cur_cap, confs);
+
+            make_conf_check(confs[cur_sz], 1024, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 1, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 1, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 63, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 63, 0, d, i, cur_sz, cur_cap,
+                            confs);
+        }
+
+        for (uint32_t i = 2048 + 512; i <= 4096; i += 512) {
+            make_conf_check(confs[cur_sz], 0, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 1, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 1, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 63, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 63, 0, d, i, cur_sz, cur_cap, confs);
+
+            make_conf_check(confs[cur_sz], 1024, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 1, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 1, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 63, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 63, 0, d, i, cur_sz, cur_cap,
+                            confs);
+        }
+
+        for (uint32_t i = 4096 + 1024; i <= 16384; i += 1024) {
+            make_conf_check(confs[cur_sz], 0, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 1, 0, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 1, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 0, 63, d, i, cur_sz, cur_cap, confs);
+            make_conf_check(confs[cur_sz], 63, 0, d, i, cur_sz, cur_cap, confs);
+
+            make_conf_check(confs[cur_sz], 1024, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 1, 0, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 1, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024, 63, d, i, cur_sz, cur_cap,
+                            confs);
+            make_conf_check(confs[cur_sz], 1024 + 63, 0, d, i, cur_sz, cur_cap,
+                            confs);
+        }
+    }
+    *nconfs_out = cur_sz;
+    return confs;
+}
+
+bench_conf_t *
+make_medium_confs(uint32_t dst_al_offset, uint32_t * nconfs_out) {
+    uint32_t cur_sz  = 0;
+    uint32_t cur_cap = 128 * 64;
+    uint32_t sz_incr = 16;
+
+    bench_conf_t * confs =
+        (bench_conf_t *)safe_calloc(cur_cap, sizeof(bench_conf_t));
+    for (uint32_t i = 128; i < 8192; i += sz_incr) {
+        if (i >= 256) {
+            sz_incr = 64;
+        }
+        if (i >= 4096) {
+            sz_incr = 256;
+        }
+        uint32_t al_incr = 32;
         if (i > 512) {
             // no longer relevant and don't want to change any potential TLB
             // behavior
             dst_al_offset = 0;
         }
-        for (uint32_t j = 0; j <= 256; j += 32) {
+        for (uint32_t j = 0; j <= 256; j += al_incr) {
+            if (j >= 64) {
+                al_incr = 64;
+            }
             for (uint32_t k = 0; k < 2; ++k) {
                 make_conf_check(confs[cur_sz], dst_al_offset + 0, j, k, i,
                                 cur_sz, cur_cap, confs);

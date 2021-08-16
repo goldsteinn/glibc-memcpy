@@ -222,16 +222,14 @@ L(copy_8_15):
 
 L(gt_2x):
 	/* Will need to load VEC(1), VEC(14), and VEC(15) no matter what.  */
+	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(gt_8x)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_gt_2x_leq_4x)
-
-
-
 
 	/* copy (4x, 8x].  */
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
@@ -289,7 +287,6 @@ L(gt_8x):
 	   size.  */
 L(gt_8x_forward):
 	/* Load end of region so support copy of overlapping regions.  */
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
 	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
@@ -301,7 +298,7 @@ L(gt_8x_forward):
 	   in earlier logic.  */
 	// movl    %esi, %ecx
 	// andl    $32, %ecx
-	orq	$31, %rdi
+	orq	$63, %rdi
 	// xorq    %rcx, %rdi
 	/* Readjusted src (rsi).  */
 	leaq	1(%rdi, %rsi), %rsi
@@ -331,6 +328,7 @@ L(loop_4x_vec_forward):
 
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 
 	/* Store end of region.  */
 	VMOVU	%VEC(12), (VEC_SIZE * 0)(%rdx)
@@ -367,12 +365,12 @@ L(movsb_align):
 	   byte aligned.  */
 	leaq	-2(%rdi, %rdx), %rcx
 	/* Aligned dst (rdi).  */
-	orq	$31, %rdi
+	orq	$63, %rdi
 	/* Restore src (rsi).  */
 	leaq	1(%rdi, %rsi), %rsi
 	/* Store proper size in rcx.  */
 	subq	%rdi, %rcx
-	andq	$-32, %rcx
+	andq	$-64, %rcx
 	incq	%rdi
 
 	rep	movsb
@@ -381,6 +379,9 @@ L(movsb_align):
 
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
+
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
 	ret
 # endif
@@ -388,7 +389,6 @@ L(movsb_align):
 	.p2align 4
 L(gt_8x_backward):
 	/* Load begining of region to support overlap.  */
-	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
@@ -400,7 +400,7 @@ L(gt_8x_backward):
 	   those VECs where already loaded. -1 for aligning dst (rdi).  */
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	/* Align dst (rdi).  */
-	andq	$-32, %rdi
+	andq	$-64, %rdi
 	/* Readjust src (rsi).  */
 	addq	%rdi, %rsi
 
@@ -432,6 +432,7 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 
 	/* Store VECs loaded for aligning dst (rdi).  */
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
 	VZEROUPPER_RETURN
 #ifdef USE_WITH_MULTIARCH_AND_LIBC

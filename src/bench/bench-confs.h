@@ -26,6 +26,11 @@ bench_conf_t * make_rand_confs(uint32_t          min_val,
 bench_conf_t * make_small_confs(uint32_t dst_al_offset, uint32_t * nconfs_out);
 bench_conf_t * make_medium_confs(uint32_t dst_al_offset, uint32_t * nconfs_out);
 bench_conf_t * make_large_confs(uint32_t * nconfs_out);
-
+bench_conf_t * make_custom_confs(uint32_t * nconfs_out,
+                                 uint32_t   al_dst,
+                                 uint32_t   al_src,
+                                 uint32_t   direction,
+                                 uint32_t   sz);
+bench_conf_t * make_summary_confs(uint32_t * nconfs_out);
 
 #endif

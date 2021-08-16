@@ -119,7 +119,7 @@ for i in range(0, 100):
         funcs.append(i)
 
 scales = [1]
-directions = [0, 1, 2]
+directions = [0, 1, 2, 3]
 confs = []
 for func in funcs:
     for scale in scales:

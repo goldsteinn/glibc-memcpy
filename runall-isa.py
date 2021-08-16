@@ -152,6 +152,7 @@ for isa in isa_list:
             for direction in directions:
                 confs.append(Config(func, isa, 0, -1, scale, direction, 8192))
                 confs.append(Config(func, isa, 0, -1, scale, direction, 65536))
+                confs.append(Config(func, isa, 257, -1, scale, direction, 65536))
                 if do_test_mode:
                     break
                 continue

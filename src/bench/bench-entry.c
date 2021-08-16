@@ -63,6 +63,8 @@ _run_benchmarks(const bench_params_t *        params,
                 const memcpy_info_t *         memcpy_info,
                 int32_t                       core,
                 const perf_ev_initializer_t * pev_initializer) {
+    die_assert(nparams > 0);
+    die_assert(params != NULL);
     die_assert(inner_trials < LSD_START || inner_trials > 256,
                "Benchmarkings will have unreasonable overhead from branch "
                "misses in the inner loop");
