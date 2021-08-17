@@ -128,7 +128,7 @@
 
 
 	.section SECTION(.text), "ax", @progbits
-ENTRY(MEMCPY)
+P2ALIGN_ENTRY(MEMCPY, 6)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE), %rdx
 # if VEC_SIZE > 16
