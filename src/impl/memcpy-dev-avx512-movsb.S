@@ -4,4 +4,4 @@
 #define USE_WITH_ERMS
 
 #include "avx512-vecs.h"
-#include "core/memcpy-dev-v64.S"
+#include "core/memcpy-dev-v0.S"

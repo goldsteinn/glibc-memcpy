@@ -4,7 +4,7 @@
 #define ALIGN_TO	1
 
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx512-vecs.h"
 #endif
 #include "asm-common.h"
 
@@ -114,6 +114,19 @@
 # error SECTION is not defined!
 #endif
 
+#define COPY_BLOCK(mov_inst,	src_reg,	dst_reg,	size_reg,	len,	tmp_reg0,	tmp_reg1)	\
+	mov_inst (%src_reg), %tmp_reg0; \
+	mov_inst -(len)(%src_reg, %size_reg), %tmp_reg1; \
+	mov_inst %tmp_reg0, (%dst_reg); \
+	mov_inst %tmp_reg1, -(len)(%dst_reg, %size_reg);
+
+
+#define COPY_4_8	COPY_BLOCK(movl,	rsi,	rdi,	rdx,	4,	ecx,	esi)
+#define COPY_8_16	COPY_BLOCK(movq,	rsi,	rdi,	rdx,	8,	rcx,	rsi)
+#define COPY_16_32	COPY_BLOCK(vmovdqu,	rsi,	rdi,	rdx,	16,	xmm0,	xmm1)
+#define COPY_32_64	COPY_BLOCK(vmovdqu64,	rsi,	rdi,	rdx,	32,	ymm16,	ymm17)
+
+
 	.section SECTION(.text), "ax", @progbits
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
@@ -131,35 +144,58 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
+#if VEC_SIZE == 64
+L(copy_8_15):
+	COPY_8_16
+	ret
+
+L(copy_32_63):
+	vmovdqu64 (%rsi), %ymm16
+	vmovdqu64 -32(%rsi, %rdx), %ymm17
+	vmovdqu64 %ymm16, (%rdi)
+	vmovdqu64 %ymm17, -32(%rdi, %rdx)
+	ret
+#endif
+
 	.p2align 4,, 6
 L(leq_1x):
-	cmpl	$8, %edx
-	jb	L(copy_0_7)
+	cmpl	$(VEC_SIZE / 4), %edx
+	jb	L(lt_quarter_x)
 
-	cmpl	$16, %edx
+	cmpl	$(VEC_SIZE / 2), %edx
+#if VEC_SIZE == 64
+	ja	L(copy_32_63)
+	COPY_16_32
+#elif VEC_SIZE == 32
 	jb	L(copy_8_15)
-	/* Fall through for [16, 32] which is the most hot range in [0, 32].  */
-	vmovdqu	(%rsi), %xmm0
-	vmovdqu	-16(%rsi, %rdx), %xmm1
-	vmovdqu	%xmm0, (%rdi)
-	vmovdqu	%xmm1, -16(%rdi, %rdx)
+	COPY_16_32
+#else
+	jb	L(copy_4_7)
+	COPY_8_16
+#endif
 	ret
+
+
 	.p2align 4,, 6
 L(copy_4_7):
-	movl	(%rsi), %ecx
-	movl	-4(%rsi, %rdx), %esi
-	movl	%ecx, (%rdi)
-	movl	%esi, -4(%rdi, %rdx)
+	COPY_4_8
 	ret
+
 L(copy_1):
 	movzbl	(%rsi), %ecx
 	movb	%cl, (%rdi)
 	ret
 
 	/* Colder copy case for [0, 7].  */
-L(copy_0_7):
+L(lt_quarter_x):
+#if VEC_SIZE > 32
+	cmpl	$8, %edx
+	jae	L(copy_8_15)
+#endif
+#if VEC_SIZE > 16
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
+#endif
 	cmpl	$1, %edx
 	je	L(copy_1)
 	jb	L(copy_0)
@@ -172,12 +208,11 @@ L(copy_0):
 	ret
 
 	.p2align 4
+#if VEC_SIZE == 32
 L(copy_8_15):
-	movq	(%rsi), %rcx
-	movq	-8(%rsi, %rdx), %rsi
-	movq	%rcx, (%rdi)
-	movq	%rsi, -8(%rdi, %rdx)
+	COPY_8_16
 	ret
+#endif
 
 L(gt_2x):
 #if ALIGN_TO == 2
