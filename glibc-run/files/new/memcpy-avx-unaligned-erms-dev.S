@@ -6,7 +6,7 @@
 # define VMOVA	vmovdqa
 
 # define SECTION(p)	p##.avx
-# define MEMCPY	__memcpy_avx_unaligned_dev_erms
+# define MEMCPY	__memcpy_avx_unaligned_erms_dev
 # define VZEROUPPER
 
 # define USE_WITH_MULTIARCH_AND_LIBC

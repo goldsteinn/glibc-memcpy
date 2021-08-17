@@ -1,7 +1,7 @@
 
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
-#define ALIGN_TO	2
+#define ALIGN_TO	1
 
 #ifndef VZEROUPPER
 # include "../avx512x-vecs.h"

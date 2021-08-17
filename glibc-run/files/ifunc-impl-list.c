@@ -192,7 +192,7 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
    	      IFUNC_IMPL_ADD (array, i, memmove, 1,
 			      __memmove_avx_unaligned_dev)
 	      IFUNC_IMPL_ADD (array, i, memmove, 1,
-			      __memmove_avx_unaligned_erms))
+			      __memmove_avx_unaligned_erms_dev))
 
   /* Support sysdeps/x86_64/multiarch/memrchr.c.  */
   IFUNC_IMPL (i, name, memrchr,
@@ -908,7 +908,7 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
    	      IFUNC_IMPL_ADD (array, i, memcpy, 1,
 			      __memcpy_avx_unaligned_dev)
 	      IFUNC_IMPL_ADD (array, i, memcpy, 1,
-			      __memcpy_avx_unaligned_erms))
+			      __memcpy_avx_unaligned_erms_dev))
 
 
 #ifdef SHARED
