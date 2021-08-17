@@ -261,6 +261,7 @@ run_overlapp_tests_kernel(const memcpy_info_t * memcpy_def, uint64_t sz) {
             make_alignment_pairs(al_pairs, alignment);
             for (uint64_t len = 0; len <= sz - alignment;
                  len          = next_len(len, sz)) {
+                //                fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
                 for (uint32_t i = 0; i < NPAIRS; ++i) {
                     test1 = s_base + al_pairs[S1_IDX(i)];
                     test2 = s_base + al_pairs[S2_IDX(i)];
@@ -340,7 +341,8 @@ run_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def, uint64_t sz) {
             make_alignment_pairs(al_pairs, alignment);
             for (uint64_t len = 0; len <= sz - alignment;
                  len          = next_len(len, sz)) {
-                //                fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
+                //                fprintf(stderr, "%d:%lu:%lu\n", repeats,
+                //                al_idx, len);
                 for (uint32_t i = 0; i < NPAIRS; ++i) {
                     test1 = s1 + al_pairs[S1_IDX(i)];
                     test2 = s2_lo + al_pairs[S2_IDX(i)];

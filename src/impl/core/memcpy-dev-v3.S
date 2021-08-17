@@ -4,7 +4,7 @@
 #define ALIGN_TO	2
 
 #ifndef VZEROUPPER
-# include "../avx2-vecs.h"
+# include "../avx512x-vecs.h"
 #endif
 #include "asm-common.h"
 
@@ -137,10 +137,10 @@ ENTRY(MEMCPY)
 	jb	L(leq_1x)
 #endif
 	VMOVU	(%rsi), %VEC(0)
-
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(gt_2x)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
@@ -216,15 +216,16 @@ L(copy_8_15):
 
 L(gt_2x):
 #if ALIGN_TO == 2
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(gt_8x)
 #if ALIGN_TO == 1
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_gt_2x_leq_4x)
 
@@ -254,12 +255,9 @@ L(nop):
 	VZEROUPPER_RETURN
 	.p2align 4
 L(gt_8x):
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-#if ALIGN_TO == 2
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-#endif
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
+    movq    %rdi, %r8
 	cmpq	%rdx, %rcx
 	jb	L(gt_8x_backward)
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
@@ -296,9 +294,9 @@ L(loop_4x_forward):
 	VMOVU	%VEC(14), (VEC_SIZE * 2)(%rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
 
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 #if ALIGN_TO == 2
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #endif
 	VZEROUPPER_RETURN
 
@@ -333,13 +331,13 @@ L(movsb_align):
 	/* Store aligning VECs.  */
 
 	/* NB: rax was set to dst on function entry.  */
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 #  if ALIGN_TO == 2
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
 #  endif
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
 	ret
 # endif
 #endif
@@ -380,22 +378,22 @@ L(loop_4x_backward):
 	VMOVA	%VEC(7), (VEC_SIZE * 0)(%rdi)
 	addq	$(VEC_SIZE * -4), %rdi
 
-	cmpq	%rdi, %rax
+	cmpq	%rdi, %r8
 	jb	L(loop_4x_backward)
 
 	/* Store begining of region.  */
 
-	/* NB: rax was set to dst on function entry.  */
-	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rax)
-	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	/* NB: r8 was set to dst on function entry.  */
+	VMOVU	%VEC(3), (VEC_SIZE * 3)(%r8)
+	VMOVU	%VEC(2), (VEC_SIZE * 2)(%r8)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 
 	/* Store VECs loaded for aligning dst (rdi).  */
 #if ALIGN_TO == 2
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
 #endif
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
 	VZEROUPPER_RETURN
 
 #ifdef USE_WITH_MULTIARCH_AND_LIBC

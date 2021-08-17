@@ -1,16 +1,11 @@
+#if IS_IN (libc)
 
+# include <sysdep.h>
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #define ALIGN_TO	2
 
-#ifndef VZEROUPPER
-# include "../avx2-vecs.h"
-#endif
-#include "asm-common.h"
 
-	// Tigerlake/Icelake
-#define L3_CACHE_SIZE	(12288	*	1024)
-#define NCORES	8
 
 
 #ifndef VZEROUPPER
@@ -262,7 +257,7 @@ L(gt_8x):
 	subq	%rsi, %rcx
 	cmpq	%rdx, %rcx
 	jb	L(gt_8x_backward)
-	cmpq	x86_rep_movsb_threshold(%rip), %rdx
+	cmpq  __x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
 L(gt_8x_forward):
 #if ALIGN_TO == 1
@@ -310,7 +305,7 @@ L(movsb):
 
 	/* NB: __x86_rep_movsb_stop_threshold in range
 	   [__x86_rep_movsb_threshold, __x86_shared_non_temporal_threshold].  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp  __x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x)
 #  if AVOID_SHORT_DISTANCE_REP_MOVSB
 	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
@@ -459,7 +454,7 @@ L(large_memcpy_2x):
 
 	movq	%rdx, %r10
 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
-	cmp	x86_shared_non_temporal_threshold(%rip), %r10
+	cmp  __x86_shared_non_temporal_threshold(%rip), %r10
 	jae	L(large_memcpy_4x)
 
 	/* edx will store remainder size for copying tail.  */
@@ -603,14 +598,7 @@ L(large_memcpy_4x_end):
 	VZEROUPPER_RETURN
 #endif
 
-	.section SECTION(.rodata), "aM", @progbits, 8
-	.p2align 5
-x86_rep_movsb_threshold:
-	.quad	(2048 * 1 * ((VEC_SIZE) / 16))
-x86_shared_non_temporal_threshold:
-	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
-x86_rep_movsb_stop_threshold:
-	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
-	.previous
+
 END(MEMCPY)
 
+#endif

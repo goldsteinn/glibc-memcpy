@@ -1,16 +1,11 @@
+#if IS_IN (libc)
 
+# include <sysdep.h>
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #define ALIGN_TO	2
 
-#ifndef VZEROUPPER
-# include "../avx2-vecs.h"
-#endif
-#include "asm-common.h"
 
-	// Tigerlake/Icelake
-#define L3_CACHE_SIZE	(12288	*	1024)
-#define NCORES	8
 
 
 #ifndef VZEROUPPER
@@ -137,10 +132,10 @@ ENTRY(MEMCPY)
 	jb	L(leq_1x)
 #endif
 	VMOVU	(%rsi), %VEC(0)
-
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(gt_2x)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
@@ -216,15 +211,16 @@ L(copy_8_15):
 
 L(gt_2x):
 #if ALIGN_TO == 2
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(gt_8x)
 #if ALIGN_TO == 1
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_gt_2x_leq_4x)
 
@@ -254,15 +250,12 @@ L(nop):
 	VZEROUPPER_RETURN
 	.p2align 4
 L(gt_8x):
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-#if ALIGN_TO == 2
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-#endif
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
+    movq    %rdi, %r8
 	cmpq	%rdx, %rcx
 	jb	L(gt_8x_backward)
-	cmpq	x86_rep_movsb_threshold(%rip), %rdx
+	cmpq  __x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
 L(gt_8x_forward):
 #if ALIGN_TO == 1
@@ -296,9 +289,9 @@ L(loop_4x_forward):
 	VMOVU	%VEC(14), (VEC_SIZE * 2)(%rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
 
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 #if ALIGN_TO == 2
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #endif
 	VZEROUPPER_RETURN
 
@@ -310,7 +303,7 @@ L(movsb):
 
 	/* NB: __x86_rep_movsb_stop_threshold in range
 	   [__x86_rep_movsb_threshold, __x86_shared_non_temporal_threshold].  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp  __x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x)
 #  if AVOID_SHORT_DISTANCE_REP_MOVSB
 	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
@@ -333,13 +326,13 @@ L(movsb_align):
 	/* Store aligning VECs.  */
 
 	/* NB: rax was set to dst on function entry.  */
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 #  if ALIGN_TO == 2
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
 #  endif
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
 	ret
 # endif
 #endif
@@ -380,22 +373,22 @@ L(loop_4x_backward):
 	VMOVA	%VEC(7), (VEC_SIZE * 0)(%rdi)
 	addq	$(VEC_SIZE * -4), %rdi
 
-	cmpq	%rdi, %rax
+	cmpq	%rdi, %r8
 	jb	L(loop_4x_backward)
 
 	/* Store begining of region.  */
 
-	/* NB: rax was set to dst on function entry.  */
-	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rax)
-	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rax)
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	/* NB: r8 was set to dst on function entry.  */
+	VMOVU	%VEC(3), (VEC_SIZE * 3)(%r8)
+	VMOVU	%VEC(2), (VEC_SIZE * 2)(%r8)
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 
 	/* Store VECs loaded for aligning dst (rdi).  */
 #if ALIGN_TO == 2
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
 #endif
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
 	VZEROUPPER_RETURN
 
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
@@ -459,7 +452,7 @@ L(large_memcpy_2x):
 
 	movq	%rdx, %r10
 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
-	cmp	x86_shared_non_temporal_threshold(%rip), %r10
+	cmp  __x86_shared_non_temporal_threshold(%rip), %r10
 	jae	L(large_memcpy_4x)
 
 	/* edx will store remainder size for copying tail.  */
@@ -603,14 +596,7 @@ L(large_memcpy_4x_end):
 	VZEROUPPER_RETURN
 #endif
 
-	.section SECTION(.rodata), "aM", @progbits, 8
-	.p2align 5
-x86_rep_movsb_threshold:
-	.quad	(2048 * 1 * ((VEC_SIZE) / 16))
-x86_shared_non_temporal_threshold:
-	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
-x86_rep_movsb_stop_threshold:
-	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
-	.previous
+
 END(MEMCPY)
 
+#endif
