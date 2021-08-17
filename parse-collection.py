@@ -60,7 +60,9 @@ if full:
         "size scale", "min size", "max size", "direction", "nconfs",
         "new time", "cur time", "new / cur"))
 else:
-    print("{0:13}, {1:8}, {2:8}".format("direction", "nconfs", "new / cur"))
+    print("{0:13}, {1:8}, {2:8}, {3:8}, {4:8}".format("direction", "nconfs",
+                                                      "min size", "scale",
+                                                      "new / cur"))
 
 for k in key_order:
     res = results[k][v1]
@@ -74,4 +76,5 @@ for k in key_order:
                 res[0], res[1], res[2], to_str(res[3]), res[4], round(td, 3),
                 round(tg, 3), improve))
     else:
-        print("{0:13}, {1:8}, {2:8}".format(to_str(res[3]), res[4], improve))
+        print("{0:13}, {1:8}, {2:8}, {3:8}, {4:8}".format(
+            to_str(res[3]), res[4], res[1], res[0], improve))

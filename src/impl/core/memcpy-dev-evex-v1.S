@@ -163,10 +163,10 @@ ENTRY(MEMCPY)
 	jbe	L(leq_1x)
 	/* Will need to copy VEC(0) no matter what.  */
 	VMOVU	(%rsi), %VEC(0)
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(gt_2x)
 	/* copy (1x, 2x].  */
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
@@ -219,17 +219,17 @@ L(copy_8_15):
 	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
-
 L(gt_2x):
 	/* Will need to load VEC(1), VEC(14), and VEC(15) no matter what.  */
-	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(gt_8x)
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_gt_2x_leq_4x)
+
+
+
 
 	/* copy (4x, 8x].  */
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
@@ -287,6 +287,7 @@ L(gt_8x):
 	   size.  */
 L(gt_8x_forward):
 	/* Load end of region so support copy of overlapping regions.  */
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
 	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
@@ -298,7 +299,7 @@ L(gt_8x_forward):
 	   in earlier logic.  */
 	// movl    %esi, %ecx
 	// andl    $32, %ecx
-	orq	$63, %rdi
+	orq	$31, %rdi
 	// xorq    %rcx, %rdi
 	/* Readjusted src (rsi).  */
 	leaq	1(%rdi, %rsi), %rsi
@@ -308,13 +309,11 @@ L(gt_8x_forward):
 	/* Loop 4x VEC at a time copy forward from src (rsi) to dst (rdi).  */
 	.p2align 4
 L(loop_4x_vec_forward):
-	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(5)
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(4)
-
+	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(5)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
 	subq	$(VEC_SIZE * -4), %rsi
-
 	VMOVA	%VEC(4), (VEC_SIZE * 0)(%rdi)
 	VMOVA	%VEC(5), (VEC_SIZE * 1)(%rdi)
 	VMOVA	%VEC(6), (VEC_SIZE * 2)(%rdi)
@@ -328,7 +327,6 @@ L(loop_4x_vec_forward):
 
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
 
 	/* Store end of region.  */
 	VMOVU	%VEC(12), (VEC_SIZE * 0)(%rdx)
@@ -337,58 +335,11 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
 
 	VZEROUPPER_RETURN
-#ifdef USE_WITH_MULTIARCH_AND_LIBC
-# ifdef USE_WITH_ERMS
-	.p2align 4
-L(movsb):
-	/* If size (rdx) > __x86_rep_movsb_stop_threshold go to large copy.  */
 
-	/* NB: __x86_rep_movsb_stop_threshold in range
-	   [__x86_rep_movsb_threshold, __x86_shared_non_temporal_threshold].  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
-	jae	L(large_memcpy_2x)
-#  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
-	// __x86_string_control(%rip)
-	// jz      L(movsb_aligned)
-	cmpq	$-64, %rcx
-	jl	L(gt_8x_forward)
-L(movsb_align):
-#  endif
-	/* 64 byte align both dst (rdi) and dst (rdi) + size (rdx). The
-	   necessary VECs where already loaded.  */
-
-	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
-	   src (rsi) can be properly adjusted.  */
-	subq	%rdi, %rsi
-	/* -2 incase both dst (rdi) and dst (rdi) + size (rdx) where already 64
-	   byte aligned.  */
-	leaq	-2(%rdi, %rdx), %rcx
-	/* Aligned dst (rdi).  */
-	orq	$63, %rdi
-	/* Restore src (rsi).  */
-	leaq	1(%rdi, %rsi), %rsi
-	/* Store proper size in rcx.  */
-	subq	%rdi, %rcx
-	andq	$-64, %rcx
-	incq	%rdi
-
-	rep	movsb
-
-	/* Store aligning VECs.  */
-
-	/* NB: rax was set to dst on function entry.  */
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rax)
-
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
-	ret
-# endif
-#endif
 	.p2align 4
 L(gt_8x_backward):
 	/* Load begining of region to support overlap.  */
+	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
@@ -400,7 +351,7 @@ L(gt_8x_backward):
 	   those VECs where already loaded. -1 for aligning dst (rdi).  */
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	/* Align dst (rdi).  */
-	andq	$-64, %rdi
+	andq	$-32, %rdi
 	/* Readjust src (rsi).  */
 	addq	%rdi, %rsi
 
@@ -432,10 +383,53 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
 
 	/* Store VECs loaded for aligning dst (rdi).  */
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rax, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
 	VZEROUPPER_RETURN
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
+# ifdef USE_WITH_ERMS
+	.p2align 4
+L(movsb):
+	/* If size (rdx) > __x86_rep_movsb_stop_threshold go to large copy.  */
+
+	/* NB: __x86_rep_movsb_stop_threshold in range
+	   [__x86_rep_movsb_threshold, __x86_shared_non_temporal_threshold].  */
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	jae	L(large_memcpy_2x)
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
+	// __x86_string_control(%rip)
+	// jz      L(movsb_aligned)
+	cmpq	$-64, %rcx
+	jl	L(gt_8x_forward)
+L(movsb_align):
+#  endif
+	/* 64 byte align both dst (rdi) and dst (rdi) + size (rdx). The
+	   necessary VECs where already loaded.  */
+
+	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
+	   src (rsi) can be properly adjusted.  */
+	subq	%rdi, %rsi
+	/* -2 incase both dst (rdi) and dst (rdi) + size (rdx) where already 64
+	   byte aligned.  */
+	leaq	-2(%rdi, %rdx), %rcx
+	/* Aligned dst (rdi).  */
+	orq	$31, %rdi
+	/* Restore src (rsi).  */
+	leaq	1(%rdi, %rsi), %rsi
+	/* Store proper size in rcx.  */
+	subq	%rdi, %rcx
+	andq	$-32, %rcx
+	incq	%rdi
+
+	rep	movsb
+
+	/* Store aligning VECs.  */
+
+	/* NB: rax was set to dst on function entry.  */
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rax)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rax, %rdx)
+	ret
+# endif
 	.p2align 4
 L(large_memcpy_2x):
 # ifdef USE_WITH_ERMS

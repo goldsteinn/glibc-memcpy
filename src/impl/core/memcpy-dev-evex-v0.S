@@ -220,6 +220,7 @@ L(copy_8_15):
 	ret
 
 
+	.p2align 4
 L(gt_2x):
 	/* Will need to load VEC(1), VEC(14), and VEC(15) no matter what.  */
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -308,8 +309,8 @@ L(gt_8x_forward):
 	/* Loop 4x VEC at a time copy forward from src (rsi) to dst (rdi).  */
 	.p2align 4
 L(loop_4x_vec_forward):
-	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(5)
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(4)
+	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(5)
 
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
@@ -319,9 +320,9 @@ L(loop_4x_vec_forward):
 	VMOVA	%VEC(5), (VEC_SIZE * 1)(%rdi)
 	VMOVA	%VEC(6), (VEC_SIZE * 2)(%rdi)
 	VMOVA	%VEC(7), (VEC_SIZE * 3)(%rdi)
-
+    
 	subq	$(VEC_SIZE * -4), %rdi
-
+    
 	cmpq	%rdi, %rdx
 	ja	L(loop_4x_vec_forward)
 	/* Store VECs loaded for aligning dst (rdi).  */
