@@ -178,7 +178,8 @@ class JsonFile():
         for key in self.key_order:
             times = [None, None]
             hdr = self.all_results[key].get_hdr()
-
+#            if int(self.all_results[key].length) <= 64:
+#                continue
             for i in range(0, len(impls)):
                 times[i] = self.all_results[key].get_stat(
                     fmt_ifunc(self.bench_func, impls[i]))

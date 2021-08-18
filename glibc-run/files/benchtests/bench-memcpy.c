@@ -181,6 +181,10 @@ test_main (void)
       do_test (&json_ctx, half_page + i, 0, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page, i, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page + i, i, 2048 + 64 * i, 1);
+      do_test (&json_ctx, i, 1, 2048 + 64 * i, 1);
+      do_test (&json_ctx, 1, i, 2048 + 64 * i, 1);
+      do_test (&json_ctx, half_page + i, 1, 2048 + 64 * i, 1);
+      do_test (&json_ctx, half_page + 1, i, 2048 + 64 * i, 1);
     }
 
   json_array_end (&json_ctx);
