@@ -265,7 +265,7 @@ L(gt_8x):
 	cmpq	%rdx, %rcx
 	jb	L(gt_8x_backward)
 	cmpq	__x86_rep_movsb_threshold(%rip), %rdx
-	ja	L(movsb)
+	jae	L(movsb)
 L(gt_8x_forward):
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
