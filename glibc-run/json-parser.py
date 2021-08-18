@@ -21,8 +21,9 @@ for benchmark in benchmarks:
     cmp_files.append(bench_fmt.format(impl_dir, benchmark + "{}"))
 
 
-def get_key(length, align1, align2, dgs):
-    return str(length) + "-" + str(align1) + "-" + str(align2) + "-" + str(dgs)
+def get_key(length, align1, align2, dgs, wfs, sz):
+    return str(length) + "-" + str(align1) + "-" + str(align2) + "-" + str(
+        dgs) + "-" + str(wfs) + "-" + str(sz)
 
 
 def get_stat(times):
@@ -58,11 +59,13 @@ def dgs_to_str(dgs):
         return "Forward"
     if dgs == "1":
         return "Backward"
-    if dgs == "2":
+    if dgs == "-1":
         return "Bidirectional"
     return dgs
 
 
+
+total = 0.0
 class Displayable():
     def __init__(self, hdr, t0, t1):
         self.hdr = hdr
@@ -73,20 +76,24 @@ class Displayable():
         out = csv_add(self.hdr, str(round(self.t0, 3)))
         if self.t1 is not None:
             score = round(self.t0 / self.t1, 3)
-            if score == 1.01231232:
-                return ""
+            global total
+            total += score
             out = csv_add(out, str(round(self.t1, 3)))
+            while out.count(',') < 5:
+                out += ","
             out = csv_add(out, str(score))
         return out + "\n"
 
 
 class Result():
-    def __init__(self, ifuncs, length, align1, align2, dgs):
+    def __init__(self, ifuncs, length, align1, align2, dgs, wfs, sz):
         self.ifuncs = ifuncs
         self.length = length
         self.align1 = align1
         self.align2 = align2
         self.dgs = dgs
+        self.wfs = wfs
+        self.sz = sz
         self.timings = {}
         for ifunc in ifuncs:
             self.timings[ifunc] = []
@@ -104,10 +111,13 @@ class Result():
         out = csv_add(out, self.align1)
         out = csv_add(out, self.align2)
         out = csv_add(out, dgs_to_str(self.dgs))
+        out = csv_add(out, self.wfs)
+        out = csv_add(out, self.sz)
         return out
 
     def result_key(self):
-        return get_key(self.length, self.align1, self.align2, self.dgs)
+        return get_key(self.length, self.align1, self.align2, self.dgs,
+                       self.wfs, self.sz)
 
 
 class JsonFile():
@@ -136,17 +146,21 @@ class JsonFile():
             align1 = None
             align2 = None
             dgs = None
+            wfs = None
+            sz = None
             length = set_if_exists(result, "length", length)
+            length = set_if_exists(result, "max-alignment", length)
             align1 = set_if_exists(result, "align1", align1)
             align2 = set_if_exists(result, "align2", align2)
             dgs = set_if_exists(result, "dst > src", dgs)
-            dgs = set_if_exists(result, "direction", dgs)
-            key = get_key(length, align1, align2, dgs)
+            wfs = set_if_exists(result, "with-fixed-size", wfs)
+            sz = set_if_exists(result, "size", sz)
+            key = get_key(length, align1, align2, dgs, wfs, sz)
 
             if key not in self.all_results:
                 self.key_order.append(key)
                 self.all_results[key] = Result(ifuncs, length, align1, align2,
-                                               dgs)
+                                               dgs, wfs, sz)
             self.all_results[key].add_times(result["timings"])
 
     def parse_all_files(self):
@@ -173,7 +187,9 @@ class JsonFile():
             print(disp.out(), end="")
 
 
+
 for cmp_file in cmp_files:
     res = JsonFile(cmp_file)
     res.parse_all_files()
     res.show_results(cmp_impls)
+print("{}".format(total))

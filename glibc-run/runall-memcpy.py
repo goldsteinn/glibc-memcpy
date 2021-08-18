@@ -23,7 +23,7 @@ funcs = {
 root = "/home/noah/programs/opensource/glibc-dev"
 glibc_path = root + "/build/glibc/"
 bench_path = glibc_path + "benchtests/"
-result_path = root + "/dev-results/{}"
+result_path = root + "/dev-results/{}/"
 bench_cmd = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; taskset -c 0 make --silent bench BENCHSET=\"string-benchset\")"
 build_cmd = "rm -rf build; mkdir -p build/glibc; (cd " + glibc_path + "; unset LD_LIBRARY_PATH; " + root + "/src/glibc/configure --prefix=/usr; make -j 7 --silent)"
 
