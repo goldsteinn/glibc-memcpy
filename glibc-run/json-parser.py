@@ -64,8 +64,9 @@ def dgs_to_str(dgs):
     return dgs
 
 
-
 total = 0.0
+
+
 class Displayable():
     def __init__(self, hdr, t0, t1):
         self.hdr = hdr
@@ -101,6 +102,9 @@ class Result():
     def add_times(self, times):
         assert len(times) == len(self.ifuncs)
         for i in range(0, len(self.ifuncs)):
+            if int(self.length) == 8192 and int(self.align1) == 0 and int(
+                    self.align2) == 0:
+                print("{} -> {}".format(self.ifuncs[i], times[i]))
             self.timings[self.ifuncs[i]].append(float(times[i]))
 
     def get_stat(self, ifunc):
@@ -178,15 +182,14 @@ class JsonFile():
         for key in self.key_order:
             times = [None, None]
             hdr = self.all_results[key].get_hdr()
-#            if int(self.all_results[key].length) <= 64:
-#                continue
+            #            if int(self.all_results[key].length) <= 64:
+            #                continue
             for i in range(0, len(impls)):
                 times[i] = self.all_results[key].get_stat(
                     fmt_ifunc(self.bench_func, impls[i]))
             disps.append(Displayable(hdr, times[0], times[1]))
         for disp in disps:
             print(disp.out(), end="")
-
 
 
 for cmp_file in cmp_files:

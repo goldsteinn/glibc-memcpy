@@ -396,7 +396,7 @@ L(movsb_align_dst):
 #   if ALIGN_TO == 2
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #   endif
-	ret
+	VZEROUPPER_RETURN
 #   if AVOID_SHORT_DISTANCE_REP_MOVSB
 L(movsb_align_src):
 	testl	$(PAGE_SIZE - 512), %ecx
@@ -416,7 +416,7 @@ L(movsb_align_src):
 #    if ALIGN_TO == 2
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #    endif
-	ret
+	VZEROUPPER_RETURN
 #   endif
 
 #  endif

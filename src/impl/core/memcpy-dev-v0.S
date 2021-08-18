@@ -20,7 +20,7 @@
 # endif
 #endif
 
-#if VEC_SIZE == 16
+#if VEC_SIZE != 64
 # define ALIGN_TO	2
 #else
 # define ALIGN_TO	1
@@ -217,6 +217,7 @@ L(copy_8_15):
 	COPY_8_16
 	ret
 #endif
+
 L(gt_2x):
 #if ALIGN_TO == 2
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
@@ -234,7 +235,7 @@ L(gt_2x):
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
@@ -258,8 +259,9 @@ L(copy_gt_2x_leq_4x):
 
 L(nop):
 	VZEROUPPER_RETURN
-
+#if VEC_SIZE != 16
 	.p2align 4
+#endif
 L(gt_8x):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
@@ -294,17 +296,15 @@ L(loop_4x_forward):
 	subq	$(VEC_SIZE * -4), %rdi
 	cmpq	%rdi, %rdx
 	ja	L(loop_4x_forward)
-
 	VMOVU	%VEC(12), (VEC_SIZE * 0)(%rdx)
 	VMOVU	%VEC(13), (VEC_SIZE * 1)(%rdx)
 	VMOVU	%VEC(14), (VEC_SIZE * 2)(%rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 #if ALIGN_TO == 2
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #endif
-
-
 	VZEROUPPER_RETURN
 
 
@@ -376,11 +376,12 @@ L(movsb):
 	/* NB: x86_rep_movsb_stop_threshold in range [x86_rep_movsb_threshold,
 	   x86_shared_non_temporal_threshold].  */
 	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
-	ja	L(large_memcpy_2x)
+	jae	L(large_memcpy_2x)
 #  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
-	x86_string_control(%rip)
-
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
+	// x86_string_control(%rip)
+	jz      L(movsb_align_src)
 	cmpq	$-64, %rcx
 	jae	L(gt_8x_forward)
 #  endif
@@ -391,10 +392,11 @@ L(movsb_align_dst):
 	leaq	1(%rdi, %rsi), %rsi
 	subq	%rdi, %rcx
 	incq	%rdi
+
 	rep	movsb
 
 	/* Store aligning VECs.  */
-
+    
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 #  if ALIGN_TO == 2
@@ -477,7 +479,7 @@ L(large_memcpy_2x):
 	/* Adjust destination which should be aligned now.  */
 	subq	%r8, %rdi
 	/* Adjust length.  */
-	leaq	-(ALIGN_TO * VEC_SIZE)(%r8, %rdx), %rdx
+	addq	%r8, %rdx
 
 
 	/* Test if source and destination addresses will alias. If they do the
@@ -631,6 +633,7 @@ L(large_memcpy_4x_end):
 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
 	VZEROUPPER_RETURN
 #endif
+
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5

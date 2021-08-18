@@ -409,7 +409,7 @@ L(movsb_align_dst):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
 #   endif
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
-	ret
+	VZEROUPPER_RETURN
 #   if AVOID_SHORT_DISTANCE_REP_MOVSB
 L(movsb_align_src):
 	testl	$(PAGE_SIZE - 512), %ecx
@@ -436,7 +436,7 @@ L(movsb_align_src):
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
 #    endif
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
-	ret
+	VZEROUPPER_RETURN
 #   endif
 
 #  endif
