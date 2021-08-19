@@ -88,14 +88,16 @@ run_fixed_bench(bench_conf_t            conf,
     // Best to keep below 22 to avoid the LSD.
     IMPOSSIBLE(trials == 0);
     for (; trials; --trials) {
-        LIGHT_SERIALIZE();
+
         ALIGN_CODE(6);
         uint64_t start = get_cycles();
+        LIGHT_SERIALIZE();
         for (uint32_t i = inner_trials; i; --i) {
             DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
         }
-        uint64_t end = get_cycles();
         LIGHT_SERIALIZE();
+        uint64_t end = get_cycles();
+
         bench_store_u64(times, (end - start));
         ++times;
     }

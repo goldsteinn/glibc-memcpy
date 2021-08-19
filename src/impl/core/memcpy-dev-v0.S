@@ -381,11 +381,12 @@ L(movsb):
 	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
 	// x86_string_control(%rip)
-	jz      L(movsb_align_src)
+	jz	L(movsb_align_src)
 	cmpq	$-64, %rcx
 	jae	L(gt_8x_forward)
 #  endif
 L(movsb_align_dst):
+
 	subq	%rdi, %rsi
 	leaq	-(1)(%rdi, %rdx), %rcx
 	orq	$(ALIGN_TO * VEC_SIZE - 1), %rdi
@@ -396,13 +397,13 @@ L(movsb_align_dst):
 	rep	movsb
 
 	/* Store aligning VECs.  */
-    
+
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 #  if ALIGN_TO == 2
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #  endif
-	ret
+    VZEROUPPER_RETURN
 #  if AVOID_SHORT_DISTANCE_REP_MOVSB
 L(movsb_align_src):
 	testl	$(PAGE_SIZE - 512), %ecx
@@ -422,7 +423,7 @@ L(movsb_align_src):
 #   if ALIGN_TO == 2
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #   endif
-	ret
+    VZEROUPPER_RETURN
 #  endif
 
 # endif

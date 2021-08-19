@@ -381,8 +381,9 @@ L(movsb):
 	jae	L(gt_8x_forward)
 #   endif
 L(movsb_align_src):
+	movq	%rdx, %rcx
 	rep	movsb
-    ret
+	ret
 #  endif
 # endif
 
@@ -406,8 +407,8 @@ L(large_memcpy_2x):
 	ja	L(gt_8x_forward)
 
 	/* Cache align destination. First store the first 64 bytes then adjust
-	alignments.  */
-    VMOVU	(%rsi), %VEC(0)
+	   alignments.  */
+	VMOVU	(%rsi), %VEC(0)
 #  if VEC_SIZE < 64
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 #   if VEC_SIZE < 32

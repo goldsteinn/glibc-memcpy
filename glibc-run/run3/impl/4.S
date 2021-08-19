@@ -381,6 +381,7 @@ L(movsb):
 	jae	L(gt_8x_forward)
 #   endif
 L(movsb_align_src):
+	movq	%rdx, %rcx
 	rep	movsb
 	ret
 #  endif

@@ -381,7 +381,7 @@ L(movsb):
 #   endif
 L(movsb_align_dst):
 	subq	%rdi, %rsi
-	leaq	(%rdi, %rcx), %rcx
+	leaq	(%rdi, %rdx), %rcx
 	addq	$(ALIGN_TO * VEC_SIZE - 1), %rdi
 	andq	$-(ALIGN_TO * VEC_SIZE), %rdi
 	addq	%rdi, %rsi

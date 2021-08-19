@@ -130,8 +130,8 @@ L(start_erms):
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
 	cmp	$(VEC_SIZE * 2), %RDX_LP
-	ja      L(movsb_more_2x_vec)
-	//ja	L(more_8x_vec)
+	ja	L(movsb_more_2x_vec)
+	// ja      L(more_8x_vec)
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
 	VMOVU	(%rsi), %VEC(0)
@@ -173,6 +173,7 @@ L(movsb):
 	/* Avoid "rep movsb" if ECX <= 63.  */
 	jbe	L(more_2x_vec)
 # endif
+
 	mov	%RDX_LP, %RCX_LP
 	rep	movsb
 L(nop):

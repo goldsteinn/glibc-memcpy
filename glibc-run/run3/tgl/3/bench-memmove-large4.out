@@ -1,0 +1,24 @@
+{
+ "timing_type": "hp_timing",
+ "functions": {
+  "memmove": {
+   "bench-variant": "large",
+   "ifuncs": ["__memmove_avx_unaligned", "__memmove_avx_unaligned_erms", "__memmove_evex_unaligned", "__memmove_evex_unaligned_erms", "__memmove_avx512_no_vzeroupper", "__memmove_avx512_unaligned", "__memmove_avx512_unaligned_erms", "__memmove_ssse3_back", "__memmove_ssse3", "__memmove_erms", "__memmove_sse2_unaligned", "__memmove_sse2_unaligned_erms", "__memmove_avx512_unaligned_dev", "__memmove_avx512_unaligned_erms_dev", "__memmove_evex_unaligned_dev", "__memmove_evex_unaligned_erms_dev", "__memmove_avx2_unaligned_dev", "__memmove_avx2_unaligned_erms_dev", "__memmove_avx_unaligned_dev", "__memmove_avx_unaligned_erms_dev"],
+   "results": [
+    {
+     "length": 4103,
+     "align1": 0,
+     "align2": 64,
+     "timings": [561.188, 104.062, 120.062, 102, 315.375, 166.125, 133.625, 1020.12, 668.688, 3647.81, 219.25, 205.312, 86.3125, 87.0625, 116.688, 103.375, 119.875, 116.5, 175.375, 173.375]
+    },
+    {
+     "length": 4111,
+     "align1": 0,
+     "align2": 3,
+     "timings": [123.562, 120.375, 118.125, 121.938, 143.5, 102.562, 101.688, 326.125, 361.75, 3292.06, 219.688, 215.938, 99, 99.75, 116.062, 117.75, 116.25, 118.5, 172.562, 172.312]
+    },
+    {
+     "length": 4127,
+     "align1": 3,
+     "align2": 0,
+     "timings": [116.812, 126.125, 119.25, 124.438, 110.25, 105.562, 105.562, 330.375, 362.562, 3027.81, 222.812, 3029.88, 107.625, 108.25, 123.5, 125.438, 123.938, 121Didn't expect signal from child: got `Segmentation fault'
