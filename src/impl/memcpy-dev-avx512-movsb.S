@@ -2,6 +2,6 @@
 
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
-
+#define USE_WITH_FRMS
 #include "avx512-vecs.h"
-#include "core/memcpy-dev-v3.S"
+#include "core/memcpy-dev.S"

@@ -4,7 +4,7 @@
 #define ALIGN_TO	2
 
 #ifndef VZEROUPPER
-# include "../avx2-vecs.h"
+# include "../avx-vecs.h"
 #endif
 #include "asm-common.h"
 
@@ -15,14 +15,14 @@
 
 #ifndef VZEROUPPER
 # if VEC_SIZE > 16
-#  define VZEROUPPER	vzeroupper
+#  define VZEROUPPER vzeroupper
 # else
 #  define VZEROUPPER
 # endif
 #endif
 
 #ifndef PAGE_SIZE
-# define PAGE_SIZE	4096
+# define PAGE_SIZE 4096
 #endif
 
 #if PAGE_SIZE != 4096
@@ -30,78 +30,78 @@
 #endif
 
 #ifndef LOG_PAGE_SIZE
-# define LOG_PAGE_SIZE	12
+# define LOG_PAGE_SIZE 12
 #endif
 
 #if PAGE_SIZE != (1 << LOG_PAGE_SIZE)
 # error Invalid LOG_PAGE_SIZE
 #endif
 
-	/* Byte per page for large_memcpy inner loop.  */
+/* Byte per page for large_memcpy inner loop.  */
 #if VEC_SIZE == 64
-# define LARGE_LOAD_SIZE	(VEC_SIZE	*	2)
+# define LARGE_LOAD_SIZE (VEC_SIZE * 2)
 #else
-# define LARGE_LOAD_SIZE	(VEC_SIZE	*	4)
+# define LARGE_LOAD_SIZE (VEC_SIZE * 4)
 #endif
 
-	/* Amount to shift rdx by to compare for memcpy_large_4x.  */
+/* Amount to shift rdx by to compare for memcpy_large_4x.  */
 #ifndef LOG_4X_MEMCPY_THRESH
-# define LOG_4X_MEMCPY_THRESH	4
+# define LOG_4X_MEMCPY_THRESH 4
 #endif
 
-	/* Avoid short distance rep movsb only with non- SSE vector.  */
+/* Avoid short distance rep movsb only with non-SSE vector.  */
 #ifndef AVOID_SHORT_DISTANCE_REP_MOVSB
-# define AVOID_SHORT_DISTANCE_REP_MOVSB	(VEC_SIZE	>	16)
+# define AVOID_SHORT_DISTANCE_REP_MOVSB (VEC_SIZE > 16)
 #else
-# define AVOID_SHORT_DISTANCE_REP_MOVSB	0
+# define AVOID_SHORT_DISTANCE_REP_MOVSB 0
 #endif
 
 #ifndef PREFETCH
-# define PREFETCH(addr)	prefetcht0	addr
+# define PREFETCH(addr) prefetcht0 addr
 #endif
 
-	/* Assume 64-byte prefetch size.  */
+/* Assume 64-byte prefetch size.  */
 #ifndef PREFETCH_SIZE
-# define PREFETCH_SIZE	64
+# define PREFETCH_SIZE 64
 #endif
 
-#define PREFETCHED_LOAD_SIZE	(VEC_SIZE	*	4)
+#define PREFETCHED_LOAD_SIZE (VEC_SIZE * 4)
 
 #if PREFETCH_SIZE == 64
 # if PREFETCHED_LOAD_SIZE == PREFETCH_SIZE
-#  define PREFETCH_ONE_SET(dir,	base,	offset)	\
+#  define PREFETCH_ONE_SET(dir, base, offset) \
 	PREFETCH ((offset)base)
 # elif PREFETCHED_LOAD_SIZE == 2 * PREFETCH_SIZE
-#  define PREFETCH_ONE_SET(dir,	base,	offset)	\
+#  define PREFETCH_ONE_SET(dir, base, offset) \
 	PREFETCH ((offset)base); \
 	PREFETCH ((offset + dir * PREFETCH_SIZE)base)
 # elif PREFETCHED_LOAD_SIZE == 4 * PREFETCH_SIZE
-#  define PREFETCH_ONE_SET(dir,	base,	offset)	\
+#  define PREFETCH_ONE_SET(dir, base, offset) \
 	PREFETCH ((offset)base); \
 	PREFETCH ((offset + dir * PREFETCH_SIZE)base); \
 	PREFETCH ((offset + dir * PREFETCH_SIZE * 2)base); \
 	PREFETCH ((offset + dir * PREFETCH_SIZE * 3)base)
 # else
-#  error Unsupported PREFETCHED_LOAD_SIZE!
+#   error Unsupported PREFETCHED_LOAD_SIZE!
 # endif
 #else
 # error Unsupported PREFETCH_SIZE!
 #endif
 
 #if LARGE_LOAD_SIZE == (VEC_SIZE * 2)
-# define LOAD_ONE_SET(base,	offset,	vec0,	vec1,	...)	\
+# define LOAD_ONE_SET(base, offset, vec0, vec1, ...) \
 	VMOVU	(offset)base, vec0; \
 	VMOVU	((offset) + VEC_SIZE)base, vec1;
-# define STORE_ONE_SET(base,	offset,	vec0,	vec1,	...)	\
-	VMOVNT	vec0, (offset)base; \
-	VMOVNT	vec1, ((offset) + VEC_SIZE)base;
+# define STORE_ONE_SET(base, offset, vec0, vec1, ...) \
+	VMOVNT  vec0, (offset)base; \
+	VMOVNT  vec1, ((offset) + VEC_SIZE)base;
 #elif LARGE_LOAD_SIZE == (VEC_SIZE * 4)
-# define LOAD_ONE_SET(base,	offset,	vec0,	vec1,	vec2,	vec3)	\
+# define LOAD_ONE_SET(base, offset, vec0, vec1, vec2, vec3) \
 	VMOVU	(offset)base, vec0; \
 	VMOVU	((offset) + VEC_SIZE)base, vec1; \
 	VMOVU	((offset) + VEC_SIZE * 2)base, vec2; \
 	VMOVU	((offset) + VEC_SIZE * 3)base, vec3;
-# define STORE_ONE_SET(base,	offset,	vec0,	vec1,	vec2,	vec3)	\
+# define STORE_ONE_SET(base, offset, vec0, vec1, vec2, vec3) \
 	VMOVNT	vec0, (offset)base; \
 	VMOVNT	vec1, ((offset) + VEC_SIZE)base; \
 	VMOVNT	vec2, ((offset) + VEC_SIZE * 2)base; \
@@ -131,11 +131,11 @@
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 	cmpq	$(VEC_SIZE), %rdx
-#if VEC_SIZE > 16
+# if VEC_SIZE > 16
 	jbe	L(leq_1x)
-#else
+# else
 	jb	L(leq_1x)
-#endif
+# endif
 	VMOVU	(%rsi), %VEC(0)
 
 	cmpq	$(VEC_SIZE * 2), %rdx
@@ -144,7 +144,7 @@ ENTRY(MEMCPY)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-#if VEC_SIZE == 64
+# if VEC_SIZE == 64
 L(copy_8_15):
 	COPY_8_16
 	ret
@@ -155,7 +155,7 @@ L(copy_32_63):
 	vmovdqu64 %ymm16, (%rdi)
 	vmovdqu64 %ymm17, -32(%rdi, %rdx)
 	ret
-#endif
+# endif
 
 	.p2align 4,, 6
 L(leq_1x):
@@ -163,16 +163,16 @@ L(leq_1x):
 	jb	L(lt_quarter_x)
 
 	cmpl	$(VEC_SIZE / 2), %edx
-#if VEC_SIZE == 64
+# if VEC_SIZE == 64
 	ja	L(copy_32_63)
 	COPY_16_32
-#elif VEC_SIZE == 32
+# elif VEC_SIZE == 32
 	jb	L(copy_8_15)
 	COPY_16_32
-#else
+# else
 	jb	L(copy_4_7)
 	COPY_8_16
-#endif
+# endif
 	ret
 
 
@@ -188,14 +188,14 @@ L(copy_1):
 
 	/* Colder copy case for [0, 7].  */
 L(lt_quarter_x):
-#if VEC_SIZE > 32
+# if VEC_SIZE > 32
 	cmpl	$8, %edx
 	jae	L(copy_8_15)
-#endif
-#if VEC_SIZE > 16
+# endif
+# if VEC_SIZE > 16
 	cmpl	$4, %edx
 	jae	L(copy_4_7)
-#endif
+# endif
 	cmpl	$1, %edx
 	je	L(copy_1)
 	jb	L(copy_0)
@@ -208,72 +208,72 @@ L(copy_0):
 	ret
 
 	.p2align 4
-#if VEC_SIZE == 32
+# if VEC_SIZE == 32
 L(copy_8_15):
 	COPY_8_16
 	ret
-#endif
+# endif
 
 L(gt_2x):
-#if ALIGN_TO == 2
+# if VEC_SIZE == 16
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-#endif
+# endif
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(gt_8x)
-#if ALIGN_TO == 1
+# if VEC_SIZE != 16
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-#endif
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+# endif
 	cmpl	$(VEC_SIZE * 4), %edx
 	jbe	L(copy_gt_2x_leq_4x)
 
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
-	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
+	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
 
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
-	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rdi, %rdx)
 	VMOVU	%VEC(12), (VEC_SIZE * -4)(%rdi, %rdx)
+	VMOVU	%VEC(13), (VEC_SIZE * -3)(%rdi, %rdx)
+	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
 	.p2align 4,, 6
 L(copy_gt_2x_leq_4x):
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%rdi)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
-
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
+	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
+
 L(nop):
 	VZEROUPPER_RETURN
+# if VEC_SIZE != 16
 	.p2align 4
+# endif
 L(gt_8x):
-	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-#if ALIGN_TO == 2
-	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-#endif
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
-    movq    %rdi, %r8
+	movq	%rdi, %r8
 	cmpq	%rdx, %rcx
 	jb	L(gt_8x_backward)
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
 L(gt_8x_forward):
-#if ALIGN_TO == 1
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
-#endif
 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
 	subq	%rdi, %rsi
 	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
-	orq	$(ALIGN_TO * VEC_SIZE - 1), %rdi
+	orq	$(ALIGN_TO - 1), %rdi
 	leaq	1(%rdi, %rsi), %rsi
 	incq	%rdi
 	/* Loop 4x VEC at a time copy forward from src (rsi) to dst (rdi).  */
@@ -298,61 +298,25 @@ L(loop_4x_forward):
 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
-#if ALIGN_TO == 2
+# if VEC_SIZE == 16
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
-#endif
+# endif
 	VZEROUPPER_RETURN
 
-#ifdef USE_WITH_MULTIARCH_AND_LIBC
-# ifdef USE_WITH_ERMS
-	.p2align 4
-L(movsb):
-	/* If size (rdx) > __x86_rep_movsb_stop_threshold go to large copy.  */
-
-	/* NB: __x86_rep_movsb_stop_threshold in range
-	   [__x86_rep_movsb_threshold, __x86_shared_non_temporal_threshold].  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
-	jae	L(large_memcpy_2x)
-#  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	// andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB,
-	// __x86_string_control(%rip)
-	// jz      L(movsb_aligned)
-	cmpq	$-64, %rcx
-	jae	L(gt_8x_forward)
-L(movsb_align):
-#  endif
-	subq	%rdi, %rsi
-	leaq	-2(%rdi, %rdx), %rcx
-	orq	$(ALIGN_TO * VEC_SIZE - 1), %rdi
-	leaq	1(%rdi, %rsi), %rsi
-	subq	%rdi, %rcx
-	andq	$-(ALIGN_TO * VEC_SIZE), %rcx
-	incq	%rdi
-
-	rep	movsb
-
-	/* Store aligning VECs.  */
-
-	/* NB: rax was set to dst on function entry.  */
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
-#  if ALIGN_TO == 2
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
-
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
-#  endif
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
-	ret
-# endif
-#endif
 
 	.p2align 4
 L(gt_8x_backward):
 	/* Load begining of region to support overlap.  */
-#if ALIGN_TO == 1
+# if VEC_SIZE != 16
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
-#endif
+# endif
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+
+	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+# if VEC_SIZE == 16
+	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+# endif
 
 	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
 	   src (rsi) can be properly adjusted.  */
@@ -362,7 +326,7 @@ L(gt_8x_backward):
 	   those VECs where already loaded. -1 for aligning dst (rdi).  */
 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
 	/* Align dst (rdi).  */
-	andq	$-(ALIGN_TO * VEC_SIZE), %rdi
+	andq	$-(ALIGN_TO), %rdi
 	/* Readjust src (rsi).  */
 	addq	%rdi, %rsi
 	/* Loop 4x VEC at a time copy backward from src (rsi) to dst (rdi).  */
@@ -393,13 +357,74 @@ L(loop_4x_backward):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 
 	/* Store VECs loaded for aligning dst (rdi).  */
-#if ALIGN_TO == 2
+# if VEC_SIZE == 16
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
-#endif
+# endif
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
 	VZEROUPPER_RETURN
 
-#ifdef USE_WITH_MULTIARCH_AND_LIBC
+# ifdef USE_WITH_MULTIARCH_AND_LIBC
+#  ifdef USE_WITH_ERMS
+	.p2align 4
+L(movsb):
+	/* If size (rdx) > x86_rep_movsb_stop_threshold go to large copy.  */
+
+	/* NB: x86_rep_movsb_stop_threshold in range
+	   [x86_rep_movsb_threshold, x86_shared_non_temporal_threshold].  */
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	jae	L(large_memcpy_2x)
+#   if AVOID_SHORT_DISTANCE_REP_MOVSB
+//	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+//	jz	L(movsb_align_src)
+	cmpq	$-64, %rcx
+	jae	L(gt_8x_forward)
+#   endif
+L(movsb_align_dst):
+	subq	%rdi, %rsi
+	leaq	-(1)(%rdi, %rdx), %rcx
+	orq	$(MOVSB_ALIGN - 1), %rdi
+	leaq	1(%rdi, %rsi), %rsi
+	subq	%rdi, %rcx
+	incq	%rdi
+
+	rep	movsb
+
+	/* Store aligning VECs.  */
+
+	/* NB: rax was set to dst on function entry.  */
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
+#   if VEC_SIZE == 16
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+#   endif
+	VZEROUPPER_RETURN
+#   if AVOID_SHORT_DISTANCE_REP_MOVSB
+	.p2align 4
+L(movsb_align_src):
+	testl	$(PAGE_SIZE - 512), %ecx
+	jnz	L(movsb_align_dst)
+	subq	%rsi, %rdi
+	leaq	-(1)(%rsi, %rdx), %rcx
+	orq	$(MOVSB_ALIGN - 1), %rsi
+	leaq	1(%rsi, %rdi), %rdi
+	subq	%rsi, %rcx
+	incq	%rsi
+	rep	movsb
+
+	/* Store aligning VECs.  */
+
+	/* NB: rax was set to dst on function entry.  */
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
+#    if VEC_SIZE == 16
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+#    endif
+	VZEROUPPER_RETURN
+#   endif
+
+#  endif
+# endif
+
+
+# ifdef USE_WITH_MULTIARCH_AND_LIBC
 	.p2align 4
 L(large_memcpy_2x):
 	/* We want to use temporal copies if there is overlap constructive cache
@@ -419,25 +444,21 @@ L(large_memcpy_2x):
 
 	/* Cache align destination. First store the first 64 bytes then adjust
 	   alignments.  */
-# if VEC_SIZE < 64 && ALIGN_TO == 1
+#  if VEC_SIZE == 32
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
-#  if VEC_SIZE < 32
+#   if VEC_SIZE < 32
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+#   endif
 #  endif
-# endif
 	VMOVU	%VEC(0), (%rdi)
-# if VEC_SIZE < 64
+#  if VEC_SIZE < 64
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
-#  if VEC_SIZE < 32
+#   if VEC_SIZE < 32
 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
+#   endif
 #  endif
-# endif
-# if ALIGN_TO == 2
-	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
-# endif
-	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
 
 	/* Adjust source, destination, and size.  */
 	movq	%rdi, %r8
@@ -449,7 +470,7 @@ L(large_memcpy_2x):
 	/* Adjust destination which should be aligned now.  */
 	subq	%r8, %rdi
 	/* Adjust length.  */
-	leaq	-(ALIGN_TO * VEC_SIZE)(%r8, %rdx), %rdx
+	addq	%r8, %rdx
 
 
 	/* Test if source and destination addresses will alias. If they do the
@@ -602,7 +623,7 @@ L(large_memcpy_4x_end):
 	VMOVU	%VEC(2), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
 	VZEROUPPER_RETURN
-#endif
+# endif
 
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5

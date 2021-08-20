@@ -4,7 +4,8 @@ import os
 import signal
 import sys
 
-N = int(sys.argv[1])
+start = int(sys.argv[1])
+end = int(sys.argv[1])
 
 
 def sig_exit(signum, empty):
@@ -25,7 +26,7 @@ glibc_path = root + "/build/glibc/"
 bench_path = glibc_path + "benchtests/"
 result_path = root + "/dev-results/{}/"
 bench_cmd = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; taskset -c 0 make --silent bench BENCHSET=\"string-benchset\")"
-build_cmd = "rm -rf build; mkdir -p build/glibc; (cd " + glibc_path + "; unset LD_LIBRARY_PATH; " + root + "/src/glibc/configure --prefix=/usr; make -j 7 --silent)"
+build_cmd = "mkdir -p build/glibc; (cd " + glibc_path + "; unset LD_LIBRARY_PATH; " + root + "/src/glibc/configure --prefix=/usr; make -j 7 --silent)"
 
 file_prefix = "bench-"
 file_postfix = ".out"
@@ -67,6 +68,6 @@ def bench(impl, base, inc):
 
 incr = 10
 for i in range(0, 1):
-    for j in range(0, N):
+    for j in range(start, end):
         build(j, i)
         bench(j, incr * i, incr)

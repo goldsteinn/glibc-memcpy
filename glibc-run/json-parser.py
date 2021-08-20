@@ -27,7 +27,8 @@ def get_key(length, align1, align2, dgs, wfs, sz):
 
 
 def get_stat(times):
-    return statistics.geometric_mean(times)
+    #return statistics.geometric_mean(times)
+    return statistics.median(times)
 
 
 def csv_add(s, field):

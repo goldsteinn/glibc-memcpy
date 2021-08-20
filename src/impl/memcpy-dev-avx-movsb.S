@@ -2,7 +2,7 @@
 
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
-
+//#define USE_WITH_FRMS
 #include "avx-vecs.h"
 
-#include "core/memcpy-dev-v0.S"
+#include "core/memcpy-dev.S"

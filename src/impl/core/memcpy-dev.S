@@ -1,7 +1,10 @@
-
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
-//#define USE_WITH_FRMS
+
+
+
+
+	// #define USE_WITH_FRMS
 #ifndef VZEROUPPER
 # include "../avx512-vecs.h"
 #endif
@@ -10,6 +13,31 @@
 	// Tigerlake/Icelake
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
+
+#define ALIGN_MOVSB	1
+#define ALIGN_MOVSB_EXCLUSIVE	1
+#define LOOP_ALIGN_CONF	64
+#define MOVSB_ALIGN_CONF	64
+    
+
+#if VEC_SIZE < LOOP_ALIGN_CONF
+# define LOOP_4X_ALIGN_TO	(VEC_SIZE	*	2)
+#else
+# define LOOP_4X_ALIGN_TO	(VEC_SIZE)
+#endif
+	/* Avoid short distance rep movsb only with non-SSE vector.  */
+#if ALIGN_MOVSB
+# if VEC_SIZE < MOVSB_ALIGN_CONF
+#  define MOVSB_ALIGN_TO	(VEC_SIZE	*	2)
+# else
+#  define MOVSB_ALIGN_TO	(VEC_SIZE)
+# endif
+#else
+# define MOVSB_ALIGN_TO	0
+#endif
+#if MOVSB_ALIGN_TO > LOOP_4X_ALIGN_TO
+# error "Invalid MOVSB Alignment"
+#endif
 
 
 
@@ -39,10 +67,8 @@
 
 	/* Byte per page for large_memcpy inner loop.  */
 #if VEC_SIZE == 64
-# define LOOP_4X_ALIGN_TO	(VEC_SIZE)
 # define LARGE_LOAD_SIZE	(VEC_SIZE	*	2)
 #else
-# define LOOP_4X_ALIGN_TO	(VEC_SIZE	*	2)
 # define LARGE_LOAD_SIZE	(VEC_SIZE	*	4)
 #endif
 
@@ -51,12 +77,7 @@
 # define LOG_4X_MEMCPY_THRESH	4
 #endif
 
-	/* Avoid short distance rep movsb only with non-SSE vector.  */
-#if VEC_SIZE == 16
-# define MOVSB_ALIGN_TO	(VEC_SIZE	*	2)
-#else
-# define MOVSB_ALIGN_TO	(VEC_SIZE)
-#endif
+
 
 #ifndef PREFETCH
 # define PREFETCH(addr)	prefetcht0	addr
@@ -138,12 +159,12 @@ ENTRY(MEMCPY)
 #else
 	jb	L(leq_1x)
 #endif
-#ifndef USE_WITH_FRMS
+#if MOVSB_ALIGN_TO >= VEC_SIZE
 	VMOVU	(%rsi), %VEC(0)
 #endif
 	cmpq	$(VEC_SIZE * 2), %rdx
 	ja	L(gt_2x)
-#ifdef USE_WITH_FRMS
+#if MOVSB_ALIGN_TO < VEC_SIZE
 	VMOVU	(%rsi), %VEC(0)
 #endif
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
@@ -221,15 +242,15 @@ L(copy_8_15):
 #endif
 
 L(gt_2x):
-#if !defined USE_WITH_FRMS && VEC_SIZE == 16
+#if MOVSB_ALIGN_TO >= (VEC_SIZE * 2)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(gt_8x)
-#if defined USE_WITH_FRMS
+#if MOVSB_ALIGN_TO < (VEC_SIZE)
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 #endif
-#if defined USE_WITH_FRMS || VEC_SIZE != 16
+#if MOVSB_ALIGN_TO < (VEC_SIZE * 2)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
 	cmpl	$(VEC_SIZE * 4), %edx
@@ -261,7 +282,7 @@ L(copy_gt_2x_leq_4x):
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
-    VZEROUPPER_RETURN
+	VZEROUPPER_RETURN
 #if VEC_SIZE != 16
 	.p2align 4
 #endif
@@ -271,13 +292,20 @@ L(gt_8x):
 	movq	%rdi, %r8
 	cmpq	%rdx, %rcx
 	jb	L(gt_8x_backward)
+#ifdef USE_WITH_MULTIARCH_AND_LIBC
+# ifdef USE_WITH_ERMS
 	cmpq	x86_rep_movsb_threshold(%rip), %rdx
 	ja	L(movsb)
+# else
+	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
+	ja	L(large_memcpy_2x)
+# endif
+#endif
 L(gt_8x_forward):
-#ifdef USE_WITH_FRMS
+#if MOVSB_ALIGN_TO < (VEC_SIZE)
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 #endif
-#if (defined USE_WITH_FRMS && VEC_SIZE != 64) || VEC_SIZE == 32
+#if MOVSB_ALIGN_TO < (VEC_SIZE * 2) && (LOOP_4X_ALIGN_TO > VEC_SIZE)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
 
@@ -312,7 +340,7 @@ L(loop_4x_forward):
 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
-#if VEC_SIZE != 64
+#if (LOOP_4X_ALIGN_TO > VEC_SIZE)
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #endif
 	VZEROUPPER_RETURN
@@ -320,17 +348,17 @@ L(loop_4x_forward):
 	.p2align 4
 L(gt_8x_backward):
 	/* Load begining of region to support overlap.  */
-#if defined USE_WITH_FRMS
+#if MOVSB_ALIGN_TO < (VEC_SIZE)
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
 #endif
-#if defined USE_WITH_FRMS || VEC_SIZE != 16
+#if MOVSB_ALIGN_TO < (VEC_SIZE * 2)
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
 #endif
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 
 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
-#if VEC_SIZE < 64
+#if (LOOP_4X_ALIGN_TO > VEC_SIZE)
 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
 #endif
 
@@ -373,14 +401,14 @@ L(loop_4x_backward):
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
 
 	/* Store VECs loaded for aligning dst (rdi).  */
-#if VEC_SIZE < 64
+#if (LOOP_4X_ALIGN_TO > VEC_SIZE)
 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
 #endif
 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
 	VZEROUPPER_RETURN
 
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
-# if defined USE_WITH_ERMS || defined USE_WITH_FRMS
+# ifdef USE_WITH_ERMS
 	.p2align 4
 L(movsb):
 	/* If size (rdx) > x86_rep_movsb_stop_threshold go to large copy.  */
@@ -389,11 +417,26 @@ L(movsb):
 	   x86_shared_non_temporal_threshold].  */
 	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x)
-#  ifdef USE_WITH_FRMS
+#  if MOVSB_ALIGN_TO < VEC_SIZE
 	cmpq	$-64, %rcx
 	jae	L(gt_8x_forward)
-    movq    %rdx, %rcx
+	movq	%rdx, %rcx
 	rep	movsb
+	VZEROUPPER_RETURN
+#  elif ALIGN_MOVSB_EXCLUSIVE
+	subq	%rdi, %rsi
+	leaq	(%rdi, %rdx), %rcx
+	addq	$(MOVSB_ALIGN_TO - 1), %rdi
+	andq	$-(MOVSB_ALIGN_TO), %rdi
+	addq	%rdi, %rdi
+	subq	%rdi, %rcx
+
+	rep	movsb
+
+	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
+#   if MOVSB_ALIGN_TO > VEC_SIZE
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+#   endif
 	VZEROUPPER_RETURN
 #  else
 	testl	$(PAGE_SIZE - 512), %ecx
@@ -410,7 +453,7 @@ L(movsb):
 
 	/* NB: rax was set to dst on function entry.  */
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
-#   if VEC_SIZE == 16
+#   if MOVSB_ALIGN_TO > VEC_SIZE
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #   endif
 	VZEROUPPER_RETURN
@@ -425,7 +468,7 @@ L(movsb_align_dst):
 	rep	movsb
 
 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
-#   if VEC_SIZE == 16
+#   if MOVSB_ALIGN_TO > VEC_SIZE
 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
 #   endif
 	VZEROUPPER_RETURN
@@ -436,6 +479,10 @@ L(movsb_align_dst):
 #ifdef USE_WITH_MULTIARCH_AND_LIBC
 	.p2align 4
 L(large_memcpy_2x):
+# ifdef USE_WITH_ERMS
+	cmpq	x86_shared_non_temporal_threshold(%rip), %rdx
+	jb	L(gt_8x_forward)
+# endif
 	/* We want to use temporal copies if there is overlap constructive cache
 	   interference between loading from src and storing to dst.  */
 
@@ -452,17 +499,19 @@ L(large_memcpy_2x):
 
 	/* Cache align destination. First store the first 64 bytes then adjust
 	   alignments.  */
-# ifdef USE_WITH_FRMS
+# if MOVSB_ALIGN_TO < VEC_SIZE
 	VMOVU	(%rsi), %VEC(0)
 # endif
-
-# if (defined USE_WITH_FRMS && VEC_SIZE == 16) || VEC_SIZE == 32
+# if VEC_SIZE < 64
+#  if MOVSB_ALIGN_TO < (2 * VEC_SIZE)
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
-# endif
-# if VEC_SIZE < 32
+#  endif
+#  if VEC_SIZE < 32
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+#  endif
 # endif
+
 	VMOVU	%VEC(0), (%rdi)
 # if VEC_SIZE < 64
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
