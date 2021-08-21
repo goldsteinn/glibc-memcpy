@@ -5,9 +5,9 @@
 
 #define VEC_SIZE 16
 #define VEC(i)   xmm##i
-#define VMOVNT   vmovntdq
-#define VMOVU    vmovdqu
-#define VMOVA    vmovdqa
+#define VMOVNT   movntdq
+#define VMOVU    movups
+#define VMOVA    movaps
 #define VZEROUPPER
 #define SECTION(p) p##.evex
 

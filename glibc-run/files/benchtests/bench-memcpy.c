@@ -121,8 +121,11 @@ test_main (void)
     {
       do_test (&json_ctx, 0, 0, 1 << i, 1);
       do_test (&json_ctx, i, 0, 1 << i, 1);
+      do_test (&json_ctx, i + 32, 0, 1 << i, 1);
       do_test (&json_ctx, 0, i, 1 << i, 1);
+      do_test (&json_ctx, 0, i + 32, 1 << i, 1);
       do_test (&json_ctx, i, i, 1 << i, 1);
+      do_test (&json_ctx, i + 32, i + 32, 1 << i, 1);
       do_test (&json_ctx, half_page, 0, 1 << i, 1);
       do_test (&json_ctx, half_page + i, 0, 1 << i, 1);
       do_test (&json_ctx, half_page, i, 1 << i, 1);
@@ -175,14 +178,19 @@ test_main (void)
     {
       do_test (&json_ctx, 0, 0, 2048 + 64 * i, 1);
       do_test (&json_ctx, i, 0, 2048 + 64 * i, 1);
+      do_test (&json_ctx, i + 32, 0, 2048 + 64 * i, 1);
       do_test (&json_ctx, 0, i, 2048 + 64 * i, 1);
+      do_test (&json_ctx, 0, i + 32, 2048 + 64 * i, 1);
       do_test (&json_ctx, i, i, 2048 + 64 * i, 1);
+      do_test (&json_ctx, i + 32, i + 32, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page, 0, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page + i, 0, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page, i, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page + i, i, 2048 + 64 * i, 1);
       do_test (&json_ctx, i, 1, 2048 + 64 * i, 1);
       do_test (&json_ctx, 1, i, 2048 + 64 * i, 1);
+      do_test (&json_ctx, i + 32, 1, 2048 + 64 * i, 1);
+      do_test (&json_ctx, 1, i + 32, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page + i, 1, 2048 + 64 * i, 1);
       do_test (&json_ctx, half_page + 1, i, 2048 + 64 * i, 1);
     }
