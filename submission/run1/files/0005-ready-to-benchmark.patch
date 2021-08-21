@@ -1,0 +1,98 @@
+From 7b1162518111f2e659224b21536fc75a0ecc3786 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 21 Aug 2021 01:46:24 -0400
+Subject: [PATCH 5/6] ready to benchmark
+
+---
+ .../x86_64/multiarch/memmove-vec-unaligned.S  | 50 +++++++++++++++----
+ 1 file changed, 41 insertions(+), 9 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S
+index d3944f44d7..bce14210fb 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S
+@@ -60,12 +60,18 @@
+ # define MEMMOVE_CHK_SYMBOL(p,s)	MEMMOVE_SYMBOL(p,	s)
+ #endif
+ 
+-
+-#define ALIGN_MOVSB	1
+-#define ALIGN_MOVSB_EXCLUSIVE	0
+-#define LOOP_ALIGN_CONF	64
+-#define MOVSB_ALIGN_CONF	64
+-
++#include "memmove-conf.S"
++#ifndef _BENCHMARK_CONF_H_
++# define ALIGN_MOVSB	1
++# define LOOP_ALIGN_CONF	64
++# define MOVSB_ALIGN_CONF	64
++# define ORDER	0
++#endif
++#ifdef USE_WITH_FSRM
++# define ALIGN_MOVSB_EXCLUSIVE	1
++#else
++# define ALIGN_MOVSB_EXCLUSIVE	0
++#endif
+ 
+ #if VEC_SIZE < LOOP_ALIGN_CONF
+ # define LOOP_4X_ALIGN_TO	(VEC_SIZE	*	2)
+@@ -459,11 +465,17 @@ L(gt_8x_forward):
+ #if MOVSB_ALIGN_TO < (VEC_SIZE * 2) && (LOOP_4X_ALIGN_TO > VEC_SIZE)
+ 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(1)
+ #endif
+-
++#if ORDER < 2
++	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
++	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
++	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
++	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
++#else
+ 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+ 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+ 	VMOVU	(VEC_SIZE * -3)(%rsi, %rdx), %VEC(13)
+ 	VMOVU	(VEC_SIZE * -4)(%rsi, %rdx), %VEC(12)
++#endif
+ 	subq	%rdi, %rsi
+ 	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
+ 	orq	$(LOOP_4X_ALIGN_TO - 1), %rdi
+@@ -485,15 +497,35 @@ L(loop_4x_forward):
+ 	subq	$(VEC_SIZE * -4), %rdi
+ 	cmpq	%rdi, %rdx
+ 	ja	L(loop_4x_forward)
++
++
++
++
++#if (ORDER & 1)
+ 	VMOVU	%VEC(12), (VEC_SIZE * 0)(%rdx)
+ 	VMOVU	%VEC(13), (VEC_SIZE * 1)(%rdx)
+ 	VMOVU	%VEC(14), (VEC_SIZE * 2)(%rdx)
+ 	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
+-
+ 	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
+-#if (LOOP_4X_ALIGN_TO > VEC_SIZE)
++# if (LOOP_4X_ALIGN_TO > VEC_SIZE)
++	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
++# endif
++#else
++	VMOVU	%VEC(15), (VEC_SIZE * 3)(%rdx)
++	VMOVU	%VEC(14), (VEC_SIZE * 2)(%rdx)
++	VMOVU	%VEC(13), (VEC_SIZE * 1)(%rdx)
++	VMOVU	%VEC(12), (VEC_SIZE * 0)(%rdx)
++	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
++# if (LOOP_4X_ALIGN_TO > VEC_SIZE)
+ 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
++# endif
++
++
++
+ #endif
++
++
++
+ L(nop):
+ 	VZEROUPPER_RETURN
+ 
+-- 
+2.25.1
+
