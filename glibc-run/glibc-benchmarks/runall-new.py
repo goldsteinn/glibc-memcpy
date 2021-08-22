@@ -60,7 +60,7 @@ class Conf():
     def write_conf(self):
         ret = self.get_branch()
 
-        if self.version is None or True:
+        if self.version is None:
             return ret
 
         content = [
