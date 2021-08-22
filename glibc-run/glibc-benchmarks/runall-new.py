@@ -25,7 +25,7 @@ bench_path = glibc_path + "benchtests/"
 result_path = root + "/dev-results/{}/"
 bench_cmd = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; taskset -c 0 make --silent bench BENCHSET=\"string-benchset\")"
 build_cmd_slow = "rm -rf build/glibc; mkdir -p build/glibc; (cd " + glibc_path + "; unset LD_LIBRARY_PATH; " + root + "/src/glibc/configure --prefix=/usr; make -j 7 --silent)"
-build_cmd_fast = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; make -r -C /home/noah/programs/opensource/glibc-dev/src/glibc/string/ objdir=`pwd`)"
+build_cmd_fast = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; make -r -C /home/noah/programs/opensource/glibc-dev/src/glibc/string/ objdir=`pwd` --silent)"
 file_prefix = "bench-"
 file_postfix = ".out"
 
@@ -41,7 +41,7 @@ class Conf():
         self.branch = branch
 
     def get_branch(self):
-        multi_branch = False
+        multi_branch = True
         global current_branch
 
         if multi_branch and current_branch != self.branch:
@@ -60,7 +60,7 @@ class Conf():
     def write_conf(self):
         ret = self.get_branch()
 
-        if self.early_align is None or True:
+        if self.version is None or True:
             return ret
 
         content = [
@@ -89,7 +89,7 @@ confs.append(Conf(None, "benchmark-dev4"))
 confs.append(Conf(None, "benchmark-dev5"))
 confs.append(Conf(None, "benchmark-dev6"))
 confs.append(Conf(None, "benchmark-dev7"))
-confs.append(Conf(None,, "benchmark-glibc"))
+confs.append(Conf(None, "benchmark-glibc"))
 
 
 def build(conf):

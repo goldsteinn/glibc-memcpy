@@ -14,10 +14,10 @@
 #define L3_CACHE_SIZE	(12288	*	1024)
 #define NCORES	8
 
-# define ALIGN_MOVSB	0
-# define ALIGN_MOVSB_EXCLUSIVE	0
+# define ALIGN_MOVSB	1
+# define ALIGN_MOVSB_EXCLUSIVE	1
 # define LOOP_ALIGN_CONF	64
-# define MOVSB_ALIGN_CONF	32
+# define MOVSB_ALIGN_CONF	64
 
 
 
@@ -426,6 +426,10 @@ L(movsb):
 #  elif ALIGN_MOVSB_EXCLUSIVE
 	cmpq	$-64, %rcx
 	jae	L(gt_8x_forward)
+    	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
+#   if MOVSB_ALIGN_TO > VEC_SIZE
+	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+#   endif
 	subq	%rdi, %rsi
 	leaq	(%rdi, %rdx), %rcx
 	addq	$(MOVSB_ALIGN_TO - 1), %rdi
@@ -435,10 +439,7 @@ L(movsb):
 
 	rep	movsb
 
-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
-#   if MOVSB_ALIGN_TO > VEC_SIZE
-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
-#   endif
+
 	VZEROUPPER_RETURN
 #  else
 	testl	$(PAGE_SIZE - 512), %ecx
@@ -691,7 +692,7 @@ L(large_memcpy_4x_end):
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 5
 x86_rep_movsb_threshold:
-	.quad	(2048 * 1 * ((VEC_SIZE) / 16))
+	.quad	(256 * 1 * ((VEC_SIZE) / 16))
 x86_shared_non_temporal_threshold:
 	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
 x86_rep_movsb_stop_threshold:
