@@ -1,0 +1,60 @@
+From d97d22398c5091aef84ef008954d5744c7f13f77 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 07:57:15 -0400
+Subject: [PATCH 8/9] 64 align forward
+
+---
+ .../x86_64/multiarch/memmove-vec-unaligned-erms.S  | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 10ed0bfd6a..848949e372 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -489,6 +489,9 @@ L(more_8x_vec_forward):
+ 	/* Load the first VEC and last 4 * VEC to support overlapping addresses.
+ 	 */
+ 	VMOVU	(%rsi), %VEC(4)
++#if VEC_SIZE != 64
++	VMOVU	VEC_SIZE(%rsi), %VEC(9)
++#endif
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(5)
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
+ 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
+@@ -497,7 +500,11 @@ L(more_8x_vec_forward):
+ 	movq	%rdi, %rcx
+ 	subq	%rdi, %rsi
+ 	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
++#if VEC_SIZE != 64
++	orq	$(VEC_SIZE * 2 - 1), %rdi
++#else
+ 	orq	$(VEC_SIZE - 1), %rdi
++#endif
+ 	leaq	1(%rdi, %rsi), %rsi
+ 	incq	%rdi
+ 
+@@ -523,6 +530,9 @@ L(loop_4x_vec_forward):
+ 	VMOVU	%VEC(8), (VEC_SIZE * 0)(%rdx)
+ 	/* Store the first VEC.  */
+ 	VMOVU	%VEC(4), (%rcx)
++#if VEC_SIZE != 64
++	VMOVU	%VEC(9), VEC_SIZE(%rcx)
++#endif
+ L(nop2):
+ 	VZEROUPPER_RETURN
+ 
+@@ -539,9 +549,9 @@ L(more_8x_vec_backward):
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
+ 
+-    
++
+ 	subq	%rdi, %rsi
+-    movq    %rdi, %rcx
++	movq	%rdi, %rcx
+ 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
+ 	andq	$-(VEC_SIZE), %rdi
+ 	addq	%rdi, %rsi
+-- 
+2.25.1
+

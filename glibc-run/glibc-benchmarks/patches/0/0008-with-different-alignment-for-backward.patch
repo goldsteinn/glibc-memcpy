@@ -1,0 +1,142 @@
+From c1c873ab8f14a287d4fa947e718f924ca474307f Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 04:37:05 -0400
+Subject: [PATCH 08/10] with different alignment for backward
+
+---
+ .../x86_64/multiarch/memmove-vec-unaligned.S  | 47 +++++--------------
+ 1 file changed, 13 insertions(+), 34 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S
+index 8cae69653d..c084d6a313 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned.S
+@@ -434,28 +434,12 @@ L(copy_gt_2x_leq_4x):
+ 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%rdi)
+ 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%rdi, %rdx)
+ 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%rdi, %rdx)
+-#if VERSION == 0
+ L(nop):
+-#endif
+ 	VZEROUPPER_RETURN
+-#if VEC_SIZE != 16
+-	.p2align 4
+-#endif
+-#if VERSION == 1
+-	.p2align 5
+-#else
++
+ 	.p2align 4
+-#endif
+ L(gt_8x):
+-#if VERSION == 1
+-	movq	%rdi, %rcx
+-	subq	%rsi, %rcx
+ 	movq	%rdi, %r8
+-	cmpq	%rdx, %rcx
+-	jb	L(gt_8x_backward)
+-#else
+-	movq	%rdi, %r8
+-#endif
+ #ifdef USE_WITH_ERMS
+ 	cmpq	__x86_rep_movsb_threshold(%rip), %rdx
+ 	ja	L(movsb)
+@@ -467,11 +451,9 @@ L(gt_8x):
+ 	/* Entry if rdx is greater than non-temporal threshold but there is
+ 	   overlap.  */
+ L(gt_8x_forward):
+-#if VERSION == 0
+ 	cmpq	%rsi, %rdi
+ 	ja	L(gt_8x_backward)
+ 	je	L(nop)
+-#endif
+ #if MOVSB_ALIGN_TO < (VEC_SIZE)
+ 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(0)
+ #endif
+@@ -516,9 +498,7 @@ L(loop_4x_forward):
+ #if (LOOP_4X_ALIGN_TO > VEC_SIZE)
+ 	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+ #endif
+-#if VERSION == 1
+-L(nop):
+-#endif
++
+ 	VZEROUPPER_RETURN
+ 
+ 	.p2align 4
+@@ -533,21 +513,23 @@ L(gt_8x_backward):
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+ 
+ 	VMOVU	(VEC_SIZE * -1)(%rsi, %rdx), %VEC(15)
+-#if (LOOP_4X_ALIGN_TO > VEC_SIZE)
++
++#if VERSION == 1
+ 	VMOVU	(VEC_SIZE * -2)(%rsi, %rdx), %VEC(14)
+ #endif
+ 
+ 	/* Subtract dst (rdi) from src (rsi) before aligning dst (rdi) so that
+ 	   src (rsi) can be properly adjusted.  */
+ 	subq	%rdi, %rsi
+-#if VERSION == 1
+-	jz	L(nop)
+-#endif
+ 	/* Set dst (rdi) as end of region. Set 4x VEC from begining of region as
+ 	   those VECs where already loaded. -1 for aligning dst (rdi).  */
+ 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
+ 	/* Align dst (rdi).  */
++#if VERSION == 1
+ 	andq	$-(LOOP_4X_ALIGN_TO), %rdi
++#else
++	andq	$-(VEC_SIZE), %rdi
++#endif
+ 	/* Readjust src (rsi).  */
+ 	addq	%rdi, %rsi
+ 	/* Loop 4x VEC at a time copy backward from src (rsi) to dst (rdi).  */
+@@ -573,13 +555,13 @@ L(loop_4x_backward):
+ 	/* Store begining of region.  */
+ 
+ 	/* NB: rax was set to dst on function entry.  */
+-	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
+-	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
+-	VMOVU	%VEC(2), (VEC_SIZE * 2)(%r8)
+ 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%r8)
++	VMOVU	%VEC(2), (VEC_SIZE * 2)(%r8)
++	VMOVU	%VEC(1), (VEC_SIZE * 1)(%r8)
++	VMOVU	%VEC(0), (VEC_SIZE * 0)(%r8)
+ 
+ 	/* Store VECs loaded for aligning dst (rdi).  */
+-#if (LOOP_4X_ALIGN_TO > VEC_SIZE)
++#if VERSION == 1
+ 	VMOVU	%VEC(14), (VEC_SIZE * -2)(%r8, %rdx)
+ #endif
+ 	VMOVU	%VEC(15), (VEC_SIZE * -1)(%r8, %rdx)
+@@ -588,12 +570,11 @@ L(loop_4x_backward):
+ #ifdef USE_WITH_ERMS
+ 	.p2align 4
+ L(movsb):
+-# if VERSION == 0
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+ 	cmpq	%rdx, %rcx
+ 	jb	L(gt_8x_backward)
+-# endif
++
+ 	/* If size (rdx) > __x86_rep_movsb_stop_threshold go to large copy.  */
+ 
+ 	/* NB: __x86_rep_movsb_stop_threshold in range
+@@ -684,12 +665,10 @@ L(large_memcpy_2x):
+ 	cmpq	__x86_shared_non_temporal_threshold(%rip), %rdx
+ 	jb	L(gt_8x_forward)
+ # endif
+-# if VERSION == 0
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+ 	cmpq	%rdx, %rcx
+ 	jb	L(gt_8x_backward)
+-# endif
+ 	/* We want to use temporal copies if there is overlap constructive cache
+ 	   interference between loading from src and storing to dst.  */
+ 
+-- 
+2.25.1
+

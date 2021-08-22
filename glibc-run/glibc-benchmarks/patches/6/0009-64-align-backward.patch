@@ -1,0 +1,46 @@
+From df7242a48b8a572d2f6a123e3c126be15931563a Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 08:00:09 -0400
+Subject: [PATCH 09/10] 64 align backward
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 848949e372..dfa186f5c2 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -548,12 +548,18 @@ L(more_8x_vec_backward):
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
+-
++#if VEC_SIZE != 64
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(9)
++#endif
+ 
+ 	subq	%rdi, %rsi
+ 	movq	%rdi, %rcx
+ 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
++#if VEC_SIZE != 64
++	andq	$-(VEC_SIZE * 2), %rdi
++#else
+ 	andq	$-(VEC_SIZE), %rdi
++#endif
+ 	addq	%rdi, %rsi
+ 
+ 	.p2align 4
+@@ -580,6 +586,9 @@ L(loop_4x_vec_backward):
+ 	VMOVU	%VEC(7), (VEC_SIZE * 3)(%rcx)
+ 	/* Store the last VEC.  */
+ 	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rcx)
++#if VEC_SIZE != 64
++	VMOVU	%VEC(9), -(VEC_SIZE * 2)(%rdx, %rcx)
++#endif    
+ 	VZEROUPPER_RETURN
+ 
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+-- 
+2.25.1
+

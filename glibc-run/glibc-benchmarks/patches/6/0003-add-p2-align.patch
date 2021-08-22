@@ -1,0 +1,36 @@
+From 5f7ef80e8d8d8f5e19aebc9d4671878beb8ad840 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 07:33:57 -0400
+Subject: [PATCH 03/10] add p2 align
+
+---
+ sysdeps/x86/sysdep.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index cac1d762fb..ef997f980f 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -78,15 +78,17 @@ enum cf_protection_level
+ #define ASM_SIZE_DIRECTIVE(name) .size name,.-name;
+ 
+ /* Define an entry point visible from C.  */
+-#define	ENTRY(name)							      \
++#define	P2ALIGN_ENTRY(name, alignment)                              \
+   .globl C_SYMBOL_NAME(name);						      \
+   .type C_SYMBOL_NAME(name),@function;					      \
+-  .align ALIGNARG(4);							      \
++  .align ALIGNARG(alignment);							      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+   _CET_ENDBR;								      \
+   CALL_MCOUNT
+ 
++#define	ENTRY(name) P2ALIGN_ENTRY(name, 4)
++
+ #undef	END
+ #define END(name)							      \
+   cfi_endproc;								      \
+-- 
+2.25.1
+

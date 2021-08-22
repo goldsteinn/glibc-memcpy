@@ -1,0 +1,45 @@
+From 4efcba6d5b653e41d345b2119b9a266df17d450c Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 07:46:35 -0400
+Subject: [PATCH 6/9] p2align4 labels
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index db2e029927..e83b30a14a 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -425,6 +425,7 @@ L(skip_short_movsb_check):
+ 	rep	movsb
+ L(nop):
+ 	ret
++	.p2align 4
+ #endif
+ 
+ 
+@@ -469,7 +470,7 @@ L(last_4x_vec):
+ 	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
+ 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+-
++	.p2align 4
+ L(more_8x_vec):
+ 	/* Check if non-temporal move candidate.  */
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+@@ -533,9 +534,11 @@ L(loop_4x_vec_forward):
+ 	VMOVU	%VEC(4), (%r11)
+ L(nop2):
+ 	VZEROUPPER_RETURN
++
+ L(more_8x_vec_backward_check_nop):
+ 	testq	%rcx, %rcx
+ 	jz	L(nop2)
++	.p2align 4
+ L(more_8x_vec_backward):
+ 	/* Load the first 4 * VEC and last VEC to support overlapping addresses.
+ 	 */
+-- 
+2.25.1
+
