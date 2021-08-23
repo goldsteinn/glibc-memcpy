@@ -1,0 +1,259 @@
+{
+ "timing_type": "hp_timing",
+ "functions": {
+  "memcpy": {
+   "bench-variant": "random",
+   "ifuncs": ["__memcpy_avx_unaligned", "__memcpy_avx_unaligned_erms", "__memcpy_ssse3_back", "__memcpy_ssse3", "__memcpy_sse2_unaligned", "__memcpy_sse2_unaligned_erms", "__memcpy_erms"],
+   "results": [
+    {
+     "max-alignment": 4096,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [100068, 88877.5, 167440, 152477, 96428.4, 97076.1, 163122]
+    },
+    {
+     "max-alignment": 4096,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [92926.6, 88398.1, 166646, 152513, 95823, 96081.9, 163054]
+    },
+    {
+     "max-alignment": 4096,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [94238.2, 89692.5, 169194, 155908, 97141.8, 98786.3, 164096]
+    },
+    {
+     "max-alignment": 8192,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [95352.9, 90909.3, 169319, 156166, 97172.8, 99633.7, 163770]
+    },
+    {
+     "max-alignment": 8192,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [95907.8, 90727.5, 169261, 156455, 97442.7, 98828.1, 163920]
+    },
+    {
+     "max-alignment": 8192,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [93708.5, 89788.3, 169678, 154102, 96243.4, 97613.1, 163669]
+    },
+    {
+     "max-alignment": 16384,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [94237.6, 90652.6, 168821, 155885, 96866.4, 97592.2, 163581]
+    },
+    {
+     "max-alignment": 16384,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [95732.4, 91086.3, 169648, 154898, 97836.1, 99580.1, 165224]
+    },
+    {
+     "max-alignment": 16384,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [94388.9, 90177.2, 167825, 152907, 95713, 97644.4, 164010]
+    },
+    {
+     "max-alignment": 32768,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [94042.8, 89758.6, 169631, 154027, 97119.4, 98029.2, 164980]
+    },
+    {
+     "max-alignment": 32768,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [96401.5, 92667, 171483, 156583, 99714.6, 99747.9, 166666]
+    },
+    {
+     "max-alignment": 32768,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [94724.3, 92068.8, 169114, 154232, 98440.1, 99695.7, 165183]
+    },
+    {
+     "max-alignment": 65536,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [96493.7, 92156.7, 170014, 154778, 99357.4, 100685, 165605]
+    },
+    {
+     "max-alignment": 65536,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [96493.9, 93166, 171913, 155521, 101248, 101813, 167012]
+    },
+    {
+     "max-alignment": 65536,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [96560.6, 93052.8, 169220, 154975, 99823.9, 100747, 166980]
+    },
+    {
+     "max-alignment": 131072,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [95380.7, 91363.6, 169422, 154181, 99137, 98319, 167301]
+    },
+    {
+     "max-alignment": 131072,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [96968, 92141.1, 173607, 156264, 99953.1, 100510, 169918]
+    },
+    {
+     "max-alignment": 131072,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [95894.7, 92255, 170915, 157034, 99501.3, 99503.7, 168749]
+    },
+    {
+     "max-alignment": 262144,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [97431, 92470.4, 173055, 157451, 99642.4, 100878, 169297]
+    },
+    {
+     "max-alignment": 262144,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [100490, 96950.3, 176628, 161347, 104065, 105452, 178195]
+    },
+    {
+     "max-alignment": 262144,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [98681.8, 94372.3, 174217, 159331, 100026, 100856, 169405]
+    },
+    {
+     "max-alignment": 524288,
+     "dst > src": 0,
+     "with-fixed-size": 0,
+     "timings": [98824.1, 94986.3, 175517, 156682, 100991, 102158, 169039]
+    },
+    {
+     "max-alignment": 524288,
+     "dst > src": 1,
+     "with-fixed-size": 0,
+     "timings": [105092, 101759, 180258, 166007, 109256, 109676, 184804]
+    },
+    {
+     "max-alignment": 524288,
+     "dst > src": -1,
+     "with-fixed-size": 0,
+     "timings": [99387.6, 95470.8, 175848, 158032, 101928, 102691, 169450]
+    },
+    {
+     "max-alignment": 4096,
+     "dst > src": 0,
+     "with-fixed-size": 1,
+     "size": 1024,
+     "timings": [208816, 210307, 431253, 504941, 326764, 330532, 332072]
+    },
+    {
+     "max-alignment": 4096,
+     "dst > src": 1,
+     "with-fixed-size": 1,
+     "size": 1024,
+     "timings": [205767, 208045, 428810, 502965, 331068, 331369, 332224]
+    },
+    {
+     "max-alignment": 4096,
+     "dst > src": -1,
+     "with-fixed-size": 1,
+     "size": 1024,
+     "timings": [204798, 206163, 425719, 501040, 327524, 330515, 330679]
+    },
+    {
+     "max-alignment": 8192,
+     "dst > src": 0,
+     "with-fixed-size": 1,
+     "size": 2048,
+     "timings": [358245, 359131, 712466, 845576, 624963, 648912, 514731]
+    },
+    {
+     "max-alignment": 8192,
+     "dst > src": 1,
+     "with-fixed-size": 1,
+     "size": 2048,
+     "timings": [359660, 362629, 717177, 852859, 627320, 651982, 518392]
+    },
+    {
+     "max-alignment": 8192,
+     "dst > src": -1,
+     "with-fixed-size": 1,
+     "size": 2048,
+     "timings": [361063, 363636, 716964, 849624, 626742, 652064, 511841]
+    },
+    {
+     "max-alignment": 16384,
+     "dst > src": 0,
+     "with-fixed-size": 1,
+     "size": 4096,
+     "timings": [705099, 703265, 1.32303e+06, 1.50561e+06, 1.2168e+06, 1.21822e+06, 894620]
+    },
+    {
+     "max-alignment": 16384,
+     "dst > src": 1,
+     "with-fixed-size": 1,
+     "size": 4096,
+     "timings": [884704, 883795, 1.47525e+06, 1.60256e+06, 1.39501e+06, 1.39474e+06, 940140]
+    },
+    {
+     "max-alignment": 16384,
+     "dst > src": -1,
+     "with-fixed-size": 1,
+     "size": 4096,
+     "timings": [945646, 943260, 1.52031e+06, 1.63499e+06, 1.43427e+06, 1.43479e+06, 927466]
+    },
+    {
+     "max-alignment": 32768,
+     "dst > src": 0,
+     "with-fixed-size": 1,
+     "size": 8192,
+     "timings": [1.8548e+06, 1.75142e+06, 2.91881e+06, 3.14746e+06, 2.87116e+06, 1.72442e+06, 1.72246e+06]
+    },
+    {
+     "max-alignment": 32768,
+     "dst > src": 1,
+     "with-fixed-size": 1,
+     "size": 8192,
+     "timings": [2.14699e+06, 2.28649e+06, 3.25473e+06, 3.34462e+06, 3.1309e+06, 2.27595e+06, 2.28056e+06]
+    },
+    {
+     "max-alignment": 32768,
+     "dst > src": -1,
+     "with-fixed-size": 1,
+     "size": 8192,
+     "timings": [2.05785e+06, 1.93729e+06, 3.1065e+06, 3.21055e+06, 3.0576e+06, 1.93243e+06, 1.93162e+06]
+    },
+    {
+     "max-alignment": 65536,
+     "dst > src": 0,
+     "with-fixed-size": 1,
+     "size": 16384,
+     "timings": [4.12532e+06, 3.79525e+06, 6.05193e+06, 6.37325e+06, 6.1702e+06, 3.78726e+06, 3.78701e+06]
+    },
+    {
+     "max-alignment": 65536,
+     "dst > src": 1,
+     "with-fixed-size": 1,
+     "size": 16384,
+     "timings": [4.85758e+06, 5.29949e+06, 6.9419e+06, 6.91533e+06, 6.7142e+06, 5.28692e+06, 5.27434e+06]
+    },
+    {
+     "max-alignment": 65536,
+     "dst > src": -1,
+     "with-fixed-size": 1,
+     "size": 16384,
+     "timings": [4.09363e+06, 3.98959e+06, 6.13768e+06, 6.30142e+06, 6.11979e+06, 3.96602e+06, 3.96332e+06]
+    }]
+  }
+ }
+}
