@@ -25,7 +25,7 @@ bench_path = glibc_path + "benchtests/"
 result_path_dir = root + "/dev-results/"
 result_path = result_path_dir + "{}/"
 bench_cmd = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; taskset -c 0 make --silent bench BENCHSET=\"string-benchset\")"
-build_cmd_slow = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; " + root + "/src/glibc/configure --prefix=/usr; make -j 7 --silent)"
+build_cmd_slow = "rm -rf build/glibc; mkdir -p build/glibc; (cd " + glibc_path + "; unset LD_LIBRARY_PATH; " + root + "/src/glibc/configure --prefix=/usr; make -j 7 --silent)"
 build_cmd_fast = "(cd " + glibc_path + "; unset LD_LIBRARY_PATH; make -r -C /home/noah/programs/opensource/glibc-dev/src/glibc/string/ objdir=`pwd` --silent)"
 file_prefix = "bench-"
 file_postfix = ".out"
@@ -81,9 +81,6 @@ class Conf():
 confs = []
 
 confs.append(Conf(None, "benchmark-dev0"))
-confs.append(Conf(None, "benchmark-dev1"))
-confs.append(Conf(None, "benchmark-dev2"))
-confs.append(Conf(None, "benchmark-dev3"))
 confs.append(Conf(None, "benchmark-glibc"))
 
 
@@ -113,9 +110,8 @@ def bench(conf, base, inc):
                 os.system("cp {} {}".format(src, dst))
 
 
-os.system("rm -rf {}; rm -rf build/glibc; mkdir -p build/glibc".format(
-    result_path.format("*")))
-incr = 5
+os.system("rm -rf {}".format(result_path.format("*")))
+incr = 30
 for i in range(0, 1):
     for c in confs:
         build(c)
