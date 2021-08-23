@@ -114,7 +114,7 @@ def bench(conf, base, inc):
                 os.system("cp {} {}".format(src, dst))
 
 
-os.system("rm -rf {}; {}".format(result_path.format("*"), reset_build))
+os.system("rm -rf {}; {}".format(result_path.format("*")))
 incr = 5
 for i in range(0, 1):
     for c in confs:
