@@ -1,0 +1,25 @@
+From e82f79c73e51926fe3ed4c51f25d893b9c61f9e5 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 23 Aug 2021 18:15:07 -0400
+Subject: [PATCH 19/19] proper dont align 16
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 9592439213..edb8e680f6 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -68,7 +68,7 @@
+ # define YMM0	ymm0
+ #endif
+ 
+-#define ALIGN_MOVSB	(VEC_SIZE	>	16)
++#define ALIGN_MOVSB	(VEC_SIZE	>	0)
+ #ifndef VZEROUPPER
+ # if VEC_SIZE > 16
+ #  define VZEROUPPER	vzeroupper
+-- 
+2.25.1
+

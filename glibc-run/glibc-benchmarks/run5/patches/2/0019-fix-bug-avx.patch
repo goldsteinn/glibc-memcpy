@@ -1,0 +1,28 @@
+From 9acb0a5c66ffc7b75e2fb9d4ed84a0b61c440385 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 23 Aug 2021 18:13:58 -0400
+Subject: [PATCH 19/19] fix bug avx
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index d931731f97..1e9eea317e 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -482,9 +482,9 @@ L(skip_short_movsb_check):
+ 	subq	%rsi, %rcx
+ 	incq	%rsi
+ 	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
++	VMOVU	%VEC(4), (%r8)
+ #  if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
+ #  endif
+ 	VZEROUPPER_RETURN
+ # else
+-- 
+2.25.1
+
