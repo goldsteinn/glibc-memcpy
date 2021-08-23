@@ -1,0 +1,76 @@
+From fb0dbf40ac3705990f24dad5e5f58c8505c3efb6 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 23 Aug 2021 17:20:40 -0400
+Subject: [PATCH 17/19] with nop at movsb
+
+---
+ .../x86_64/multiarch/memmove-vec-unaligned-erms.S  | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 288750e91a..f89fc74515 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -347,7 +347,7 @@ L(copy_32_63):
+ 	ret
+ #endif
+ 
+-	.p2align 4,, 6
++	.p2align 4,, 5
+ L(leq_1x):
+ #if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
+ # error Unsupported VEC_SIZE!
+@@ -409,7 +409,7 @@ L(copy_8_15):
+ 
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ # ifdef USE_WITH_AVX
+-    .p2align 4
++	.p2align 4
+ # endif
+ L(movsb):
+ 	movq	%rdi, %rcx
+@@ -429,7 +429,7 @@ L(movsb):
+ 	movq	%rdi, %r8
+ # endif
+ # if AVOID_SHORT_DISTANCE_REP_MOVSB
+-	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
++	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+ 	jz	L(skip_short_movsb_check)
+ 	cmpl	$-64, %ecx
+ 	jae	L(more_8x_vec_forward)
+@@ -471,7 +471,6 @@ L(movsb_align_dst):
+ 	VMOVU	%VEC(5), VEC_SIZE(%r8)
+ #  endif
+ 	VZEROUPPER_RETURN
+-
+ L(skip_short_movsb_check):
+ 	testl	$(PAGE_SIZE - 512), %ecx
+ 	jnz	L(movsb_align_dst)
+@@ -581,7 +580,7 @@ L(more_8x_vec_forward):
+ 	leaq	1(%rdi, %rsi), %rsi
+ 	incq	%rdi
+ 
+-	.p2align 4
++	.p2align 4,, 11
+ L(loop_4x_vec_forward):
+ 	/* Copy 4 * VEC a time forward.  */
+ 	VMOVU	(%rsi), %VEC(0)
+@@ -607,10 +606,15 @@ L(nop2):
+ 	VZEROUPPER_RETURN
+ 	.p2align 4,, 6
+ L(more_8x_vec_backward):
++#if !ALIGN_MOVSB
++L(more_8x_vec_backward_skip_1st_load):
++#endif
+ 	/* Load the first 4 * VEC and last VEC to support overlapping addresses.
+ 	 */
+ 	VMOVU	(%rsi), %VEC(4)
++#if ALIGN_MOVSB
+ L(more_8x_vec_backward_skip_1st_load):
++#endif
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
+-- 
+2.25.1
+

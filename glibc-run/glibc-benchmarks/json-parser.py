@@ -335,7 +335,7 @@ class JsonFile():
 
     def show_result_scores(self, impl, others, cmp_s):
         disps = []
-
+        impl = impl[0]
         for key in self.key_order:
             times = [
                 self.all_results[key].get_stat(fmt_ifunc(
