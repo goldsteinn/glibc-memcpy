@@ -1,0 +1,82 @@
+From 2aaf9a82a909757f51198572b81b98740da20ffe Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 23:17:07 -0400
+Subject: [PATCH 11/12] more x86 to large and out of the way
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 46 +++++++++----------
+ 1 file changed, 21 insertions(+), 25 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 614486bcef..522ce88ab9 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -449,37 +449,13 @@ L(last_4x_vec):
+ 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+ 	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
+ 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+-#if !defined USE_MULTIARCH || !IS_IN (libc)
+ L(nop):
+-#endif
+ 	VZEROUPPER_RETURN
+ 
+-#if defined USE_MULTIARCH && IS_IN (libc)
+-	.p2align 4
+-L(movsb):
+-	movq	%rdi, %rcx
+-	subq	%rsi, %rcx
+-	cmpq	%rdx, %rcx
+-	jb	L(more_8x_vec_backward_check_nop)
+-	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+-	jae	L(more_8x_vec)
+-# if AVOID_SHORT_DISTANCE_REP_MOVSB
+-	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+-	jz	L(skip_short_movsb_check)
+-	cmpl	$-64, %ecx
+-	jae	L(more_8x_vec_forward)
+-L(skip_short_movsb_check):
+-# endif
+-	mov	%RDX_LP, %RCX_LP
+-	rep	movsb
+-L(nop):
+-	ret
+-#endif
+-
+ 	.p2align 4,, 10
+ L(more_8x_vec):
+ 	/* Check if non-temporal move candidate.  */
+-#if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
++#if (!defined USE_MULTIARCH && VEC_SIZE == 16) && IS_IN (libc)
+ 	/* Check non-temporal store threshold.  */
+ 	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
+ 	ja	L(large_memcpy_2x)
+@@ -575,6 +551,26 @@ L(loop_4x_vec_backward):
+ 	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rcx)
+ 	VZEROUPPER_RETURN
+ 
++#if defined USE_MULTIARCH && IS_IN (libc)
++	.p2align 4
++L(movsb):
++	movq	%rdi, %rcx
++	subq	%rsi, %rcx
++	cmpq	%rdx, %rcx
++	jb	L(more_8x_vec_backward_check_nop)
++	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
++	jae	L(large_memcpy_2x_check)
++# if AVOID_SHORT_DISTANCE_REP_MOVSB
++	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
++	jz	L(skip_short_movsb_check)
++	cmpl	$-64, %ecx
++	ja	L(more_8x_vec_forward)
++L(skip_short_movsb_check):
++# endif
++	mov	%RDX_LP, %RCX_LP
++	rep	movsb
++	ret
++#endif
+ 
+ 
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+-- 
+2.25.1
+

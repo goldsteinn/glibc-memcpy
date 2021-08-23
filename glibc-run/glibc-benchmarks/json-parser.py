@@ -19,7 +19,7 @@ for version in sys.argv[1].split(","):
         version_dirs.append(version)
 version_dirs.sort()
 print(str(version_dirs))
-sys.exit(0)
+
 benchmarks = []
 for benchmark in sys.argv[2].split(","):
     if benchmark != "":

@@ -1,0 +1,100 @@
+From e49b10825ad5c489baff5b51a472173dc245b8d8 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 18:54:28 -0400
+Subject: [PATCH 10/14] align for movsb
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 66 ++++++++++++++++++-
+ 1 file changed, 63 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 8656e0fd96..111bc19e4d 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -413,20 +413,80 @@ L(movsb):
+ 	cmpq	%rdx, %rcx
+ 	jb	L(more_8x_vec_backward_check_nop)
+ 	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
++
++	VMOVU	(%rsi), %VEC(0)
++# if VEC_SIZE != 64
++	VMOVU	VEC_SIZE(%rsi), %VEC(1)
++# endif
++	movq	%rdi, %r8
+ # if AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+ 	jz	L(skip_short_movsb_check)
+ 	cmpl	$-64, %ecx
+ 	jae	L(more_8x_vec_forward)
++# endif
++
++	subq	%rdi, %rsi
++	leaq	(%rdi, %rdx), %rcx
++
++# if VEC_SIZE != 64
++	addq	$(VEC_SIZE * 2 - 1), %rdi
++	andq	$-(VEC_SIZE * 2), %rdi
++# else
++	addq	$(VEC_SIZE - 1), %rdi
++	andq	$-(VEC_SIZE), %rdi
++# endif
++	addq	%rdi, %rsi
++	subq	%rdi, %rcx
++
++	rep	movsb
++	VMOVU	%VEC(0), (%r8)
++# if VEC_SIZE != 64
++	VMOVU	%VEC(1), VEC_SIZE(%r8)
++# endif
++	VZEROUPPER_RETURN
++L(movsb_align_dst):
++	subq	%rdi, %rsi
++	leaq	-(1)(%rdi, %rdx), %rcx
++# if VEC_SIZE != 64
++	orq	$(VEC_SIZE * 2 - 1), %rdi
++# else
++	orq	$(VEC_SIZE - 1), %rdi
++# endif
++	leaq	1(%rdi, %rsi), %rsi
++	subq	%rdi, %rcx
++	incq	%rdi
++	rep	movsb
++	VMOVU	%VEC(0), (%r8)
++# if VEC_SIZE != 64
++	VMOVU	%VEC(1), VEC_SIZE(%r8)
++# endif
++	VZEROUPPER_RETURN
++
+ L(skip_short_movsb_check):
++	testl	$(PAGE_SIZE - 512), %ecx
++	jnz	L(movsb_align_dst)
++	movq	%rcx, %r9
++	leaq	-(1)(%rsi, %rdx), %rcx
++# if VEC_SIZE != 64
++	orq	$(VEC_SIZE * 2 - 1), %rsi
++# else
++	orq	$(VEC_SIZE - 1), %rsi
+ # endif
+-	mov	%RDX_LP, %RCX_LP
++	leaq	1(%rsi, %r9), %rdi
++	subq	%rsi, %rcx
++	incq	%rsi
+ 	rep	movsb
+-	ret
+-	.p2align 4
++	VMOVU	%VEC(0), (%r8)
++# if VEC_SIZE != 64
++	VMOVU	%VEC(1), VEC_SIZE(%r8)
++# endif
++	VZEROUPPER_RETURN
++    .p2align 4,,12
+ #endif
+ 
+ 
++
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+ 	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
+-- 
+2.25.1
+

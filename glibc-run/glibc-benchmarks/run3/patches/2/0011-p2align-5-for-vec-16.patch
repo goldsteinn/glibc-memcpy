@@ -1,0 +1,29 @@
+From e76d7b19d9e371ecfcdfd28c232a4bb2c60f7758 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 23:36:39 -0400
+Subject: [PATCH 11/11] p2align 5 for vec==16
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 614486bcef..cd0e1357de 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -406,9 +406,10 @@ L(copy_8_15):
+ 	ret
+ #endif
+ 
+-
+-
+ #if defined USE_MULTIARCH && IS_IN (libc)
++# if VEC_SIZE == 16
++	.p2align 5
++# endif
+ L(movsb_more_2x_vec):
+ 	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
+ 	ja	L(movsb)
+-- 
+2.25.1
+
