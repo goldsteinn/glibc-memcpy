@@ -18,7 +18,6 @@ for version in sys.argv[1].split(","):
     else:
         version_dirs.append(version)
 version_dirs.sort()
-print(str(version_dirs))
 
 benchmarks = []
 for benchmark in sys.argv[2].split(","):
@@ -35,6 +34,8 @@ bench_fmt = "/bench-{}.out"
 cmp_files = []
 for benchmark in benchmarks:
     cmp_files.append(bench_fmt.format(benchmark + "{}"))
+
+time_offset = 4
 
 
 def get_key(length, align1, align2, dgs, wfs, sz):
@@ -56,22 +57,25 @@ def csv_add(s, field):
 
 
 def fmt_ifunc(bench_func, impl):
-    out = "__{}_{}_unaligned".format(bench_func, impl[0])
-    for i in range(1, len(impl)):
-        out += "_" + impl[i]
+    impl_pieces = impl.split("-")
+    out = "__{}_{}_unaligned".format(bench_func, impl_pieces[0])
+    if len(impl_pieces) > 1:
+        out += "_" + impl_pieces[1]
     return out
 
 
-def set_if_exists(json_map, field, field_val):
+def set_if_exists(json_map, field, field_val, fields):
     if field in json_map:
-        return str(json_map[field]).lstrip().rstrip()
-    return field_val
+        fields[field] = True
+        return str(json_map[field]).lstrip().rstrip(), fields
+
+    return field_val, fields
 
 
 def dgs_to_str(dgs):
     if dgs is None:
         return dgs
-
+    return dgs
     if dgs == "0":
         return "Forward"
     if dgs == "1":
@@ -91,6 +95,8 @@ class Displayable():
         if len(self.times) > 2:
             if self.cmp_idx is None:
                 return self.out_list()
+            elif self.cmp_idx == -1:
+                return self.out_cmp_many()
             else:
                 return self.out_list_score()
         return self.out_cmp()
@@ -111,20 +117,41 @@ class Displayable():
             out = csv_add(out, str(round(time, 3)))
         return out + "\n"
 
+    def get_cmp_score(self, t0, t1):
+        return str(round(t0, 3)), str(round(t1, 3)), str(round(t0 / t1, 3))
+
+    def out_cmp_many(self):
+        out = self.hdr
+        global time_offset
+        while out.count(',') < time_offset:
+            out += ","
+        for i in range(0, int(len(self.times) / 2)):
+            t0, t1, score = self.get_cmp_score(self.times[2 * i],
+                                               self.times[2 * i + 1])
+            out = csv_add(out, t0)
+            out = csv_add(out, t1)
+            out = csv_add(out, score)
+            if i != int(len(self.times) / 2) - 1:
+                out += ","
+        return out + "\n"
+
     def out_cmp(self):
+        out = self.hdr
+        global time_offset
+        while out.count(',') < time_offset:
+            out += ","
         out = csv_add(self.hdr, str(round(self.times[0], 3)))
         if self.times[1] is not None:
             score = round(self.times[0] / self.times[1], 3)
             out = csv_add(out, str(round(self.times[1], 3)))
-            while out.count(',') < 5:
-                out += ","
             out = csv_add(out, str(score))
         return out + "\n"
 
 
 class Result():
-    def __init__(self, ifuncs, length, align1, align2, dgs, wfs, sz):
+    def __init__(self, ifuncs, fields, length, align1, align2, dgs, wfs, sz):
         self.ifuncs = ifuncs
+        self.fields = fields
         self.length = length
         self.align1 = align1
         self.align2 = align2
@@ -153,7 +180,10 @@ class Result():
         out = csv_add(out, self.align2)
         out = csv_add(out, dgs_to_str(self.dgs))
         out = csv_add(out, self.wfs)
-        out = csv_add(out, self.sz)
+        if self.wfs is not None:
+            out = csv_add(out, str(self.sz))
+        else:
+            out = csv_add(out, self.sz)
         return out
 
     def result_key(self):
@@ -167,6 +197,42 @@ class JsonFile():
         self.key_order = []
         self.all_results = {}
         self.bench_func = ""
+        self.fields = {}
+
+    def name(self, impl):
+        ret = ""
+        if "dev" in self.file_fmt:
+            ret = "New"
+        if "glibc" in self.file_fmt:
+            ret = "Cur"
+        return ret + "-" + impl
+
+    def out_fields(self):
+        out = ""
+        for field in self.fields:
+            out = csv_add(out, field)
+        return out
+
+    def func_hdr(self):
+
+        bench = self.file_fmt[self.file_fmt.find("bench-") +
+                              len("bench-"):self.file_fmt.find("{}")]
+        return "\nResults For: {}".format(bench)
+
+    def csv_hdr(self, other, impls):
+        out = self.out_fields()
+        global time_offset
+        while out.count(',') < time_offset:
+            out += ","
+        for i in range(0, len(impls)):
+            out = csv_add(out, self.name(impls[i]))
+            if other is not None:
+                out = csv_add(out, other.name(impls[i]))
+                out = csv_add(out, "Score-{}".format(impls[i]))
+            if i != len(impls) - 1:
+                out += ","
+
+        return out
 
     def load_file(self, fname):
         if os.access(fname, os.R_OK) is False:
@@ -189,19 +255,26 @@ class JsonFile():
             dgs = None
             wfs = None
             sz = None
-            length = set_if_exists(result, "length", length)
-            length = set_if_exists(result, "max-alignment", length)
-            align1 = set_if_exists(result, "align1", align1)
-            align2 = set_if_exists(result, "align2", align2)
-            dgs = set_if_exists(result, "dst > src", dgs)
-            wfs = set_if_exists(result, "with-fixed-size", wfs)
-            sz = set_if_exists(result, "size", sz)
+            length, self.fields = set_if_exists(result, "length", length,
+                                                self.fields)
+            length, self.fields = set_if_exists(result, "max-alignment",
+                                                length, self.fields)
+            align1, self.fields = set_if_exists(result, "align1", align1,
+                                                self.fields)
+            align2, self.fields = set_if_exists(result, "align2", align2,
+                                                self.fields)
+            dgs, self.fields = set_if_exists(result, "dst > src", dgs,
+                                             self.fields)
+            wfs, self.fields = set_if_exists(result, "with-fixed-size", wfs,
+                                             self.fields)
+            sz, self.fields = set_if_exists(result, "overlap", sz, self.fields)
+            sz, self.fields = set_if_exists(result, "size", sz, self.fields)
             key = get_key(length, align1, align2, dgs, wfs, sz)
 
             if key not in self.all_results:
                 self.key_order.append(key)
-                self.all_results[key] = Result(ifuncs, length, align1, align2,
-                                               dgs, wfs, sz)
+                self.all_results[key] = Result(ifuncs, self.fields, length,
+                                               align1, align2, dgs, wfs, sz)
             self.all_results[key].add_times(result["timings"])
 
     def parse_all_files(self):
@@ -238,22 +311,25 @@ class JsonFile():
         for disp in disps:
             print(disp.out(), end="")
 
-    def show_results_cmp_other(self, impl, other):
+    def show_results_cmp_other(self, impls, other):
+
         disps = []
+        print(self.func_hdr())
+        print(self.csv_hdr(other, impls))
         for key in self.key_order:
-            times = [None, None]
+            times = []
             hdr = self.all_results[key].get_hdr()
+
             assert key in other.all_results
             assert other.all_results[key].get_hdr() == hdr
             assert other.bench_func == self.bench_func
+            for impl in impls:
+                times.append(self.all_results[key].get_stat(
+                    fmt_ifunc(self.bench_func, impl)))
+                times.append(other.all_results[key].get_stat(
+                    fmt_ifunc(other.bench_func, impl)))
 
-            times[0] = self.all_results[key].get_stat(
-                fmt_ifunc(self.bench_func, impl))
-
-            times[1] = other.all_results[key].get_stat(
-                fmt_ifunc(other.bench_func, impl))
-
-            disps.append(Displayable(hdr, times, None))
+            disps.append(Displayable(hdr, times, -1))
         for disp in disps:
             print(disp.out(), end="")
 
@@ -272,6 +348,8 @@ class JsonFile():
                 if cmp_s in other.file_fmt:
                     assert cmp_idx is None
                     cmp_idx = i + 1
+
+
 #                print("{} -> {} [{}]".format(key, other.file_fmt, key in other.all_results))
                 assert key in other.all_results
                 assert other.all_results[key].get_hdr() == hdr
@@ -303,7 +381,6 @@ class JsonFile():
             disps.append(Displayable(hdr, times, None))
         for disp in disps:
             print(disp.out(), end="")
-
 
 all_json_files = []
 for i in range(0, len(version_dirs)):
