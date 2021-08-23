@@ -84,7 +84,6 @@ confs.append(Conf(None, "benchmark-dev0"))
 confs.append(Conf(None, "benchmark-dev1"))
 confs.append(Conf(None, "benchmark-dev2"))
 confs.append(Conf(None, "benchmark-dev3"))
-confs.append(Conf(None, "benchmark-dev4"))
 confs.append(Conf(None, "benchmark-glibc"))
 
 
