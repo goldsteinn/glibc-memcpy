@@ -1,0 +1,222 @@
+From 515d78686aaa81be2548f0b3db707eef0e7894d2 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 20:50:12 -0400
+Subject: [PATCH 12/12] move movsb below
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 169 +++++++++---------
+ 1 file changed, 84 insertions(+), 85 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 035e3533b3..8c7da8d2b6 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -405,88 +405,7 @@ L(copy_8_15):
+ 	COPY_8_16
+ 	ret
+ #endif
+-
+-#if defined USE_MULTIARCH && IS_IN (libc)
+-L(movsb):
+-	movq	%rdi, %rcx
+-	subq	%rsi, %rcx
+-	cmpq	%rdx, %rcx
+-	jb	L(more_8x_vec_backward_check_nop)
+-	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+-    jae L(more_8x_vec)
+-	VMOVU	(%rsi), %VEC(0)
+-# if VEC_SIZE != 64
+-	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+-# endif
+-	movq	%rdi, %r8
+-# if AVOID_SHORT_DISTANCE_REP_MOVSB
+-	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+-	jz	L(skip_short_movsb_check)
+-	cmpl	$-64, %ecx
+-	jae	L(more_8x_vec_forward)
+-# endif
+-
+-	subq	%rdi, %rsi
+-	leaq	(%rdi, %rdx), %rcx
+-
+-# if VEC_SIZE != 64
+-	addq	$(VEC_SIZE * 2 - 1), %rdi
+-	andq	$-(VEC_SIZE * 2), %rdi
+-# else
+-	addq	$(VEC_SIZE - 1), %rdi
+-	andq	$-(VEC_SIZE), %rdi
+-# endif
+-	addq	%rdi, %rsi
+-	subq	%rdi, %rcx
+-
+-	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
+-# if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
+-# endif
+-	VZEROUPPER_RETURN
+-L(movsb_align_dst):
+-	subq	%rdi, %rsi
+-	leaq	-(1)(%rdi, %rdx), %rcx
+-# if VEC_SIZE != 64
+-	orq	$(VEC_SIZE * 2 - 1), %rdi
+-# else
+-	orq	$(VEC_SIZE - 1), %rdi
+-# endif
+-	leaq	1(%rdi, %rsi), %rsi
+-	subq	%rdi, %rcx
+-	incq	%rdi
+-	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
+-# if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
+-# endif
+-	VZEROUPPER_RETURN
+-
+-L(skip_short_movsb_check):
+-	testl	$(PAGE_SIZE - 512), %ecx
+-	jnz	L(movsb_align_dst)
+-	movq	%rcx, %r9
+-	leaq	-(1)(%rsi, %rdx), %rcx
+-# if VEC_SIZE != 64
+-	orq	$(VEC_SIZE * 2 - 1), %rsi
+-# else
+-	orq	$(VEC_SIZE - 1), %rsi
+-# endif
+-	leaq	1(%rsi, %r9), %rdi
+-	subq	%rsi, %rcx
+-	incq	%rsi
+-	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
+-# if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
+-# endif
+-	VZEROUPPER_RETURN
+-    .p2align 4,,6
+-#endif
+-
+-
+-
++	.p2align 4
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+ 	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
+@@ -517,7 +436,6 @@ L(more_2x_vec):
+ 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+ 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+-	.p2align 4,, 6
+ L(last_4x_vec):
+ 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+ 	VMOVU	(%rsi), %VEC(0)
+@@ -530,7 +448,7 @@ L(last_4x_vec):
+ 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+ L(nop):
+ 	VZEROUPPER_RETURN
+-	.p2align 4,,10
++	.p2align 4,, 10
+ L(more_8x_vec):
+ 	/* Check if non-temporal move candidate.  */
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+@@ -603,7 +521,7 @@ L(more_8x_vec_backward):
+ 	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
+ 	andq	$-(VEC_SIZE), %rdi
+ 	addq	%rdi, %rsi
+-	.p2align 4,,11
++	.p2align 4,, 11
+ L(loop_4x_vec_backward):
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(0)
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(1)
+@@ -629,8 +547,89 @@ L(loop_4x_vec_backward):
+ 	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rcx)
+ 	VZEROUPPER_RETURN
+ 
++#if defined USE_MULTIARCH && IS_IN (libc)
++L(movsb):
++	movq	%rdi, %rcx
++	subq	%rsi, %rcx
++	cmpq	%rdx, %rcx
++	jb	L(more_8x_vec_backward_check_nop)
++	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
++	jae	L(large_memcpy_2x_check)
++	VMOVU	(%rsi), %VEC(0)
++# if VEC_SIZE != 64
++	VMOVU	VEC_SIZE(%rsi), %VEC(1)
++# endif
++	movq	%rdi, %r8
++# if AVOID_SHORT_DISTANCE_REP_MOVSB
++	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
++	jz	L(skip_short_movsb_check)
++	cmpl	$-64, %ecx
++	jae	L(more_8x_vec_forward)
++# endif
++
++	subq	%rdi, %rsi
++	leaq	(%rdi, %rdx), %rcx
++
++# if VEC_SIZE != 64
++	addq	$(VEC_SIZE * 2 - 1), %rdi
++	andq	$-(VEC_SIZE * 2), %rdi
++# else
++	addq	$(VEC_SIZE - 1), %rdi
++	andq	$-(VEC_SIZE), %rdi
++# endif
++	addq	%rdi, %rsi
++	subq	%rdi, %rcx
++
++	rep	movsb
++	VMOVU	%VEC(0), (%r8)
++# if VEC_SIZE != 64
++	VMOVU	%VEC(1), VEC_SIZE(%r8)
++# endif
++	VZEROUPPER_RETURN
++L(movsb_align_dst):
++	subq	%rdi, %rsi
++	leaq	-(1)(%rdi, %rdx), %rcx
++# if VEC_SIZE != 64
++	orq	$(VEC_SIZE * 2 - 1), %rdi
++# else
++	orq	$(VEC_SIZE - 1), %rdi
++# endif
++	leaq	1(%rdi, %rsi), %rsi
++	subq	%rdi, %rcx
++	incq	%rdi
++	rep	movsb
++	VMOVU	%VEC(0), (%r8)
++# if VEC_SIZE != 64
++	VMOVU	%VEC(1), VEC_SIZE(%r8)
++# endif
++	VZEROUPPER_RETURN
++
++L(skip_short_movsb_check):
++	testl	$(PAGE_SIZE - 512), %ecx
++	jnz	L(movsb_align_dst)
++	movq	%rcx, %r9
++	leaq	-(1)(%rsi, %rdx), %rcx
++# if VEC_SIZE != 64
++	orq	$(VEC_SIZE * 2 - 1), %rsi
++# else
++	orq	$(VEC_SIZE - 1), %rsi
++# endif
++	leaq	1(%rsi, %r9), %rdi
++	subq	%rsi, %rcx
++	incq	%rsi
++	rep	movsb
++	VMOVU	%VEC(0), (%r8)
++# if VEC_SIZE != 64
++	VMOVU	%VEC(1), VEC_SIZE(%r8)
++# endif
++	VZEROUPPER_RETURN
++#endif
++
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+ 	.p2align 4
++L(large_memcpy_2x_check):
++	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
++	jb	L(more_8x_vec_forward)
+ L(large_memcpy_2x):
+ 	/* Compute absolute value of difference between source and destination.
+ 	 */
+-- 
+2.25.1
+
