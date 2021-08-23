@@ -1,0 +1,111 @@
+From 37e16bb6e67484b0e8884d30fb9e7d6f467009eb Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 23 Aug 2021 15:33:58 -0400
+Subject: [PATCH 16/17] with nop check in movsb
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 34 ++++++++++++-------
+ 1 file changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 0b654f2490..288750e91a 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -408,17 +408,23 @@ L(copy_8_15):
+ #endif
+ 
+ #if defined USE_MULTIARCH && IS_IN (libc)
++# ifdef USE_WITH_AVX
++    .p2align 4
++# endif
+ L(movsb):
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
++	je	L(copy_0)
++# if ALIGN_MOVSB
++	VMOVU	(%rsi), %VEC(4)
++# endif
+ 	cmpq	%rdx, %rcx
+-	jb	L(more_8x_vec_backward_check_nop)
++	jb	L(more_8x_vec_backward_skip_1st_load)
+ 	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+ 	jae	L(large_memcpy_2x_check)
+ # if ALIGN_MOVSB
+-	VMOVU	(%rsi), %VEC(0)
+ #  if VEC_SIZE != 64
+-	VMOVU	VEC_SIZE(%rsi), %VEC(1)
++	VMOVU	VEC_SIZE(%rsi), %VEC(5)
+ #  endif
+ 	movq	%rdi, %r8
+ # endif
+@@ -443,9 +449,9 @@ L(movsb):
+ 	subq	%rdi, %rcx
+ 
+ 	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
++	VMOVU	%VEC(4), (%r8)
+ #  if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
+ #  endif
+ 	VZEROUPPER_RETURN
+ L(movsb_align_dst):
+@@ -460,9 +466,9 @@ L(movsb_align_dst):
+ 	subq	%rdi, %rcx
+ 	incq	%rdi
+ 	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
++	VMOVU	%VEC(4), (%r8)
+ #  if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
+ #  endif
+ 	VZEROUPPER_RETURN
+ 
+@@ -480,9 +486,9 @@ L(skip_short_movsb_check):
+ 	subq	%rsi, %rcx
+ 	incq	%rsi
+ 	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
++	VMOVU	%VEC(4), (%r8)
+ #  if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
+ #  endif
+ 	VZEROUPPER_RETURN
+ # else
+@@ -554,10 +560,15 @@ L(more_8x_vec_check):
+ 	ja	L(more_8x_vec_backward)
+ 	/* Source == destination is less common.  */
+ 	je	L(nop)
++#if ALIGN_MOVSB
++	VMOVU	(%rsi), %VEC(4)
++#endif
+ L(more_8x_vec_forward):
+ 	/* Load the first VEC and last 4 * VEC to support overlapping addresses.
+ 	 */
++#if !ALIGN_MOVSB
+ 	VMOVU	(%rsi), %VEC(4)
++#endif
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(5)
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
+ 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
+@@ -594,13 +605,12 @@ L(loop_4x_vec_forward):
+ 	VMOVU	%VEC(4), (%rcx)
+ L(nop2):
+ 	VZEROUPPER_RETURN
+-L(more_8x_vec_backward_check_nop):
+-	testq	%rcx, %rcx
+-	jz	L(nop2)
++	.p2align 4,, 6
+ L(more_8x_vec_backward):
+ 	/* Load the first 4 * VEC and last VEC to support overlapping addresses.
+ 	 */
+ 	VMOVU	(%rsi), %VEC(4)
++L(more_8x_vec_backward_skip_1st_load):
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
+-- 
+2.25.1
+

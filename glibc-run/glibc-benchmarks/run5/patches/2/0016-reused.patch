@@ -1,0 +1,65 @@
+From a112bbc5b5497119c42ed2e74fb0dcd7071be58e Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 23 Aug 2021 17:23:55 -0400
+Subject: [PATCH 16/18] reused
+
+---
+ .../x86_64/multiarch/memmove-vec-unaligned-erms.S | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 0b654f2490..be0d31117c 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -416,9 +416,9 @@ L(movsb):
+ 	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+ 	jae	L(large_memcpy_2x_check)
+ # if ALIGN_MOVSB
+-	VMOVU	(%rsi), %VEC(0)
++	VMOVU	(%rsi), %VEC(4)
+ #  if VEC_SIZE != 64
+-	VMOVU	VEC_SIZE(%rsi), %VEC(1)
++	VMOVU	VEC_SIZE(%rsi), %VEC(5)
+ #  endif
+ 	movq	%rdi, %r8
+ # endif
+@@ -443,9 +443,9 @@ L(movsb):
+ 	subq	%rdi, %rcx
+ 
+ 	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
++	VMOVU	%VEC(4), (%r8)
+ #  if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
+ #  endif
+ 	VZEROUPPER_RETURN
+ L(movsb_align_dst):
+@@ -460,9 +460,9 @@ L(movsb_align_dst):
+ 	subq	%rdi, %rcx
+ 	incq	%rdi
+ 	rep	movsb
+-	VMOVU	%VEC(0), (%r8)
++	VMOVU	%VEC(4), (%r8)
+ #  if VEC_SIZE != 64
+-	VMOVU	%VEC(1), VEC_SIZE(%r8)
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
+ #  endif
+ 	VZEROUPPER_RETURN
+ 
+@@ -554,10 +554,11 @@ L(more_8x_vec_check):
+ 	ja	L(more_8x_vec_backward)
+ 	/* Source == destination is less common.  */
+ 	je	L(nop)
+-L(more_8x_vec_forward):
++
+ 	/* Load the first VEC and last 4 * VEC to support overlapping addresses.
+ 	 */
+ 	VMOVU	(%rsi), %VEC(4)
++L(more_8x_vec_forward):    
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(5)
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
+ 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
+-- 
+2.25.1
+

@@ -1,0 +1,41 @@
+From bc8feace5f988222e88ad4272fd7f1bf4b3421f8 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 23 Aug 2021 17:33:52 -0400
+Subject: [PATCH 18/18] align for 16 as well
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index bc87f5c603..d931731f97 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -68,7 +68,7 @@
+ # define YMM0	ymm0
+ #endif
+ 
+-#define ALIGN_MOVSB	(VEC_SIZE	>	16)
++#define ALIGN_MOVSB	(VEC_SIZE	>	0)
+ #ifndef VZEROUPPER
+ # if VEC_SIZE > 16
+ #  define VZEROUPPER	vzeroupper
+@@ -422,11 +422,13 @@ L(movsb):
+ #  endif
+ 	movq	%rdi, %r8
+ # endif
+-# if AVOID_SHORT_DISTANCE_REP_MOVSB
+-	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
++# if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
++	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+ 	jz	L(skip_short_movsb_check)
++#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	cmpl	$-64, %ecx
+ 	jae	L(more_8x_vec_forward)
++#  endif
+ # endif
+ # if ALIGN_MOVSB
+ 	subq	%rdi, %rsi
+-- 
+2.25.1
+

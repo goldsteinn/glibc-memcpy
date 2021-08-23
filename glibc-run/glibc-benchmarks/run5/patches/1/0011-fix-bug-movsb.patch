@@ -1,0 +1,34 @@
+From 7d9d92414105faf42efda52196925631e58ce72e Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 20:39:22 -0400
+Subject: [PATCH 11/17] fix bug movsb
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 111bc19e4d..035e3533b3 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -413,7 +413,7 @@ L(movsb):
+ 	cmpq	%rdx, %rcx
+ 	jb	L(more_8x_vec_backward_check_nop)
+ 	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+-
++    jae L(more_8x_vec)
+ 	VMOVU	(%rsi), %VEC(0)
+ # if VEC_SIZE != 64
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+@@ -482,7 +482,7 @@ L(skip_short_movsb_check):
+ 	VMOVU	%VEC(1), VEC_SIZE(%r8)
+ # endif
+ 	VZEROUPPER_RETURN
+-    .p2align 4,,12
++    .p2align 4,,6
+ #endif
+ 
+ 
+-- 
+2.25.1
+

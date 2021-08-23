@@ -1,0 +1,143 @@
+From 01d5306c2afb139b98986074b87134ea7d277b17 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 22 Aug 2021 07:54:00 -0400
+Subject: [PATCH 07/18] with "optimized loops"
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 93 ++++++++-----------
+ 1 file changed, 39 insertions(+), 54 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index e83b30a14a..10ed0bfd6a 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -494,20 +494,12 @@ L(more_8x_vec_forward):
+ 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
+ 	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(8)
+ 	/* Save start and stop of the destination buffer.  */
+-	movq	%rdi, %r11
+-	leaq	-VEC_SIZE(%rdi, %rdx), %rcx
+-	/* Align destination for aligned stores in the loop.  Compute how much
+-	   destination is misaligned.  */
+-	movq	%rdi, %r8
+-	andq	$(VEC_SIZE - 1), %r8
+-	/* Get the negative of offset for alignment.  */
+-	subq	$VEC_SIZE, %r8
+-	/* Adjust source.  */
+-	subq	%r8, %rsi
+-	/* Adjust destination which should be aligned now.  */
+-	subq	%r8, %rdi
+-	/* Adjust length.  */
+-	addq	%r8, %rdx
++	movq	%rdi, %rcx
++	subq	%rdi, %rsi
++	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
++	orq	$(VEC_SIZE - 1), %rdi
++	leaq	1(%rdi, %rsi), %rsi
++	incq	%rdi
+ 
+ 	.p2align 4
+ L(loop_4x_vec_forward):
+@@ -517,21 +509,20 @@ L(loop_4x_vec_forward):
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+ 	subq	$-(VEC_SIZE * 4), %rsi
+-	addq	$-(VEC_SIZE * 4), %rdx
+ 	VMOVA	%VEC(0), (%rdi)
+ 	VMOVA	%VEC(1), VEC_SIZE(%rdi)
+ 	VMOVA	%VEC(2), (VEC_SIZE * 2)(%rdi)
+ 	VMOVA	%VEC(3), (VEC_SIZE * 3)(%rdi)
+ 	subq	$-(VEC_SIZE * 4), %rdi
+-	cmpq	$(VEC_SIZE * 4), %rdx
++	cmpq	%rdi, %rdx
+ 	ja	L(loop_4x_vec_forward)
+ 	/* Store the last 4 * VEC.  */
+-	VMOVU	%VEC(5), (%rcx)
+-	VMOVU	%VEC(6), -VEC_SIZE(%rcx)
+-	VMOVU	%VEC(7), -(VEC_SIZE * 2)(%rcx)
+-	VMOVU	%VEC(8), -(VEC_SIZE * 3)(%rcx)
++	VMOVU	%VEC(5), (VEC_SIZE * 3)(%rdx)
++	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rdx)
++	VMOVU	%VEC(7), (VEC_SIZE * 1)(%rdx)
++	VMOVU	%VEC(8), (VEC_SIZE * 0)(%rdx)
+ 	/* Store the first VEC.  */
+-	VMOVU	%VEC(4), (%r11)
++	VMOVU	%VEC(4), (%rcx)
+ L(nop2):
+ 	VZEROUPPER_RETURN
+ 
+@@ -547,44 +538,38 @@ L(more_8x_vec_backward):
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
+-	/* Save stop of the destination buffer.  */
+-	leaq	-VEC_SIZE(%rdi, %rdx), %r11
+-	/* Align destination end for aligned stores in the loop.  Compute how
+-	   much destination end is misaligned.  */
+-	leaq	-VEC_SIZE(%rsi, %rdx), %rcx
+-	movq	%r11, %r9
+-	movq	%r11, %r8
+-	andq	$(VEC_SIZE - 1), %r8
+-	/* Adjust source.  */
+-	subq	%r8, %rcx
+-	/* Adjust the end of destination which should be aligned now.  */
+-	subq	%r8, %r9
+-	/* Adjust length.  */
+-	subq	%r8, %rdx
++
++    
++	subq	%rdi, %rsi
++    movq    %rdi, %rcx
++	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
++	andq	$-(VEC_SIZE), %rdi
++	addq	%rdi, %rsi
+ 
+ 	.p2align 4
+ L(loop_4x_vec_backward):
+-	/* Copy 4 * VEC a time backward.  */
+-	VMOVU	(%rcx), %VEC(0)
+-	VMOVU	-VEC_SIZE(%rcx), %VEC(1)
+-	VMOVU	-(VEC_SIZE * 2)(%rcx), %VEC(2)
+-	VMOVU	-(VEC_SIZE * 3)(%rcx), %VEC(3)
+-	addq	$-(VEC_SIZE * 4), %rcx
+-	addq	$-(VEC_SIZE * 4), %rdx
+-	VMOVA	%VEC(0), (%r9)
+-	VMOVA	%VEC(1), -VEC_SIZE(%r9)
+-	VMOVA	%VEC(2), -(VEC_SIZE * 2)(%r9)
+-	VMOVA	%VEC(3), -(VEC_SIZE * 3)(%r9)
+-	addq	$-(VEC_SIZE * 4), %r9
+-	cmpq	$(VEC_SIZE * 4), %rdx
+-	ja	L(loop_4x_vec_backward)
++	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(0)
++	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(1)
++	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(2)
++	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(3)
++
++	addq	$(VEC_SIZE * -4), %rsi
++
++	VMOVA	%VEC(0), (VEC_SIZE * 3)(%rdi)
++	VMOVA	%VEC(1), (VEC_SIZE * 2)(%rdi)
++	VMOVA	%VEC(2), (VEC_SIZE * 1)(%rdi)
++	VMOVA	%VEC(3), (VEC_SIZE * 0)(%rdi)
++	addq	$(VEC_SIZE * -4), %rdi
++
++	cmpq	%rdi, %rcx
++	jb	L(loop_4x_vec_backward)
+ 	/* Store the first 4 * VEC.  */
+-	VMOVU	%VEC(4), (%rdi)
+-	VMOVU	%VEC(5), VEC_SIZE(%rdi)
+-	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rdi)
+-	VMOVU	%VEC(7), (VEC_SIZE * 3)(%rdi)
++	VMOVU	%VEC(4), (%rcx)
++	VMOVU	%VEC(5), VEC_SIZE(%rcx)
++	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rcx)
++	VMOVU	%VEC(7), (VEC_SIZE * 3)(%rcx)
+ 	/* Store the last VEC.  */
+-	VMOVU	%VEC(8), (%r11)
++	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rcx)
+ 	VZEROUPPER_RETURN
+ 
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+-- 
+2.25.1
+
