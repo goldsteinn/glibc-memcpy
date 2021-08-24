@@ -1,0 +1,87 @@
+See performance data attached.
+
+The first page is a summary with the ifunc selection version for
+erms/non-erms for each computers. Then in the following 4 sheets are
+all the numbers for sse2, avx for Skylake and sse2, avx2, evex, and
+avx512 for Tigerlake.
+
+Benchmark CPUS: Skylake:
+https://ark.intel.com/content/www/us/en/ark/products/149091/intel-core-i7-8565u-processor-8m-cache-up-to-4-60-ghz.html
+
+Tigerlake:
+https://ark.intel.com/content/www/us/en/ark/products/208921/intel-core-i7-1165g7-processor-12m-cache-up-to-4-70-ghz-with-ipu.html
+
+All times are geometric mean of N=30.
+
+"Cur" refers to the current implementation "New" refers to this
+patches implementation
+
+Score refers to new/cur (low means improvement, high means
+degragation). Scores are color coded. The more green the better, the
+more red the worse.
+
+Some notes on the numbers:
+
+In my opinion most of the benchmarks where src/dst align are in [0,
+64] have some unpredictable and unfortunate noise from non-obvious
+false dependencies between stores to dst and next iterations loads
+from src. For example in the 8x forward case, the store of VEC(4) will
+end up stalling next iterations load queue, so if size was large
+enough that the begining of dst was flushed from L1 this can have a
+seemingly random but significant impact on the benchmark result.
+
+There are significant performance improvements/degregations in the [0,
+VEC_SIZE]. I didn't treat these as imporant as I think in this size
+range the branch pattern indicated by the random tests is more
+important. On the random tests the new implementation performance
+significantly better.
+
+I also added logic to align before L(movsb). If you see the new random
+benchmarks with fixed size this leads to roughly a 10-20% performance
+improvement for some hot sizes. I am not 100% convinced this is needed
+as generally for larger copies that would go to movsb they are already
+aligned but even in the fixed loop cases, especially on Skylake w.o
+FSRM it seems aligning before movsb pays off. Let me know if you think
+this is unnecessary.
+
+There are occasional performance degregations at odd splots throughout
+the medium range sizes in the fixed memcpy benchmarks. I think
+generally there is more good than harm here and at the moment I don't
+have an explination for why these certain configurations seem to
+perform worse. On the plus side, however, it also seems that there are
+unexplained improvements of the same magnitude patterened with the
+degregations (and both are sparse) so I ultimately believe it should
+be acceptable. if this is not the case let me know.
+
+The memmove benchmarks look a bit worse, especially for the erms
+case. Part of this is from the nop cases which I didn't treat as
+important. But part of it is also because to optimize for what I
+expect to be the common case of no overlap the overlap case has extra
+branches and overhead. I think this is inevitable when implementing
+memmove and memcpy in the same file, but if this is unacceptable let
+me know.
+
+
+Note: I benchmarks before two changes that made it into the final version:
+
+-#if !defined USE_MULTIARCH || !IS_IN (libc)
+-L(nop):
+-       ret
+-#else
++       VMOVU   %VEC(1), -VEC_SIZE(%rdi, %rdx)
+        VZEROUPPER_RETURN
+-#endif
+
+
+
+And
+
++       testl   $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+-       andl    $X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+
+
+I don't think either of these should have any impact.
+
+I made the former change because I think it was a bug that could cause
+use of avx2 w.o vzeroupper and the latter because I think it could
+cause issues on multicore platforms.

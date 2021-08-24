@@ -15,9 +15,10 @@ for version in sys.argv[1].split(","):
         for d in os.listdir(dir_path):
             if last_piece in d:
                 version_dirs.append(dir_path + d)
+        version_dirs.sort()
     else:
         version_dirs.append(version)
-version_dirs.sort()
+
 
 benchmarks = []
 for benchmark in sys.argv[2].split(","):
