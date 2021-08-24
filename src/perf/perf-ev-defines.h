@@ -1,7 +1,7 @@
 #ifndef _PERF_EV_DEFINES_H_
 #define _PERF_EV_DEFINES_H_
 
-#define PERF_EVENTS 0
+#define PERF_EVENTS 1
 #if PERF_EVENTS
 #define PERF_EV_PRG_EVENTS    1
 #define PERF_EV_WITH_BUILTINS 0

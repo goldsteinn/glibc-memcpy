@@ -7,7 +7,8 @@ const perf_ev_t perf_events_in_use[] = {
     INST_RETIRED_ANY_P,       UNHALTED_CORE_CYCLES,   UNHALTED_REFERENCE_CYCLES,
 #endif
 #if PERF_EVENTS
-BACLEARS_ANY,
+        MISPREDICTED_BRANCH_RETIRED,
+    //BACLEARS_ANY,
 //
 
 //

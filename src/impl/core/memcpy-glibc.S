@@ -1,5 +1,5 @@
 #include "asm-common.h"
-
+#define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #ifndef VZEROUPPER
@@ -123,21 +123,20 @@
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 L(start_erms):
-#ifdef __ILP32__
+# ifdef ILP32
 	/* Clear the upper 32 bits.  */
 	movl	%edx, %edx
-#endif
+# endif
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
 	cmp	$(VEC_SIZE * 2), %RDX_LP
 	ja	L(movsb_more_2x_vec)
-	// ja      L(more_8x_vec)
 L(last_2x_vec):
-	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
+	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE. */
 	VMOVU	(%rsi), %VEC(0)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(1)
+	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(1)
 	VMOVU	%VEC(0), (%rdi)
-	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
+	VMOVU	%VEC(1), -VEC_SIZE(%rdi,%rdx)
 L(return):
 #if VEC_SIZE > 16
 	ZERO_UPPER_VEC_REGISTERS_RETURN
@@ -145,40 +144,42 @@ L(return):
 	ret
 #endif
 
-#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
 L(movsb):
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp     x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(more_8x_vec)
 	cmpq	%rsi, %rdi
 	jb	1f
 	/* Source == destination is less common.  */
 	je	L(nop)
-	leaq	(%rsi, %rdx), %r9
+	leaq	(%rsi,%rdx), %r9
 	cmpq	%r9, %rdi
 	/* Avoid slow backward REP MOVSB.  */
 	jb	L(more_8x_vec_backward)
 # if AVOID_SHORT_DISTANCE_REP_MOVSB
+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+	jz	3f
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
 	jmp	2f
 # endif
 1:
 # if AVOID_SHORT_DISTANCE_REP_MOVSB
+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+	jz	3f
 	movq	%rsi, %rcx
 	subq	%rdi, %rcx
 2:
-	/* Avoid "rep movsb" if RCX, the distance between source and
-	   destination, is N*4GB + [1..63] with N >= 0.  */
+/* Avoid "rep movsb" if RCX, the distance between source and destination,
+   is N*4GB + [1..63] with N >= 0.  */
 	cmpl	$63, %ecx
-	/* Avoid "rep movsb" if ECX <= 63.  */
-	jbe	L(more_2x_vec)
+	jbe	L(more_2x_vec)	/* Avoid "rep movsb" if ECX <= 63.  */
+3:
 # endif
-
 	mov	%RDX_LP, %RCX_LP
-	rep	movsb
+	rep movsb
 L(nop):
 	ret
-#endif
+
 
 L(less_vec):
 	/* Less than 1 VEC.  */
@@ -208,100 +209,100 @@ L(less_vec):
 L(between_32_63):
 	/* From 32 to 63.  No branch when size == 32.  */
 	VMOVU	(%rsi), %YMM0
-	VMOVU	-32(%rsi, %rdx), %YMM1
+	VMOVU	-32(%rsi,%rdx), %YMM1
 	VMOVU	%YMM0, (%rdi)
-	VMOVU	%YMM1, -32(%rdi, %rdx)
+	VMOVU	%YMM1, -32(%rdi,%rdx)
 	VZEROUPPER_RETURN
 #endif
 #if VEC_SIZE > 16
 	/* From 16 to 31.  No branch when size == 16.  */
 L(between_16_31):
 	VMOVU	(%rsi), %XMM0
-	VMOVU	-16(%rsi, %rdx), %XMM1
+	VMOVU	-16(%rsi,%rdx), %XMM1
 	VMOVU	%XMM0, (%rdi)
-	VMOVU	%XMM1, -16(%rdi, %rdx)
+	VMOVU	%XMM1, -16(%rdi,%rdx)
 	VZEROUPPER_RETURN
 #endif
 L(between_8_15):
 	/* From 8 to 15.  No branch when size == 8.  */
-	movq	-8(%rsi, %rdx), %rcx
+	movq	-8(%rsi,%rdx), %rcx
 	movq	(%rsi), %rsi
-	movq	%rcx, -8(%rdi, %rdx)
+	movq	%rcx, -8(%rdi,%rdx)
 	movq	%rsi, (%rdi)
 	ret
 L(between_4_7):
 	/* From 4 to 7.  No branch when size == 4.  */
-	movl	-4(%rsi, %rdx), %ecx
+	movl	-4(%rsi,%rdx), %ecx
 	movl	(%rsi), %esi
-	movl	%ecx, -4(%rdi, %rdx)
+	movl	%ecx, -4(%rdi,%rdx)
 	movl	%esi, (%rdi)
 	ret
 L(between_2_3):
 	/* From 2 to 3.  No branch when size == 2.  */
-	movzwl	-2(%rsi, %rdx), %ecx
+	movzwl	-2(%rsi,%rdx), %ecx
 	movzwl	(%rsi), %esi
-	movw	%cx, -2(%rdi, %rdx)
+	movw	%cx, -2(%rdi,%rdx)
 	movw	%si, (%rdi)
 	ret
 
-#if defined USE_WITH_ERMS && defined USE_WITH_MULTIARCH_AND_LIBC
+#if defined USE_WITH_MULTIARCH_AND_LIBC
 L(movsb_more_2x_vec):
 	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
-	/* More than 2 * VEC and there may be overlap between destination and
-	   source.  */
+	/* More than 2 * VEC and there may be overlap between destination
+	   and source.  */
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_8x_vec)
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(last_4x_vec)
-	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
+	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively. */
 	VMOVU	(%rsi), %VEC(0)
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
-	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
-	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(7)
+	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(4)
+	VMOVU	-(VEC_SIZE * 2)(%rsi,%rdx), %VEC(5)
+	VMOVU	-(VEC_SIZE * 3)(%rsi,%rdx), %VEC(6)
+	VMOVU	-(VEC_SIZE * 4)(%rsi,%rdx), %VEC(7)
 	VMOVU	%VEC(0), (%rdi)
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
-	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
-	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
-	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
-	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+	VMOVU	%VEC(4), -VEC_SIZE(%rdi,%rdx)
+	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi,%rdx)
+	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi,%rdx)
+	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi,%rdx)
 	VZEROUPPER_RETURN
 L(last_4x_vec):
-	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively. */
 	VMOVU	(%rsi), %VEC(0)
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(2)
+	VMOVU	-(VEC_SIZE * 2)(%rsi,%rdx), %VEC(3)
 	VMOVU	%VEC(0), (%rdi)
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
-	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
-	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+	VMOVU	%VEC(2), -VEC_SIZE(%rdi,%rdx)
+	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi,%rdx)
 	VZEROUPPER_RETURN
 
 L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
-#ifdef USE_WITH_MULTIARCH_AND_LIBC
+#if defined USE_WITH_MULTIARCH_AND_LIBC
 	/* Check non-temporal store threshold.  */
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
 #endif
-	/* Entry if rdx is greater than non-temporal threshold but there is
-	   overlap.  */
+	/* Entry if rdx is greater than non-temporal threshold but there
+       is overlap.  */
 L(more_8x_vec_check):
 	cmpq	%rsi, %rdi
 	ja	L(more_8x_vec_backward)
 	/* Source == destination is less common.  */
 	je	L(nop)
-	/* Load the first VEC and last 4 * VEC to support overlapping addresses.
-	 */
+	/* Load the first VEC and last 4 * VEC to support overlapping
+	   addresses.  */
 	VMOVU	(%rsi), %VEC(4)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(5)
 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
@@ -310,8 +311,8 @@ L(more_8x_vec_check):
 	/* Save start and stop of the destination buffer.  */
 	movq	%rdi, %r11
 	leaq	-VEC_SIZE(%rdi, %rdx), %rcx
-	/* Align destination for aligned stores in the loop.  Compute how much
-	   destination is misaligned.  */
+	/* Align destination for aligned stores in the loop.  Compute
+	   how much destination is misaligned.  */
 	movq	%rdi, %r8
 	andq	$(VEC_SIZE - 1), %r8
 	/* Get the negative of offset for alignment.  */
@@ -346,21 +347,20 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(8), -(VEC_SIZE * 3)(%rcx)
 	/* Store the first VEC.  */
 	VMOVU	%VEC(4), (%r11)
-
 	VZEROUPPER_RETURN
 
 L(more_8x_vec_backward):
-	/* Load the first 4 * VEC and last VEC to support overlapping addresses.
-	 */
+	/* Load the first 4 * VEC and last VEC to support overlapping
+	   addresses.  */
 	VMOVU	(%rsi), %VEC(4)
 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
+	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(8)
 	/* Save stop of the destination buffer.  */
 	leaq	-VEC_SIZE(%rdi, %rdx), %r11
-	/* Align destination end for aligned stores in the loop.  Compute how
-	   much destination end is misaligned.  */
+	/* Align destination end for aligned stores in the loop.  Compute
+	   how much destination end is misaligned.  */
 	leaq	-VEC_SIZE(%rsi, %rdx), %rcx
 	movq	%r11, %r9
 	movq	%r11, %r8
@@ -397,11 +397,11 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(8), (%r11)
 	VZEROUPPER_RETURN
 
-#ifdef USE_WITH_MULTIARCH_AND_LIBC
+#if defined USE_WITH_MULTIARCH_AND_LIBC
 	.p2align 4
 L(large_memcpy_2x):
-	/* Compute absolute value of difference between source and destination.
-	 */
+	/* Compute absolute value of difference between source and
+	   destination.  */
 	movq	%rdi, %r9
 	subq	%rsi, %r9
 	movq	%r9, %r8
@@ -409,29 +409,30 @@ L(large_memcpy_2x):
 	sarq	$63, %r8
 	xorq	%r8, %r9
 	subq	%r8, %r9
-	/* Don't use non-temporal store if there is overlap between destination
-	   and source since destination may be in cache when source is loaded.  */
+	/* Don't use non-temporal store if there is overlap between
+	   destination and source since destination may be in cache when
+	   source is loaded.  */
 	cmpq	%r9, %rdx
 	ja	L(more_8x_vec_check)
 
-	/* Cache align destination. First store the first 64 bytes then adjust
-	   alignments.  */
+	/* Cache align destination. First store the first 64 bytes then
+	   adjust alignments.  */
 	VMOVU	(%rsi), %VEC(8)
-# if VEC_SIZE < 64
+#if VEC_SIZE < 64
 	VMOVU	VEC_SIZE(%rsi), %VEC(9)
-#  if VEC_SIZE < 32
+#if VEC_SIZE < 32
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(10)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(11)
-#  endif
-# endif
+#endif
+#endif
 	VMOVU	%VEC(8), (%rdi)
-# if VEC_SIZE < 64
+#if VEC_SIZE < 64
 	VMOVU	%VEC(9), VEC_SIZE(%rdi)
-#  if VEC_SIZE < 32
+#if VEC_SIZE < 32
 	VMOVU	%VEC(10), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(11), (VEC_SIZE * 3)(%rdi)
-#  endif
-# endif
+#endif
+#endif
 	/* Adjust source, destination, and size.  */
 	movq	%rdi, %r8
 	andq	$63, %r8
@@ -444,8 +445,9 @@ L(large_memcpy_2x):
 	/* Adjust length.  */
 	addq	%r8, %rdx
 
-	/* Test if source and destination addresses will alias. If they do the
-	   larger pipeline in large_memcpy_4x alleviated the performance drop.  */
+	/* Test if source and destination addresses will alias. If they do
+	   the larger pipeline in large_memcpy_4x alleviated the
+	   performance drop.  */
 	testl	$(PAGE_SIZE - VEC_SIZE * 8), %ecx
 	jz	L(large_memcpy_4x)
 
@@ -533,8 +535,8 @@ L(loop_large_memcpy_4x_outer):
 	/* ecx stores inner loop counter.  */
 	movl	$(PAGE_SIZE / LARGE_LOAD_SIZE), %ecx
 L(loop_large_memcpy_4x_inner):
-	/* Only one prefetch set per page as doing 4 pages give more time for
-	   prefetcher to keep up.  */
+	/* Only one prefetch set per page as doing 4 pages give more time
+	   for prefetcher to keep up.  */
 	PREFETCH_ONE_SET(1, (%rsi), PREFETCHED_LOAD_SIZE)
 	PREFETCH_ONE_SET(1, (%rsi), PAGE_SIZE + PREFETCHED_LOAD_SIZE)
 	PREFETCH_ONE_SET(1, (%rsi), PAGE_SIZE * 2 + PREFETCHED_LOAD_SIZE)
@@ -603,5 +605,7 @@ x86_shared_non_temporal_threshold:
 	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
 x86_rep_movsb_stop_threshold:
 	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
+x86_string_control:
+	.quad	(1)    
 	.previous
 END(MEMCPY)
