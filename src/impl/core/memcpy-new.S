@@ -1,5 +1,5 @@
 #include "asm-common.h"
-
+#define USE_MULTIARCH	1
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #ifndef VZEROUPPER
@@ -146,7 +146,7 @@
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 L(start_erms):
-#ifdef __ILP32__
+#ifdef ILP32
 	/* Clear the upper 32 bits.  */
 	movl	%edx, %edx
 #endif
@@ -159,11 +159,7 @@ L(start_erms):
 	jb	L(less_vec)
 #endif
 	cmp	$(VEC_SIZE * 2), %RDX_LP
-#ifdef USE_WITH_ERMS
 	ja	L(movsb_more_2x_vec)
-#else
-	ja	L(more_2x_vec)
-#endif
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
 	VMOVU	(%rsi), %VEC(0)
@@ -172,7 +168,7 @@ L(last_2x_vec):
 	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
 L(return):
 #if VEC_SIZE > 16
-	VZEROUPPER_RETURN
+	ZERO_UPPER_VEC_REGISTERS_RETURN
 #else
 	ret
 #endif
@@ -256,7 +252,7 @@ L(copy_8_15):
 	   it wastes 15 bytes of code and 1 byte off is fine.  */
 #endif
 
-#if 1
+#if defined USE_MULTIARCH && 1
 L(movsb):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
@@ -282,8 +278,8 @@ L(movsb):
 # endif
 # if AVOID_SHORT_DISTANCE_REP_MOVSB
 	/* Only avoid short movsb if CPU has FSRM.  */
-#  define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+
+	testl	$1, x86_string_control(%rip)
 	jz	L(skip_short_movsb_check)
 	/* Avoid "rep movsb" if RCX, the distance between source and
 	   destination, is N*4GB + [1..63] with N >= 0.  */
@@ -367,7 +363,7 @@ L(skip_short_movsb_check):
 #endif
 	/* Align if doesn't cost too many bytes.  */
 	.p2align 4,, 6
-#if 1
+#if defined USE_MULTIARCH && 1
 L(movsb_more_2x_vec):
 	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
@@ -418,7 +414,7 @@ L(nop):
 	.p2align 4,, 10
 L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
-#if 1
+#if (defined USE_MULTIARCH || VEC_SIZE == 16) && 1
 	/* Check non-temporal store threshold.  */
 	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
@@ -525,7 +521,7 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rcx)
 	VZEROUPPER_RETURN
 
-#if 1
+#if (defined USE_MULTIARCH || VEC_SIZE == 16) && 1
 	.p2align 4
 	/* Entry if dst > stop movsb threshold (usually set to non-temporal
 	   threshold).  */
