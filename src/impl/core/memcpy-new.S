@@ -1,9 +1,9 @@
 #include "asm-common.h"
 #define USE_MULTIARCH	1
 #define USE_WITH_MULTIARCH_AND_LIBC
-#define USE_WITH_ERMS
+
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx2-vecs.h"
 #endif
 
 	// Tigerlake
@@ -159,7 +159,12 @@ L(start_erms):
 	jb	L(less_vec)
 #endif
 	cmp	$(VEC_SIZE * 2), %RDX_LP
+#define USE_MOVSB    
+#ifdef USE_MOVSB
 	ja	L(movsb_more_2x_vec)
+#else
+	ja	L(more_2x_vec)
+#endif
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
 	VMOVU	(%rsi), %VEC(0)

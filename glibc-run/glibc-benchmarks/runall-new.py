@@ -81,16 +81,13 @@ class Conf():
 
 confs = []
 
-confs.append(Conf(None, "benchmark-dev0"))
-confs.append(Conf(None, "benchmark-dev1"))
-confs.append(Conf(None, "benchmark-dev2"))
-confs.append(Conf(None, "benchmark-dev3"))
-confs.append(Conf(None, "benchmark-glibc"))
+confs.append(Conf(None, "dev0"))
+confs.append(Conf(None, "dev1"))
+confs.append(Conf(None, "dev-glibc"))
 
-first = True
+
 def build(conf):
-    global first
-    slow_build = first
+    slow_build = True
     conf.write_conf()
     if slow_build:
         print("Running: {}".format(build_cmd_slow))
@@ -98,7 +95,6 @@ def build(conf):
     else:
         print("Running: {}".format(build_cmd_fast))
         os.system(build_cmd_fast)
-    first = False
 
 
 def bench(conf, base, inc):
@@ -118,7 +114,7 @@ def bench(conf, base, inc):
 
 
 os.system("rm -rf {};".format(result_path.format("*")))
-incr = 3
+incr = 20
 for i in range(0, 1):
     for c in confs:
         build(c)

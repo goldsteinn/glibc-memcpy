@@ -6,4 +6,4 @@
 
 #include "avx-vecs.h"
 
-#include "core/memcpy-new.S"
+#include "core/memcpy-dev.S"
