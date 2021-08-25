@@ -19,7 +19,6 @@ for version in sys.argv[1].split(","):
     else:
         version_dirs.append(version)
 
-
 benchmarks = []
 for benchmark in sys.argv[2].split(","):
     if benchmark != "":
@@ -260,6 +259,8 @@ class JsonFile():
                                                 self.fields)
             length, self.fields = set_if_exists(result, "max-alignment",
                                                 length, self.fields)
+            length, self.fields = set_if_exists(result, "region-size", length,
+                                                self.fields)
             align1, self.fields = set_if_exists(result, "align1", align1,
                                                 self.fields)
             align2, self.fields = set_if_exists(result, "align2", align2,
