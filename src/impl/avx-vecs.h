@@ -2,7 +2,7 @@
 #define _AVX_VECS_H_
 
 #define HAS_VECS 1
-
+#define USE_WITH_SSE2
 #define VEC_SIZE 16
 #define VEC(i)   xmm##i
 #define VMOVNT   movntdq

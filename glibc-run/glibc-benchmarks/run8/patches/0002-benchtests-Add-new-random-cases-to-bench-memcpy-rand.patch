@@ -1,7 +1,7 @@
-From 812307a9a37159b9d2b636f371d3423aea7d84c2 Mon Sep 17 00:00:00 2001
+From 799844b5514fe0c85cbee78669e8fc68e38cb5aa Mon Sep 17 00:00:00 2001
 From: Noah Goldstein <goldstein.w.n@gmail.com>
 Date: Mon, 23 Aug 2021 01:42:57 -0400
-Subject: [PATCH 2/7] benchtests: Add new random cases to bench-memcpy-random.c
+Subject: [PATCH 2/6] benchtests: Add new random cases to bench-memcpy-random.c
 
 This commit adds three new benchmarks for the SPEC2017
 distribution. One randomized if dst > src and the other two set it
@@ -15,7 +15,7 @@ configurations.
  1 file changed, 92 insertions(+), 11 deletions(-)
 
 diff --git a/benchtests/bench-memcpy-random.c b/benchtests/bench-memcpy-random.c
-index c490b73ed0..eeeef42fc1 100644
+index c490b73ed0..216a832466 100644
 --- a/benchtests/bench-memcpy-random.c
 +++ b/benchtests/bench-memcpy-random.c
 @@ -16,7 +16,8 @@
@@ -24,7 +24,7 @@ index c490b73ed0..eeeef42fc1 100644
  
 -#define MIN_PAGE_SIZE (512*1024+getpagesize())
 +#define MAX_TEST_SIZE (512*1024)
-+#define MIN_PAGE_SIZE (3*MAX_TEST_SIZE+getpagesize())
++#define MIN_PAGE_SIZE (3*MAX_TEST_SIZE+getpagesize()+3*4096)
  #define TEST_MAIN
  #define TEST_NAME "memcpy"
  #include "bench-string.h"
@@ -72,17 +72,17 @@ index c490b73ed0..eeeef42fc1 100644
 +
 +
 +static size_t
-+init_copy(size_t max_size, int dst_gt_src)
++init_copy(size_t max_size, size_t max_copy_size, int dst_gt_src)
 +{
 +  size_t i, dst_offset, src_offset;
 +  if (dst_gt_src <= 0)
 +    {
 +      dst_offset = 0;
-+      src_offset = max_size;
++      src_offset = max_size + max_copy_size;
 +    }
 +  else
 +    {
-+      dst_offset = max_size;
++      dst_offset = max_size + max_copy_size;
 +      src_offset = 0;
 +    }
  
@@ -93,7 +93,7 @@ index c490b73ed0..eeeef42fc1 100644
    for (i = 0; i < MAX_COPIES; i++)
      {
 +      dst_offset  = dst_gt_src == -1
-+                        ? (rand() & 1) ? max_size : 0
++                        ? (rand() & 1) ? 2 * (max_size + max_copy_size) : 0
 +                        : dst_offset;
        copy[i].dst = (rand () & (max_size - 1));
        copy[i].dst &= ~dst_align_arr[rand () & ALIGN_MASK];
@@ -103,7 +103,7 @@ index c490b73ed0..eeeef42fc1 100644
 +      copy[i].src += src_offset;
        copy[i].len = size_arr[rand () & SIZE_MASK];
      }
-+  memset (buf1, 1, 3 * max_size);
++  memset (buf1, 1, 3 * max_size + 3 * max_copy_size);
 +  return i;
 +}
 +
@@ -111,7 +111,7 @@ index c490b73ed0..eeeef42fc1 100644
 +do_test (json_ctx_t *json_ctx, size_t max_size, int dst_gt_src)
 +{
 +  size_t n;
-+  n = init_copy(max_size, dst_gt_src);
++  n = init_copy(max_size, 4096, dst_gt_src);
 +  json_element_object_begin (json_ctx);
 +  json_attr_uint (json_ctx, "region-size", (double) 3 * max_size);
 +  json_attr_int (json_ctx, "dst > src", (double) dst_gt_src);
@@ -129,7 +129,7 @@ index c490b73ed0..eeeef42fc1 100644
 +do_test_fixed_size (json_ctx_t *json_ctx, size_t size, size_t max_size, int dst_gt_src)
 +{
 +  size_t n;
-+  n = init_copy(3 * max_size, dst_gt_src);
++  n = init_copy(3 * max_size, size, dst_gt_src);
    json_element_object_begin (json_ctx);
 -  json_attr_uint (json_ctx, "length", (double) max_size);
 +  json_attr_uint (json_ctx, "region-size", (double) 3 * max_size);
@@ -163,7 +163,7 @@ index c490b73ed0..eeeef42fc1 100644
 +      do_test (&json_ctx, i, -1);
 +    }
 +
-+  for (int i = 4096; i <= 65536; i = i * 2)
++  for (int i = 4096; i <= 131072; i = i * 2)
 +    {
 +      do_test_fixed_size (&json_ctx, i, i, 0);
 +      do_test_fixed_size (&json_ctx, i, i, 1);
