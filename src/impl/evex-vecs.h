@@ -2,7 +2,7 @@
 #define _EVEX_VECS_H_
 
 #define HAS_VECS 1
-
+#define USE_WITH_EVEX
 #define VEC_SIZE 32
 #define XMM0     xmm0
 #define XMM1     xmm1
