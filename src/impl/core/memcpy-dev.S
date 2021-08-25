@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../avx2-vecs.h"
+# include "../avx-vecs.h"
 #endif
 
 	// Tigerlake
@@ -349,13 +349,9 @@ L(nop_movsb):
 # endif
 #endif
 	/* Align if doesn't cost too many bytes.  */
+    //    NOP32
+
 	.p2align 4,, 6
-#if defined USE_WITH_SSE2 || defined USE_WITH_AVX
-	/* Nop 32.  */
-	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
-	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
-	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00
-#endif
 #if defined USE_MULTIARCH
 L(movsb_more_2x_vec):
 	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
@@ -401,6 +397,7 @@ L(last_4x_vec):
 	/* Keep nop target close to jmp for 2-byte encoding.  */
 L(nop):
 	VZEROUPPER_RETURN
+
 	/* Align if doesn't cost too much code size.  */
 	.p2align 4,, 10
 L(more_8x_vec):
@@ -426,16 +423,18 @@ L(more_8x_vec_check):
 #endif
 	/* Entry if rdx is greater than movsb or stop movsb threshold but
 	   there is overlap with dst > src.  */
-L(more_8x_vec_forward):
+
 #if !ALIGN_MOVSB && AVOID_SHORT_DISTANCE_REP_MOVSB
 	VMOVU	(%rsi), %VEC(4)
 #endif
+    
 	leaq	(%rcx, %rdx), %r8
 	xorq	%rcx, %r8
 	shrq	$63, %r8
 	andl	$(PAGE_SIZE - 256), %ecx
 	addl	%r8d, %ecx
 	jz	L(more_8x_vec_backward)
+L(more_8x_vec_forward):
 
 	/* Entry if rdx is greater than movsb or stop movsb threshold but
 	   there is overlap with dst > src.  */
@@ -449,16 +448,17 @@ L(more_8x_vec_forward):
 	/* Subtract dst from src. Add back after dst aligned.  */
 	subq	%rdi, %rsi
 	/* Store end of buffer minus tail in rdx.  */
-	leaq	(VEC_SIZE * -4)(%rdi, %rdx), %rdx
+
 	/* Save begining of dst.  */
 	movq	%rdi, %rcx
 	/* Align dst to VEC_SIZE - 1.  */
 	orq	$(VEC_SIZE - 1), %rdi
 	/* Restore src adjusted with new value for aligned dst.  */
-	leaq	1(%rdi, %rsi), %rsi
-	/* Finish aligning dst.  */
-	incq	%rdi
-	.p2align 4
+    leaq    1(%rdi, %rsi), %rsi
+    incq	%rdi
+    leaq	(VEC_SIZE * -4)(%rcx, %rdx), %rdx
+    /* Finish aligning dst.  */
+	.p2align 4,,11
 L(loop_4x_vec_forward):
 	/* Copy 4 * VEC a time forward.  */
 	VMOVU	(%rsi), %VEC(0)
@@ -484,14 +484,16 @@ L(loop_4x_vec_forward):
 L(nop33):
 	VZEROUPPER_RETURN
 	/* Entry from fail movsb. Need to test if dst - src == 0 still.  */
+	.p2align 4,, 6
 
 L(more_8x_vec_backward_load):
 	testq	%rcx, %rcx
 	jz	L(nop33)
 #if !ALIGN_MOVSB
 	VMOVU	(%rsi), %VEC(4)
-#endif
-	.p2align 4,, 6
+    #endif
+
+
 L(more_8x_vec_backward):
 	/* Load the first 4 * VEC and last VEC to support overlapping
 	   addresses.  */
@@ -499,17 +501,12 @@ L(more_8x_vec_backward):
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
+    leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rcx
 	/* Subtract dst from src. Add back after dst aligned.  */
 	subq	%rdi, %rsi
-	/* Save begining of buffer.  */
-	movq	%rdi, %rcx
-	/* Set dst to begining of region to copy. -1 for inclusive
-	   alignment.  */
-	leaq	(VEC_SIZE * -4 + -1)(%rdi, %rdx), %rdi
-	/* Align dst.  */
-	andq	$-(VEC_SIZE), %rdi
+	andq	$-(VEC_SIZE), %rcx
 	/* Restore src.  */
-	addq	%rdi, %rsi
+	addq	%rcx, %rsi
 	/* Don't use multi-byte nop to align.  */
 	.p2align 4,, 11
 L(loop_4x_vec_backward):
@@ -519,20 +516,20 @@ L(loop_4x_vec_backward):
 	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(3)
 	addq	$(VEC_SIZE * -4), %rsi
-	VMOVA	%VEC(0), (VEC_SIZE * 3)(%rdi)
-	VMOVA	%VEC(1), (VEC_SIZE * 2)(%rdi)
-	VMOVA	%VEC(2), (VEC_SIZE * 1)(%rdi)
-	VMOVA	%VEC(3), (VEC_SIZE * 0)(%rdi)
-	addq	$(VEC_SIZE * -4), %rdi
-	cmpq	%rdi, %rcx
+	VMOVA	%VEC(0), (VEC_SIZE * 3)(%rcx)
+	VMOVA	%VEC(1), (VEC_SIZE * 2)(%rcx)
+	VMOVA	%VEC(2), (VEC_SIZE * 1)(%rcx)
+	VMOVA	%VEC(3), (VEC_SIZE * 0)(%rcx)
+	addq	$(VEC_SIZE * -4), %rcx
+	cmpq	%rcx, %rdi
 	jb	L(loop_4x_vec_backward)
 	/* Store the first 4 * VEC.  */
-	VMOVU	%VEC(4), (%rcx)
-	VMOVU	%VEC(5), VEC_SIZE(%rcx)
-	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rcx)
-	VMOVU	%VEC(7), (VEC_SIZE * 3)(%rcx)
+	VMOVU	%VEC(4), (%rdi)
+	VMOVU	%VEC(5), VEC_SIZE(%rdi)
+	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rdi)
+	VMOVU	%VEC(7), (VEC_SIZE * 3)(%rdi)
 	/* Store the last VEC.  */
-	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rcx)
+	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rdi)
 	VZEROUPPER_RETURN
 
 #if (defined USE_MULTIARCH || VEC_SIZE == 16)
