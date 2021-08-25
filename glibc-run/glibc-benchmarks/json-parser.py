@@ -272,7 +272,8 @@ class JsonFile():
             sz, self.fields = set_if_exists(result, "overlap", sz, self.fields)
             sz, self.fields = set_if_exists(result, "size", sz, self.fields)
             key = get_key(length, align1, align2, dgs, wfs, sz)
-
+            if "memmove" in self.bench_func and align1 == align2:
+                continue
             if key not in self.all_results:
                 self.key_order.append(key)
                 self.all_results[key] = Result(ifuncs, self.fields, length,

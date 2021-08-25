@@ -1,7 +1,7 @@
 #include "asm-common.h"
 #define USE_MULTIARCH	1
 #define USE_WITH_MULTIARCH_AND_LIBC
-
+#define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
 # include "../avx2-vecs.h"
 #endif
@@ -159,7 +159,7 @@ L(start_erms):
 	jb	L(less_vec)
 #endif
 	cmp	$(VEC_SIZE * 2), %RDX_LP
-#define USE_MOVSB    
+#define USE_MOVSB
 #ifdef USE_MOVSB
 	ja	L(movsb_more_2x_vec)
 #else
@@ -284,7 +284,7 @@ L(movsb):
 # if AVOID_SHORT_DISTANCE_REP_MOVSB
 	/* Only avoid short movsb if CPU has FSRM.  */
 
-	testl	$1, x86_string_control(%rip)
+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
 	jz	L(skip_short_movsb_check)
 	/* Avoid "rep movsb" if RCX, the distance between source and
 	   destination, is N*4GB + [1..63] with N >= 0.  */

@@ -1,0 +1,83 @@
+From 7d4d8f8f588678cb1ae557ae0052765093490866 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 25 Aug 2021 02:58:21 -0400
+Subject: [PATCH 7/9] possibly faster random
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 29 ++++++++++++++-----
+ 1 file changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index b999558cf9..20b727c9ae 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -462,7 +462,6 @@ L(movsb):
+ # endif
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+-	je	L(nop_movsb)
+ 	/* Go to backwards temporal copy if overlap no matter what as
+ 	   backward movsb is slow.  */
+ 	cmpq	%rdx, %rcx
+@@ -593,22 +592,34 @@ L(more_8x_vec_check):
+ #if ALIGN_MOVSB || !AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	VMOVU	(%rsi), %VEC(4)
+ #endif
+-	cmpq	%rsi, %rdi
++
++L(more_8x_vec_check):
++	movq	%rdi, %rcx
++	subq	%rsi, %rcx
++	cmpq	%rdx, %rcx
+ #if !ALIGN_MOVSB && AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	ja	L(more_8x_vec_backward_load)
+ #else
+ 	ja	L(more_8x_vec_backward)
+ #endif
+-	/* Source == destination is less common.  */
+-	je	L(nop)
+ 	/* Entry if rdx is greater than movsb or stop movsb threshold but
+ 	   there is overlap with dst > src.  */
+ L(more_8x_vec_forward):
+-	/* Load the first VEC and last 4 * VEC to support overlapping
+-	   addresses.  */
+ #if !ALIGN_MOVSB && AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	VMOVU	(%rsi), %VEC(4)
+ #endif
++	leaq	(%rcx, %rdx), %r8
++	xorq	%rcx, %r8
++	shrq	$63, %r8
++	andl	$(PAGE_SIZE - 256), %ecx
++	addl	%r8d, %ecx
++	jz	L(more_8x_vec_backward)
++
++	/* Entry if rdx is greater than movsb or stop movsb threshold but
++	   there is overlap with dst > src.  */
++	/* Load the first VEC and last 4 * VEC to support overlapping
++	   addresses.  */
++
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(5)
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
+ 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
+@@ -648,13 +659,17 @@ L(loop_4x_vec_forward):
+ 	/* Store the first VEC.  */
+ 	VMOVU	%VEC(4), (%rcx)
+ 	/* Keep nop target close to jmp for 2-byte encoding.  */
++L(nop33):
+ 	VZEROUPPER_RETURN
+ 	/* Entry from fail movsb. Need to test if dst - src == 0 still.  */
+-	.p2align 4,, 10
++
+ L(more_8x_vec_backward_load):
++	testq	%rcx, %rcx
++	jz	L(nop33)
+ #if !ALIGN_MOVSB
+ 	VMOVU	(%rsi), %VEC(4)
+ #endif
++	.p2align 4,, 6
+ L(more_8x_vec_backward):
+ 	/* Load the first 4 * VEC and last VEC to support overlapping
+ 	   addresses.  */
+-- 
+2.25.1
+
