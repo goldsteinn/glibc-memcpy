@@ -1,0 +1,65 @@
+From ac851685e16e3277d7c52071f43000a83365f708 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 26 Aug 2021 17:15:45 -0400
+Subject: [PATCH 6/8] add second padding fo rsee2
+
+---
+ .../x86_64/multiarch/memmove-sse2-unaligned-erms.S |  2 +-
+ .../x86_64/multiarch/memmove-vec-unaligned-erms.S  | 14 +++++++++++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S
+index d10121db57..42f0331967 100644
+--- a/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S
+@@ -21,7 +21,7 @@
+ #else
+ weak_alias (__mempcpy, mempcpy)
+ #endif
+-
++#define USE_WITH_SSE2
+ #include <sysdeps/x86_64/memmove.S>
+ 
+ #if defined SHARED && IS_IN (libc)
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index e541174b4f..39416265e6 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -524,9 +524,6 @@ L(nop_movsb):
+ 	ret
+ # endif
+ #endif
+-	/* NOP 16.  */
+-	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
+-	.byte	0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;
+ 
+ 	/* Align if doesn't cost too many bytes.  */
+ 	.p2align 4,, 6
+@@ -575,6 +572,11 @@ L(last_4x_vec):
+ 	/* Keep nop target close to jmp for 2-byte encoding.  */
+ L(nop):
+ 	VZEROUPPER_RETURN
++	/* NOP 16.  */
++	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
++	.byte	0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;
++
++
+ 	/* Align if doesn't cost too much code size.  */
+ 	.p2align 4,, 10
+ L(more_8x_vec):
+@@ -664,6 +666,12 @@ L(nop33):
+ 	/* Entry from fail movsb. Need to test if dst - src == 0 still.  */
+ 	.p2align 4,, 6
+ 
++#ifdef USE_WITH_SSE2
++	/* NOP 16.  */
++	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
++	.byte	0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;
++#endif
++
+ L(more_8x_vec_backward_test_and_load):
+ #if !ALIGN_MOVSB
+ 	VMOVU	(%rsi), %VEC(4)
+-- 
+2.25.1
+

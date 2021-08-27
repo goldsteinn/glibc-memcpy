@@ -1,0 +1,24 @@
+From 100eded954c0f3777b2174badeb8e6396303efd5 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 26 Aug 2021 17:16:12 -0400
+Subject: [PATCH 7/9] add decl for ecx
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 39416265e6..5d326a276c 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -605,6 +605,7 @@ L(more_8x_vec_check):
+ 	leaq	(%rcx, %rdx), %r8
+ 	xorq	%rcx, %r8
+ 	shrq	$63, %r8
++    decl    %ecx
+ 	andl	$(PAGE_SIZE - 256), %ecx
+ 	addl	%r8d, %ecx
+ #if !ALIGN_MOVSB && AVOID_SHORT_DISTANCE_REP_MOVSB
+-- 
+2.25.1
+

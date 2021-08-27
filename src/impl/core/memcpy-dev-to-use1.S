@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../avx2-vecs.h"
+# include "../avx-vecs.h"
 #endif
 
 	// Tigerlake

@@ -6,4 +6,4 @@
 
 #include "evex-vecs.h"
 
-#include "core/memcpy-dev.S"
+#include "core/memcpy-glibc.S"

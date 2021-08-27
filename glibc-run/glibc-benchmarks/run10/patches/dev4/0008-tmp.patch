@@ -1,0 +1,26 @@
+From c2cb5b395b976b53500f1fd17dd5dd7752367835 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 26 Aug 2021 17:18:39 -0400
+Subject: [PATCH 8/8] tmp
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 7b69c9d471..f285deeba7 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -591,7 +591,8 @@ L(more_8x_vec):
+ #else
+ 	jb	L(more_8x_vec_backward_test)
+ #endif
+-
++    cmpq    $(VEC_SIZE * 16), %rdx
++    jbe L(more_8x_vec_forward)
+ 	/* Check if non-temporal move candidate.  */
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+ 	/* Check non-temporal store threshold.  */
+-- 
+2.25.1
+
