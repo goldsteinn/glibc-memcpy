@@ -246,8 +246,9 @@ L(between_2_3):
 	ret
 
 #if defined USE_WITH_MULTIARCH_AND_LIBC
-L(movsb_more_2x_vec):
-	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+    L(movsb_more_2x_vec):
+    cmp	$2112, %RDX_LP
+//	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
@@ -606,6 +607,6 @@ x86_shared_non_temporal_threshold:
 x86_rep_movsb_stop_threshold:
 	.quad	((3 * (L3_CACHE_SIZE)) / ((NCORES) * 4))
 x86_string_control:
-	.quad	(1)    
+	.quad	(1)
 	.previous
 END(MEMCPY)

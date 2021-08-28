@@ -40,6 +40,10 @@ parser.add_argument(
     help=
     "CSV of alignments to track (empty for median cycles). If \"-e\" flag present uses first value"
 )
+parser.add_argument("--norm",
+                    action="store_true",
+                    default=False,
+                    help="Normalize cycles to median of all runs")
 
 parser.add_argument("--cpu",
                     action="store",
@@ -115,23 +119,23 @@ class Alignment_Result:
     def get_ev_count(self, ev_name):
         return float(self.get_ev_result(ev_name).ev_count)
 
-    def get_ev_ref_cycles(self, ev_name):
-        return float(self.get_ev_result(ev_name).ref_cycles)
+    def get_ev_ref_cycles(self, ev_name, normalize=1.0):
+        return float(self.get_ev_result(ev_name).ref_cycles) / normalize
 
-    def get_result_value(self, ev_name):
+    def get_result_value(self, ev_name, normalize=1.0):
         if ev_name == "" or ev_name == "cycles":
-            return self.get_median_ref_cycles()
+            return self.get_median_ref_cycles(normalize)
         else:
             return self.get_ev_count(ev_name)
 
-    def aggregate_ref_cycles(self):
+    def aggregate_ref_cycles(self, normalize=1.0):
         all_ref_cycles = []
         for key in self.ev_results:
             all_ref_cycles.append(self.get_ev_ref_cycles(key))
         return all_ref_cycles
 
-    def get_median_ref_cycles(self):
-        return float(statistics.median(self.aggregate_ref_cycles()))
+    def get_median_ref_cycles(self, normalize=1.0):
+        return float(statistics.median(self.aggregate_ref_cycles())) / normalize
 
     def append_ev_result(self, ev_result):
         assert ev_result.get_key(
@@ -173,7 +177,7 @@ class Padding_Constraint:
 
 class Grapher:
     def __init__(self, cpu, al_entrys, padding_constraints, lev_names,
-                 rev_names, save):
+                 rev_names, save, normalize):
         self.cpu = cpu
         self.al_entrys = al_entrys
         self.padding_constraints = padding_constraints
@@ -183,6 +187,8 @@ class Grapher:
         self.ev_names = lev_names + rev_names
         self.colors = ['r', 'g', 'b', 'y', 'm', 'c', 'lime', 'olive']
         self.save = save
+        self.normalize = normalize
+        self.cpu_norms = {}
 
     def savename(self):
         return "figs/{}-{}-{}-{}-{}.png".format(
@@ -213,8 +219,14 @@ class Grapher:
         al_entry_map = {}
         padding_map = {}
         cpu_map = {}
+        cpu_to_cycles = {}
         for result_key in al_results:
             result = al_results[result_key]
+            if result.cpu not in cpu_map:
+                cpu_to_cycles[result.cpu] = []
+            for ev_result in result.ev_results:
+                cpu_to_cycles[result.cpu] += result.aggregate_ref_cycles()
+
             if self.include_padding(result.padding) and self.include_al_entry(
                     result.al_entry) and self.include_cpu(result.cpu):
                 results_to_graph.append(result)
@@ -229,16 +241,18 @@ class Grapher:
         assert len(al_entry_map) > 0
         assert len(cpu_map) > 0
         assert len(results_to_graph) > 0
-
+        for cpu in cpu_to_cycles:
+            self.cpu_norms[cpu] = statistics.median(cpu_to_cycles[cpu])
         return results_to_graph, al_entry_map, padding_map, cpu_map
 
-    def order_fields(self, field_map, secondary):
+    def order_fields(self, field_map, secondary, do_sort=True):
         field_indexes_to_sort = []
         if secondary is None:
             secondary = [""]
         for field in field_map:
             field_indexes_to_sort.append(field)
-        field_indexes_to_sort.sort()
+        if do_sort:
+            field_indexes_to_sort.sort()
         field_indexes = []
         for field in field_indexes_to_sort:
             if len(secondary) == 1:
@@ -327,7 +341,8 @@ class Grapher:
     def plot_ev_names(self, al_results):
         results_to_graph, al_entry_map, padding_map, cpu_map = self.filter_fields(
             al_results)
-        cpu_map, cpu_indexes = self.order_fields(cpu_map, None)
+        cpu_map, cpu_indexes = self.order_fields(cpu_map, None, False)
+
         padding_map, padding_indexes = self.order_fields(padding_map, None)
         result_values = self.prepare_result_values(self.ev_names,
                                                    padding_indexes,
@@ -337,8 +352,11 @@ class Grapher:
             for i in range(0, len(self.ev_names)):
                 j = padding_map[result.padding]
                 i_idx = i * len(cpu_indexes) + cpu_map[result.cpu]
+                norm_val = 1.0
+                if self.normalize is True:
+                    norm_val = self.cpu_norms[result.cpu]
                 result_values[i_idx][j] = result.get_result_value(
-                    self.ev_names[i])
+                    self.ev_names[i], norm_val)
 
         self.verify_result_values(result_values)
         ev_names = []
@@ -354,7 +372,7 @@ class Grapher:
     def plot_al_entrys(self, al_results):
         results_to_graph, al_entry_map, padding_map, cpu_map = self.filter_fields(
             al_results)
-        cpu_map, cpu_indexes = self.order_fields(cpu_map, None)
+        cpu_map, cpu_indexes = self.order_fields(cpu_map, None, False)
         padding_map, padding_indexes = self.order_fields(padding_map, None)
         al_entry_map, al_entry_indexes = self.order_fields(
             al_entry_map, cpu_map)
@@ -369,7 +387,12 @@ class Grapher:
             else:
                 i = al_entry_map[self.x2_key(result.al_entry, result.cpu)]
             j = padding_map[result.padding]
-            result_values[i][j] = result.get_result_value(self.ev_names[0])
+            norm_val = 1.0
+            if self.normalize is True:
+                norm_val = self.cpu_norms[result.cpu]
+
+            result_values[i][j] = result.get_result_value(
+                self.ev_names[0], norm_val)
 
         self.verify_result_values(result_values)
 
@@ -460,9 +483,11 @@ if cpus_raw is not None:
     for cpu in cpus_raw.split(","):
         if cpu != "":
             cpus.append(cpu)
+normalize = args.norm
 padding_constraints = Padding_Constraint(pmin, pmax, pmod64, pmod2)
 
-grapher = Grapher(cpus, al_entrys, padding_constraints, levents, revents, save)
+grapher = Grapher(cpus, al_entrys, padding_constraints, levents, revents, save,
+                  normalize)
 if graph_events:
     grapher.plot_ev_names(parse_csv(fname))
 else:

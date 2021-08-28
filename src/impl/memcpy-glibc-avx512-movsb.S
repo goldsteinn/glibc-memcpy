@@ -6,4 +6,4 @@
 
 #include "avx512-vecs.h"
 
-#include "core/memcpy-dev.S"
+#include "core/memcpy-glibc.S"

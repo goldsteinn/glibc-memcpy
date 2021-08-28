@@ -2,7 +2,7 @@
 #define _BENCH_CONSTANTS_H_
 
 #include <stdint.h>
-static const uint32_t inner_trials = 8 * 131072;
+static const uint32_t inner_trials = 8192;
 static const uint32_t LSD_START    = 2200000;
 
 static const uint32_t min_rand_confs = 2048;

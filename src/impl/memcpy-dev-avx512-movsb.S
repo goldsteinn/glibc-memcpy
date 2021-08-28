@@ -5,4 +5,4 @@
 #define USE_WITH_FRMS
 #define USE_MOVSB
 #include "avx512-vecs.h"
-#include "core/memcpy-new.S"
+#include "core/memcpy-dev.S"
