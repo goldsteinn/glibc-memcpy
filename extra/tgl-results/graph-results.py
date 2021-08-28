@@ -40,6 +40,12 @@ parser.add_argument(
     help=
     "CSV of alignments to track (empty for median cycles). If \"-e\" flag present uses first value"
 )
+
+parser.add_argument("--cpu",
+                    action="store",
+                    default=None,
+                    help="CSV of cpus to include (do nothing for all)")
+
 parser.add_argument("--pmin",
                     action="store",
                     default="-1",
@@ -68,8 +74,8 @@ class Event_Result:
         return self.ev_name
 
 
-def alignment_result_key(al_entry, padding):
-    return str(al_entry) + "-" + str(padding)
+def alignment_result_key(al_entry, padding, cpu):
+    return str(al_entry) + "-" + str(padding) + "-" + str(cpu)
 
 
 def make_event_title(s):
@@ -92,14 +98,14 @@ def array_to_str(arr, p):
 
 
 class Alignment_Result:
-    def __init__(self, al_entry, padding):
+    def __init__(self, al_entry, padding, cpu):
         self.al_entry = int(al_entry)
         self.padding = int(padding.replace("NOP", ""))
-
+        self.cpu = cpu
         self.ev_results = {}
 
     def get_key(self):
-        return alignment_result_key(self.al_entry, self.padding)
+        return alignment_result_key(self.al_entry, self.padding, self.cpu)
 
     def get_ev_result(self, ev_name):
         assert ev_name in self.ev_results, "Event does not exist: {}".format(
@@ -113,7 +119,7 @@ class Alignment_Result:
         return float(self.get_ev_result(ev_name).ref_cycles)
 
     def get_result_value(self, ev_name):
-        if ev_name == "":
+        if ev_name == "" or ev_name == "cycles":
             return self.get_median_ref_cycles()
         else:
             return self.get_ev_count(ev_name)
@@ -129,8 +135,8 @@ class Alignment_Result:
 
     def append_ev_result(self, ev_result):
         assert ev_result.get_key(
-        ) not in self.ev_results, "Duplicate event: {}".format(
-            ev_result.get_key())
+        ) not in self.ev_results, "Duplicate event: {} -> {}".format(
+            self.cpu, ev_result.get_key())
         self.ev_results[ev_result.get_key()] = ev_result
 
 
@@ -166,22 +172,23 @@ class Padding_Constraint:
 
 
 class Grapher:
-    def __init__(self, al_entrys, padding_constraints, lev_names, rev_names,
-                 save):
+    def __init__(self, cpu, al_entrys, padding_constraints, lev_names,
+                 rev_names, save):
+        self.cpu = cpu
         self.al_entrys = al_entrys
         self.padding_constraints = padding_constraints
         self.ev_split = len(lev_names)
         if len(lev_names) == 0:
             self.ev_split = len(rev_names)
         self.ev_names = lev_names + rev_names
-        self.colors = ['r', 'g', 'b', 'y', 'm', 'c']
+        self.colors = ['r', 'g', 'b', 'y', 'm', 'c', 'lime', 'olive']
         self.save = save
 
     def savename(self):
-        return "figs/{}_{}_{}_{}.png".format(array_to_str(self.al_entrys, "_"),
-                                        self.padding_constraints.to_str(),
-                                        self.ev_split,
-                                        array_to_str(self.ev_names, "_"))
+        return "figs/{}-{}-{}-{}-{}.png".format(
+            array_to_str(self.cpu, "-"), array_to_str(self.al_entrys, "-"),
+            self.padding_constraints.to_str(), self.ev_split,
+            array_to_str(self.ev_names, "-"))
 
     def include_al_entry(self, al_entry):
         return al_entry in self.al_entrys
@@ -193,16 +200,26 @@ class Grapher:
         return (self.ev_names[0] == ""
                 and len(self.ev_names) == 1) or ev_name in self.ev_names
 
+    def include_cpu(self, cpu):
+        return self.cpu is None or self.cpu == [] or cpu in self.cpu
+
+    def x2_key(self, x1, x2):
+        if x2 is None or str(x2) == "":
+            return x1
+        return str(x1) + "-" + str(x2)
+
     def filter_fields(self, al_results):
         results_to_graph = []
         al_entry_map = {}
         padding_map = {}
-
+        cpu_map = {}
         for result_key in al_results:
             result = al_results[result_key]
             if self.include_padding(result.padding) and self.include_al_entry(
-                    result.al_entry):
+                    result.al_entry) and self.include_cpu(result.cpu):
                 results_to_graph.append(result)
+                if result.cpu not in cpu_map:
+                    cpu_map[result.cpu] = -1
                 if result.al_entry not in al_entry_map:
                     al_entry_map[result.al_entry] = -1
                 if result.padding not in padding_map:
@@ -210,22 +227,35 @@ class Grapher:
 
         assert len(padding_map) > 0
         assert len(al_entry_map) > 0
+        assert len(cpu_map) > 0
         assert len(results_to_graph) > 0
-        return results_to_graph, al_entry_map, padding_map
 
-    def order_fields(self, field_map):
-        field_indexes = []
+        return results_to_graph, al_entry_map, padding_map, cpu_map
+
+    def order_fields(self, field_map, secondary):
+        field_indexes_to_sort = []
+        if secondary is None:
+            secondary = [""]
         for field in field_map:
-            field_indexes.append(field)
-        field_indexes.sort()
+            field_indexes_to_sort.append(field)
+        field_indexes_to_sort.sort()
+        field_indexes = []
+        for field in field_indexes_to_sort:
+            if len(secondary) == 1:
+                field_indexes.append(field)
+            else:
+                for x2 in secondary:
+                    field_indexes.append(self.x2_key(field, x2))
 
+        field_map = {}
         for i in range(0, len(field_indexes)):
             field_map[field_indexes[i]] = i
         return field_map, field_indexes
 
-    def prepare_result_values(self, i_indexes, j_indexes):
+    def prepare_result_values(self, i_indexes, j_indexes, mult):
+        assert mult > 0
         result_values = []
-        for i in range(0, len(i_indexes)):
+        for i in range(0, int(len(i_indexes) * mult)):
             result_values.append([0.0] * len(j_indexes))
         return result_values
 
@@ -241,6 +271,8 @@ class Grapher:
 
         x_axis = np.arange(len(j_indexes))
         bar_width = 1.0 / float(len(i_indexes) + 1)
+        print("{}".format(i_seperator))
+
         for i in range(0, i_seperator):
             ax.bar(x_axis + bar_width * float(i),
                    result_values[i],
@@ -293,36 +325,49 @@ class Grapher:
         plt.show()
 
     def plot_ev_names(self, al_results):
-        results_to_graph, al_entry_map, padding_map = self.filter_fields(
+        results_to_graph, al_entry_map, padding_map, cpu_map = self.filter_fields(
             al_results)
-        padding_map, padding_indexes = self.order_fields(padding_map)
+        cpu_map, cpu_indexes = self.order_fields(cpu_map, None)
+        padding_map, padding_indexes = self.order_fields(padding_map, None)
         result_values = self.prepare_result_values(self.ev_names,
-                                                   padding_indexes)
+                                                   padding_indexes,
+                                                   len(cpu_indexes))
 
         for result in results_to_graph:
             for i in range(0, len(self.ev_names)):
                 j = padding_map[result.padding]
-                result_values[i][j] = result.get_result_value(self.ev_names[i])
+                i_idx = i * len(cpu_indexes) + cpu_map[result.cpu]
+                result_values[i_idx][j] = result.get_result_value(
+                    self.ev_names[i])
 
         self.verify_result_values(result_values)
-
+        ev_names = []
+        for ev_name in self.ev_names:
+            for cpu in cpu_indexes:
+                ev_names.append(self.x2_key(ev_name, cpu))
+        self.ev_split *= len(cpu_indexes)
         self.plot_results_2y(
-            self.ev_names, padding_indexes, self.ev_split, "Counter Value",
+            ev_names, padding_indexes, self.ev_split, "Counter Value",
             "Memcpy Perf Counters w/ Varying Padding, Align Entry = {}".format(
                 self.al_entrys[0]), result_values)
 
     def plot_al_entrys(self, al_results):
-        results_to_graph, al_entry_map, padding_map = self.filter_fields(
+        results_to_graph, al_entry_map, padding_map, cpu_map = self.filter_fields(
             al_results)
-
-        padding_map, padding_indexes = self.order_fields(padding_map)
-        al_entry_map, al_entry_indexes = self.order_fields(al_entry_map)
+        cpu_map, cpu_indexes = self.order_fields(cpu_map, None)
+        padding_map, padding_indexes = self.order_fields(padding_map, None)
+        al_entry_map, al_entry_indexes = self.order_fields(
+            al_entry_map, cpu_map)
 
         result_values = self.prepare_result_values(al_entry_indexes,
-                                                   padding_indexes)
+                                                   padding_indexes, 1)
 
         for result in results_to_graph:
-            i = al_entry_map[result.al_entry]
+            i = None
+            if len(cpu_map) == 1:
+                i = al_entry_map[result.al_entry]
+            else:
+                i = al_entry_map[self.x2_key(result.al_entry, result.cpu)]
             j = padding_map[result.padding]
             result_values[i][j] = result.get_result_value(self.ev_names[0])
 
@@ -346,7 +391,11 @@ def parse_csv(fname):
             ev_name = line["ev_name"]
             ev_count = line["ev_count"]
             ref_cycles = line["ref_cycles"]
-            al_result = Alignment_Result(al_entry, padding)
+            cpu = None
+            if "cpu" in line:
+                cpu = line["cpu"]
+
+            al_result = Alignment_Result(al_entry, padding, cpu)
             ev_result = Event_Result(ev_name, ev_count, ref_cycles)
             if al_result.get_key() not in all_al_results:
                 all_al_results[al_result.get_key()] = al_result
@@ -385,6 +434,7 @@ assert levents_str is not None or revents_str is not None
 
 levents = init_csv_arg(levents_str, str)
 revents = init_csv_arg(revents_str, str)
+
 for ev in revents:
     assert ev not in levents, "Duplicate event: {}".format(ev)
 for ev in levents:
@@ -404,10 +454,15 @@ pmax = int(args.pmax)
 pmod64 = init_csv_arg(args.pmod64, int)
 
 pmod2 = int(args.pmod2)
-
+cpus_raw = args.cpu
+cpus = []
+if cpus_raw is not None:
+    for cpu in cpus_raw.split(","):
+        if cpu != "":
+            cpus.append(cpu)
 padding_constraints = Padding_Constraint(pmin, pmax, pmod64, pmod2)
 
-grapher = Grapher(al_entrys, padding_constraints, levents, revents, save)
+grapher = Grapher(cpus, al_entrys, padding_constraints, levents, revents, save)
 if graph_events:
     grapher.plot_ev_names(parse_csv(fname))
 else:
