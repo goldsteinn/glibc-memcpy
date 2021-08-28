@@ -357,8 +357,9 @@ L(nop_movsb):
 	/* Align if doesn't cost too many bytes.  */
 	.p2align 4,, 6
 #if defined USE_MULTIARCH && IS_IN (libc)
-    L(movsb_more_2x_vec):
-    cmp x86_rep_movsb_threshold(%rip), %RDX_LP
+L(movsb_more_2x_vec):
+    cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+    //cmp $2112, %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
@@ -742,7 +743,7 @@ L(large_memcpy_4x_end):
 #endif
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 6
-    NOP60
+	NOP60
 x86_rep_movsb_threshold:
 	.quad	(2048 * ((VEC_SIZE) / 16))
 x86_shared_non_temporal_threshold:

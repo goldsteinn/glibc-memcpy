@@ -145,7 +145,7 @@ L(return):
 #endif
 
 L(movsb):
-	cmp     x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+    cmp     x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(more_8x_vec)
 	cmpq	%rsi, %rdi
 	jb	1f
