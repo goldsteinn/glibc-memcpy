@@ -1,0 +1,177 @@
+From b5d6366128c49278d71e014b52846b66345bd9bc Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 23 Aug 2021 01:42:57 -0400
+Subject: [PATCH 2/5] benchtests: Add new random cases to bench-memcpy-random.c
+
+This commit adds three new benchmarks for the SPEC2017
+distribution. One randomized if dst > src and the other two set it
+either 1/0.
+
+As well add some tests for fixed sizes with randomize alignment and
+value of dst > src. This can be useful for testing different alignment
+configurations.
+---
+ benchtests/bench-memcpy-random.c | 103 +++++++++++++++++++++++++++----
+ 1 file changed, 92 insertions(+), 11 deletions(-)
+
+diff --git a/benchtests/bench-memcpy-random.c b/benchtests/bench-memcpy-random.c
+index c490b73ed0..bf926adc86 100644
+--- a/benchtests/bench-memcpy-random.c
++++ b/benchtests/bench-memcpy-random.c
+@@ -16,7 +16,8 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#define MIN_PAGE_SIZE (512*1024+getpagesize())
++#define MAX_TEST_SIZE (512*1024)
++#define MIN_PAGE_SIZE (3*MAX_TEST_SIZE+getpagesize()+3*4096)
+ #define TEST_MAIN
+ #define TEST_NAME "memcpy"
+ #include "bench-string.h"
+@@ -89,9 +90,12 @@ static align_data_t dst_align_freq[] =
+ 
+ typedef struct
+ {
+-  uint64_t src : 24;
+-  uint64_t dst : 24;
+-  uint64_t len : 16;
++/* 26 bits for src and dst so we have extra bit for alternating dst >
++   src without a branch.  */
++  uint64_t src : 26;
++  uint64_t dst : 26;
++/* For size < 4096 12 bits is enough.  */
++  uint64_t len : 12;
+ } copy_t;
+ 
+ static copy_t copy[MAX_COPIES];
+@@ -142,34 +146,100 @@ do_one_test (json_ctx_t *json_ctx, impl_t *impl, char *dst, char *src,
+ }
+ 
+ static void
+-do_test (json_ctx_t *json_ctx, size_t max_size)
++do_one_fixed_test (json_ctx_t *json_ctx, impl_t *impl, char *dst, char *src,
++               copy_t *copy, size_t n, size_t size)
+ {
+-  int i;
++  timing_t start, stop, cur;
++  size_t iters = INNER_LOOP_ITERS_SMALL;
++
++  for (int j = 0; j < n; j++)
++    CALL (impl, dst + copy[j].dst, src + copy[j].src, size);
++
++  TIMING_NOW (start);
++  for (int i = 0; i < iters; ++i)
++    for (int j = 0; j < n; j++)
++      CALL (impl, dst + copy[j].dst, src + copy[j].src, size);
++  TIMING_NOW (stop);
++
++  TIMING_DIFF (cur, start, stop);
+ 
+-  memset (buf1, 1, max_size);
++  json_element_double (json_ctx, (double) cur / (double) iters);
++}
++
++
++static size_t
++init_copy(size_t max_size, size_t max_copy_size, int dst_gt_src)
++{
++  size_t i, dst_offset, src_offset;
++  if (dst_gt_src <= 0)
++    {
++      dst_offset = 0;
++      src_offset = max_size + max_copy_size;
++    }
++  else
++    {
++      dst_offset = max_size + max_copy_size;
++      src_offset = 0;
++    }
++  max_copy_size = (max_copy_size + getpagesize() - 1) & (-getpagesize());
+ 
+   /* Create a random set of copies with the given size and alignment
+      distributions.  */
+   for (i = 0; i < MAX_COPIES; i++)
+     {
++      dst_offset  = dst_gt_src == -1
++                        ? (rand() & 1) ? 2 * (max_size + max_copy_size) : 0
++                        : dst_offset;
+       copy[i].dst = (rand () & (max_size - 1));
+       copy[i].dst &= ~dst_align_arr[rand () & ALIGN_MASK];
++      copy[i].dst += dst_offset;
+       copy[i].src = (rand () & (max_size - 1));
+       copy[i].src &= ~src_align_arr[rand () & ALIGN_MASK];
++      copy[i].src += src_offset;
+       copy[i].len = size_arr[rand () & SIZE_MASK];
+     }
++  memset (buf1, 1, 3 * max_size + 3 * max_copy_size);
++  return i;
++}
+ 
++static void
++do_test (json_ctx_t *json_ctx, size_t max_size, int dst_gt_src)
++{
++  size_t n;
++  n = init_copy(max_size, 4096, dst_gt_src);
+   json_element_object_begin (json_ctx);
+-  json_attr_uint (json_ctx, "length", (double) max_size);
++  json_attr_uint (json_ctx, "region-size", (double) 3 * max_size);
++  json_attr_int (json_ctx, "dst > src", (double) dst_gt_src);
++  json_attr_uint (json_ctx, "with-fixed-size", (double) 0);
+   json_array_begin (json_ctx, "timings");
+ 
+   FOR_EACH_IMPL (impl, 0)
+-    do_one_test (json_ctx, impl, (char *) buf2, (char *) buf1, copy, i);
++    do_one_test (json_ctx, impl, (char *) buf1, (char *) buf1, copy, n);
+ 
+   json_array_end (json_ctx);
+   json_element_object_end (json_ctx);
+ }
+ 
++static void
++do_test_fixed_size (json_ctx_t *json_ctx, size_t size, size_t max_size, int dst_gt_src)
++{
++  size_t n;
++  n = init_copy(3 * max_size, size, dst_gt_src);
++  json_element_object_begin (json_ctx);
++  json_attr_uint (json_ctx, "region-size", (double) 3 * max_size);
++  json_attr_int (json_ctx, "dst > src", (double) dst_gt_src);
++  json_attr_uint (json_ctx, "with-fixed-size", (double) 1);
++  json_attr_uint (json_ctx, "size", (double) size);
++  json_array_begin (json_ctx, "timings");
++
++  FOR_EACH_IMPL (impl, 0)
++    do_one_fixed_test (json_ctx, impl, (char *) buf1, (char *) buf1, copy, n, size);
++
++  json_array_end (json_ctx);
++  json_element_object_end (json_ctx);
++}
++
++
+ int
+ test_main (void)
+ {
+@@ -193,8 +263,19 @@ test_main (void)
+   json_array_end (&json_ctx);
+ 
+   json_array_begin (&json_ctx, "results");
+-  for (int i = 4; i <= 512; i = i * 2)
+-    do_test (&json_ctx, i * 1024);
++  for (int i = 4096; i < MAX_TEST_SIZE; i = i * 2)
++    {
++      do_test (&json_ctx, i, 0);
++      do_test (&json_ctx, i, 1);
++      do_test (&json_ctx, i, -1);
++    }
++
++  for (int i = 4096; i <= 65536; i = i * 2)
++    {
++      do_test_fixed_size (&json_ctx, i / 4, i, 0);
++      do_test_fixed_size (&json_ctx, i / 4, i, 1);
++      do_test_fixed_size (&json_ctx, i / 4, i, -1);
++    }
+ 
+   json_array_end (&json_ctx);
+   json_attr_object_end (&json_ctx);
+-- 
+2.25.1
+

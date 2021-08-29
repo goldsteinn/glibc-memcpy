@@ -80,10 +80,16 @@ class Conf():
 
 
 confs = []
-
 confs.append(Conf(None, "dev0"))
 confs.append(Conf(None, "dev1"))
+confs.append(Conf(None, "dev2"))
+confs.append(Conf(None, "dev3"))
+confs.append(Conf(None, "dev4"))
+confs.append(Conf(None, "dev5"))
+confs.append(Conf(None, "dev6"))
+confs.append(Conf(None, "dev7"))
 confs.append(Conf(None, "dev-glibc"))
+
 
 
 def build(conf):

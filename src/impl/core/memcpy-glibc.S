@@ -247,8 +247,8 @@ L(between_2_3):
 
 #if defined USE_WITH_MULTIARCH_AND_LIBC
     L(movsb_more_2x_vec):
-    cmp	$2112, %RDX_LP
-//	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+//    cmp	$2112, %RDX_LP
+	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):

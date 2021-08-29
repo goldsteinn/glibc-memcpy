@@ -21,7 +21,7 @@
 #define run_fixed_bench CAT(run_fixed_bench_, NAME)
 #define bench_rand      CAT(bench_rand_, NAME)
 #define bench_fixed     CAT(bench_fixed_, NAME)
-#define MEASURE_LATENCY 0
+#define MEASURE_LATENCY 1
 
 static BENCH_FUNC void
 run_rand_bench(const bench_conf_t * restrict confs,
@@ -78,8 +78,9 @@ run_fixed_bench(bench_conf_t            conf,
     bench_char_t * restrict dst =
         (conf.direction ? mem_hi : mem_lo) + conf.al_dst;
     bench_char_t * restrict src =
-        (conf.direction ? mem_hi : mem_lo) + conf.al_src;
+        (conf.direction ? mem_lo : mem_hi) + conf.al_src;
     uint64_t sz = conf.sz;
+    
     DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
     read_events_start(ev_results);
     // idea is we want both want to get a sense of variance but not add too much
