@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../avx-vecs.h"
+# include "../evex-vecs.h"
 #endif
 
 	// Tigerlake
@@ -314,7 +314,7 @@ L(movsb):
 # endif
 # if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
 	/* Only avoid short movsb if CPU has FSRM.  */
-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
 	jz	L(skip_short_movsb_check)
 	/* Avoid "rep movsb" if RCX, the distance between source and
 	   destination, is N*4GB + [1..63] with N >= 0.  */
@@ -367,11 +367,11 @@ L(more_2x_vec):
 	   and source.  */
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_8x_vec)
-	VMOVU	(%rsi), %VEC(0)
-	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(last_4x_vec)
 	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
@@ -393,6 +393,8 @@ L(more_2x_vec):
 	.p2align 4,, 6
 L(last_4x_vec):
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
 	VMOVU	%VEC(0), (%rdi)
@@ -402,16 +404,11 @@ L(last_4x_vec):
 	/* Keep nop target close to jmp for 2-byte encoding.  */
 L(nop):
 	VZEROUPPER_RETURN
-    
-#if !defined USE_WITH_AVX512
-	/* NOP 16.  */
-	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
-	.byte	0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;
-#endif
+
 
 
 	/* Align if doesn't cost too much code size.  */
-	.p2align 4,, 10
+	.p2align 4
 L(more_8x_vec):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
@@ -547,7 +544,7 @@ L(large_memcpy_2x_check):
 	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	jb	L(more_8x_vec_forward)
 L(large_memcpy_2x):
-    negq    %rcx
+	negq	%rcx
 	cmpq	%rcx, %rdx
 	ja	L(more_8x_vec_forward)
 

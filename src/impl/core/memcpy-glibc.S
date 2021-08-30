@@ -130,7 +130,11 @@ L(start_erms):
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
 	cmp	$(VEC_SIZE * 2), %RDX_LP
+    #if 0
 	ja	L(movsb_more_2x_vec)
+    #else
+	ja	L(more_2x_vec)
+    #endif
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE. */
 	VMOVU	(%rsi), %VEC(0)
