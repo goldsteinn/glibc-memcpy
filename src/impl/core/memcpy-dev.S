@@ -299,7 +299,7 @@ L(movsb):
 
 	/* If above x86_rep_movsb_stop_threshold most likely is candidate
 	   for NT moves aswell.  */
-	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x_check)
 # if ALIGN_MOVSB
 	VMOVU	(%rsi), %VEC(4)
@@ -359,7 +359,7 @@ L(nop_movsb):
 	.p2align 4,, 6
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
-	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
+	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
@@ -408,7 +408,13 @@ L(nop):
 
 
 	/* Align if doesn't cost too much code size.  */
+#if defined USE_WITH_SSE2
+	NOP7
+#elif defined USE_WITH_EVEX
+	NOP0
+#else
 	.p2align 4
+#endif
 L(more_8x_vec):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
@@ -418,7 +424,7 @@ L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	/* Check non-temporal store threshold.  */
-	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
 #endif
 
@@ -428,6 +434,7 @@ L(more_8x_vec):
 	leaq	(%rcx, %rdx), %r8
 	xorq	%rcx, %r8
 	shrq	$63, %r8
+    decl    %ecx
 	andl	$(PAGE_SIZE - 256), %ecx
 	addl	%r8d, %ecx
 	jz	L(more_8x_vec_backward)
@@ -487,8 +494,9 @@ L(nop33):
 #if defined USE_WITH_AVX512 || defined USE_WITH_SSE2
 	/* NOP 16.  */
 	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
-# if defined USE_WITH_AVX512
 	.byte	0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;
+# if defined USE_WITH_SSE2
+	.byte	0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
 # endif
 #endif
 
@@ -541,7 +549,7 @@ L(loop_4x_vec_backward):
 	/* Entry if dst > stop movsb threshold (usually set to non-temporal
 	   threshold).  */
 L(large_memcpy_2x_check):
-	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	jb	L(more_8x_vec_forward)
 L(large_memcpy_2x):
 	negq	%rcx
@@ -586,7 +594,7 @@ L(large_memcpy_2x):
 
 	movq	%rdx, %r10
 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
-	cmp	__x86_shared_non_temporal_threshold(%rip), %r10
+	cmp	x86_shared_non_temporal_threshold(%rip), %r10
 	jae	L(large_memcpy_4x)
 
 	/* edx will store remainder size for copying tail.  */
