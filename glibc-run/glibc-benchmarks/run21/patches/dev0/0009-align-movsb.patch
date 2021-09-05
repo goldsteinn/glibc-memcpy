@@ -1,14 +1,14 @@
-From 73e4d3983a959eb7dc00ffb5b0540b42f9b471ec Mon Sep 17 00:00:00 2001
+From d8617a938c6bf8bdaa055a0408a8e51e72af0340 Mon Sep 17 00:00:00 2001
 From: Noah Goldstein <goldstein.w.n@gmail.com>
 Date: Sat, 4 Sep 2021 21:33:49 -0500
 Subject: [PATCH 9/9] align movsb
 
 ---
- .../multiarch/memmove-vec-unaligned-erms.S    | 142 ++++++++++++++++--
- 1 file changed, 132 insertions(+), 10 deletions(-)
+ .../multiarch/memmove-vec-unaligned-erms.S    | 140 ++++++++++++++++--
+ 1 file changed, 131 insertions(+), 9 deletions(-)
 
 diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
-index 352ef1639a..df0ea3fa20 100644
+index 352ef1639a..119825e16f 100644
 --- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
 +++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
 @@ -165,6 +165,17 @@
@@ -171,8 +171,7 @@ index 352ef1639a..df0ea3fa20 100644
 -# if AVOID_SHORT_DISTANCE_REP_MOVSB
 +# if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
  	/* Only avoid short movsb if CPU has FSRM.  */
--	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
-+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+ 	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
  	jz	L(skip_short_movsb_check)
 +#  if AVOID_SHORT_DISTANCE_REP_MOVSB
  	/* Avoid "rep movsb" if RCX, the distance between source and

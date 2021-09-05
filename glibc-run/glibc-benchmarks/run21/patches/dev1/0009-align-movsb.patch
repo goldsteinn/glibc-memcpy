@@ -1,14 +1,14 @@
-From e36d4782168e0688d684597f428da9abf1d771cc Mon Sep 17 00:00:00 2001
+From a8689c31b90a9cfaa4cbc8e70e798f8b26d82cd5 Mon Sep 17 00:00:00 2001
 From: Noah Goldstein <goldstein.w.n@gmail.com>
 Date: Sat, 4 Sep 2021 21:33:49 -0500
 Subject: [PATCH 9/9] align movsb
 
 ---
- .../multiarch/memmove-vec-unaligned-erms.S    | 313 ++++++++++++------
- 1 file changed, 215 insertions(+), 98 deletions(-)
+ .../multiarch/memmove-vec-unaligned-erms.S    | 311 ++++++++++++------
+ 1 file changed, 214 insertions(+), 97 deletions(-)
 
 diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
-index 352ef1639a..c3fe960e3b 100644
+index 352ef1639a..3864a42d8c 100644
 --- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
 +++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
 @@ -16,68 +16,63 @@
@@ -316,7 +316,7 @@ index 352ef1639a..c3fe960e3b 100644
 +	cmpq	%rdx, %rcx
 +	/* L(more_8x_vec_backward_check_nop) checks for src == dst.  */
 +	jb	L(more_8x_vec_backward_check_nop)
-+
+ 
 +	/* If above x86_rep_movsb_stop_threshold most likely is candidate
 +	   for NT moves aswell.  */
 +	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
@@ -334,7 +334,7 @@ index 352ef1639a..c3fe960e3b 100644
 +	cmpl	$-64, %ecx
 +	ja	L(more_8x_vec_forward)
 +# endif
- 
++
 +L(skip_short_movsb_check_no_align):
 +	mov	%RDX_LP, %RCX_LP
 +	rep	movsb
@@ -465,8 +465,7 @@ index 352ef1639a..c3fe960e3b 100644
 -# if AVOID_SHORT_DISTANCE_REP_MOVSB
 +# if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
  	/* Only avoid short movsb if CPU has FSRM.  */
--	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
-+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+ 	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
  	jz	L(skip_short_movsb_check)
 +#  if AVOID_SHORT_DISTANCE_REP_MOVSB
  	/* Avoid "rep movsb" if RCX, the distance between source and
