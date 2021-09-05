@@ -1,0 +1,168 @@
+From 3df47b14764bf4dcc2c568ff1dde4679288a15c7 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 4 Sep 2021 21:33:49 -0500
+Subject: [PATCH 9/9] align movsb
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 98 +++++++++++++++++--
+ 1 file changed, 92 insertions(+), 6 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 352ef1639a..8fefc7453e 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -165,6 +165,17 @@
+ # error Invalid LARGE_LOAD_SIZE
+ #endif
+ 
++/* Whether to align before movsb. Ultimately we want 64 byte align
++   and not worth it to load 4x VEC for VEC_SIZE == 16.  */
++#define ALIGN_MOVSB	(VEC_SIZE > 16)
++
++/* Number of VECs to align movsb to.  */
++#if VEC_SIZE == 64
++# define MOVSB_ALIGN_TO	(VEC_SIZE)
++#else
++# define MOVSB_ALIGN_TO	(VEC_SIZE * 2)
++#endif
++
+ /* Macro for copying inclusive power of 2 range with two register
+    loads.  */
+ #define COPY_BLOCK(mov_inst, src_reg, dst_reg, size_reg, len, tmp_reg0, tmp_reg1)	\
+@@ -448,7 +459,7 @@ L(more_2x_vec):
+ 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+ 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+-	.p2align 4,, 6
++	.p2align 4
+ L(last_4x_vec):
+ 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+ 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+@@ -488,9 +499,9 @@ L(more_8x_vec):
+ 	/* If r8 has different sign than rcx then there is overlap so we
+ 	   must do forward copy.  */
+ 	xorq	%rcx, %r8
+-	/* Isolate just sign bit of r8.  */
++    /* Isolate just sign bit of r8.  */
+ 	shrq	$63, %r8
+-	/* Get 4k difference dst - src.  */
++    /* Get 4k difference dst - src.  */
+ 	andl	$(PAGE_SIZE - 256), %ecx
+ 	/* If r8 is non-zero must do foward for correctness. Otherwise if
+ 	   ecx is non-zero there is 4k False Alaising so do backward copy.  */
+@@ -596,6 +607,43 @@ L(loop_4x_vec_backward):
+ 	VZEROUPPER_RETURN
+ 
+ #if defined USE_MULTIARCH && IS_IN (libc)
++# if ALIGN_MOVSB
++L(skip_short_movsb_check):
++	VMOVU	(%rsi), %VEC(4)
++#  if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	VEC_SIZE(%rsi), %VEC(5)
++#  endif
++#  if MOVSB_ALIGN_TO > (VEC_SIZE * 2)
++#   error Unsupported MOVSB_ALIGN_TO
++#  endif
++	/* If CPU does not have FSRM two options for aligning. Align src if
++	   dst and src 4k alias. Otherwise align dst.  */
++	testl	$(PAGE_SIZE - 512), %ecx
++	jnz	L(movsb_align_dst)
++	/* rcx already has dst - src.  */
++	movq	%rcx, %r9
++	/* Add src to len. Subtract back after src aligned. -1 because src
++	   is initially aligned to MOVSB_ALIGN_TO - 1.  */
++	leaq	-(1)(%rsi, %rdx), %rcx
++	/* Inclusively align src to MOVSB_ALIGN_TO - 1.  */
++	orq	$(MOVSB_ALIGN_TO - 1), %rsi
++	/* Restore dst and len adjusted with new values for aligned dst.  */
++	leaq	1(%rsi, %r9), %rdi
++	subq	%rsi, %rcx
++	/* Finish aligning src.  */
++	incq	%rsi
++
++	rep	movsb
++
++	/* Store VECs loaded for aligning.  */
++	VMOVU	%VEC(4), (%r8)
++#  if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
++#  endif
++	VZEROUPPER_RETURN
++# endif
++
++	.p2align 4,,6
+ L(movsb):
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+@@ -605,15 +653,19 @@ L(movsb):
+ 	cmpq	%rdx, %rcx
+ 	/* L(more_8x_vec_backward_check_nop) checks for src == dst.  */
+ 	jb	L(more_8x_vec_backward_check_nop)
+-
++# if ALIGN_MOVSB    
++	/* Store dst for use after rep movsb.  */
++	movq	%rdi, %r8
++# endif
+ 	/* If above x86_rep_movsb_stop_threshold most likely is candidate
+ 	   for NT moves aswell.  */
+ 	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+ 	jae	L(large_memcpy_2x_check)
+-# if AVOID_SHORT_DISTANCE_REP_MOVSB
++# if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
+ 	/* Only avoid short movsb if CPU has FSRM.  */
+ 	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+ 	jz	L(skip_short_movsb_check)
++#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	/* Avoid "rep movsb" if RCX, the distance between source and
+ 	   destination, is N*4GB + [1..63] with N >= 0.  */
+ 
+@@ -622,11 +674,45 @@ L(movsb):
+ 	   [-63, 0]. Use unsigned comparison with -64 check for that case.  */
+ 	cmpl	$-64, %ecx
+ 	ja	L(more_8x_vec_forward)
+-L(skip_short_movsb_check):
++#  endif
+ # endif
++# if ALIGN_MOVSB
++	VMOVU	(%rsi), %VEC(4)
++#  if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	VEC_SIZE(%rsi), %VEC(5)
++#  endif
++#  if MOVSB_ALIGN_TO > (VEC_SIZE * 2)
++#   error Unsupported MOVSB_ALIGN_TO
++#  endif
++	/* Fall through means cpu has FSRM. In that case exclusively align
++	   destination.  */
++L(movsb_align_dst):
++	/* Subtract dst from src. Add back after dst aligned.  */
++	subq	%rdi, %rsi
++	/* Exclusively align dst to MOVSB_ALIGN_TO (64).  */
++	addq	$(MOVSB_ALIGN_TO - 1), %rdi
++	/* Finish aligning dst.  */
++	andq	$-(MOVSB_ALIGN_TO), %rdi
++	/* Add dst to len. Subtract back after dst aligned.  */
++	leaq	(%r8, %rdx), %rcx
++	/* Restore src and len adjusted with new values for aligned dst.  */
++	addq	%rdi, %rsi
++	subq	%rdi, %rcx
++
++	rep	movsb
++
++	/* Store VECs loaded for aligning.  */
++	VMOVU	%VEC(4), (%r8)
++#  if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
++#  endif
++	VZEROUPPER_RETURN
++# else
++L(skip_short_movsb_check):
+ 	mov	%RDX_LP, %RCX_LP
+ 	rep	movsb
+ 	ret
++# endif
+ #endif
+ 
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+-- 
+2.25.1
+
