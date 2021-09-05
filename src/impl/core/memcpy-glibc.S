@@ -1,5 +1,6 @@
 #include "asm-common.h"
-#define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
+    #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
+    #define USE_MULTIARCH
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #ifndef VZEROUPPER
@@ -118,23 +119,19 @@
 #ifndef SECTION
 # error SECTION is not defined!
 #endif
-
+#if 1
 	.section SECTION(.text), "ax", @progbits
 ENTRY(MEMCPY)
 	movq	%rdi, %rax
 L(start_erms):
-# ifdef ILP32
+# ifdef __ILP32__
 	/* Clear the upper 32 bits.  */
 	movl	%edx, %edx
 # endif
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
 	cmp	$(VEC_SIZE * 2), %RDX_LP
-    #if 0
 	ja	L(movsb_more_2x_vec)
-    #else
-	ja	L(more_2x_vec)
-    #endif
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE. */
 	VMOVU	(%rsi), %VEC(0)
@@ -149,7 +146,7 @@ L(return):
 #endif
 
 L(movsb):
-    cmp     x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp     x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(more_8x_vec)
 	cmpq	%rsi, %rdi
 	jb	1f
@@ -183,7 +180,7 @@ L(movsb):
 	rep movsb
 L(nop):
 	ret
-
+#endif
 
 L(less_vec):
 	/* Less than 1 VEC.  */
@@ -249,9 +246,8 @@ L(between_2_3):
 	movw	%si, (%rdi)
 	ret
 
-#if defined USE_WITH_MULTIARCH_AND_LIBC
-    L(movsb_more_2x_vec):
-//    cmp	$2112, %RDX_LP
+#if defined USE_MULTIARCH && IS_IN (libc)
+L(movsb_more_2x_vec):
 	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
 #endif
@@ -294,7 +290,7 @@ L(last_4x_vec):
 
 L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
-#if defined USE_WITH_MULTIARCH_AND_LIBC
+#if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	/* Check non-temporal store threshold.  */
 	cmp x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
@@ -402,7 +398,7 @@ L(loop_4x_vec_backward):
 	VMOVU	%VEC(8), (%r11)
 	VZEROUPPER_RETURN
 
-#if defined USE_WITH_MULTIARCH_AND_LIBC
+#if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	.p2align 4
 L(large_memcpy_2x):
 	/* Compute absolute value of difference between source and
