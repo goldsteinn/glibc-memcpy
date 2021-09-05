@@ -1,0 +1,550 @@
+From cec667eac706d87427d9ebccfd1277a84ea7997f Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 4 Sep 2021 21:33:49 -0500
+Subject: [PATCH 9/9] align movsb
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 313 ++++++++++++------
+ 1 file changed, 215 insertions(+), 98 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 352ef1639a..5e8358d20a 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -16,68 +16,63 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-/* memmove/memcpy/mempcpy is implemented as:
+-   1. Use overlapping load and store to avoid branch.
+-   2. Load all sources into registers and store them together to avoid
+-      possible address overlap between source and destination.
+-   3. If size is 8 * VEC_SIZE or less, load all sources into registers
+-      and store them together.
+-   4. If address of destination > address of source, backward copy
+-      4 * VEC_SIZE at a time with unaligned load and aligned store.
+-      Load the first 4 * VEC and last VEC before the loop and store
+-      them after the loop to support overlapping addresses.
+-   5. Otherwise, forward copy 4 * VEC_SIZE at a time with unaligned
+-      load and aligned store.  Load the last 4 * VEC and first VEC
+-      before the loop and store them after the loop to support
+-      overlapping addresses.
+-   6. On machines with ERMS feature, if size greater than equal or to
+-      __x86_rep_movsb_threshold and less than
+-      __x86_rep_movsb_stop_threshold, then REP MOVSB will be used.
+-   7. If size >= __x86_shared_non_temporal_threshold and there is no
+-      overlap between destination and source, use non-temporal store
+-      instead of aligned store copying from either 2 or 4 pages at
+-      once.
+-   8. For point 7) if size < 16 * __x86_shared_non_temporal_threshold
+-      and source and destination do not page alias, copy from 2 pages
+-      at once using non-temporal stores. Page aliasing in this case is
+-      considered true if destination's page alignment - sources' page
+-      alignment is less than 8 * VEC_SIZE.
+-   9. If size >= 16 * __x86_shared_non_temporal_threshold or source
+-      and destination do page alias copy from 4 pages at once using
+-      non-temporal stores.  */
++	/* memmove/memcpy/mempcpy is implemented as: 1. Use overlapping load
++	   and store to avoid branch. 2. Load all sources into registers and
++	   store them together to avoid possible address overlap between source
++	   and destination. 3. If size is 8 * VEC_SIZE or less, load all
++	   sources into registers and store them together. 4. If address of
++	   destination > address of source, backward copy 4 * VEC_SIZE at a
++	   time with unaligned load and aligned store. Load the first 4 * VEC
++	   and last VEC before the loop and store them after the loop to
++	   support overlapping addresses. 5. Otherwise, forward copy 4 *
++	   VEC_SIZE at a time with unaligned load and aligned store.  Load the
++	   last 4 * VEC and first VEC before the loop and store them after the
++	   loop to support overlapping addresses. 6. On machines with ERMS
++	   feature, if size greater than equal or to __x86_rep_movsb_threshold
++	   and less than __x86_rep_movsb_stop_threshold, then REP MOVSB will be
++	   used. 7. If size >= __x86_shared_non_temporal_threshold and there is
++	   no overlap between destination and source, use non-temporal store
++	   instead of aligned store copying from either 2 or 4 pages at once.
++	   8. For point 7) if size < 16 * __x86_shared_non_temporal_threshold
++	   and source and destination do not page alias, copy from 2 pages at
++	   once using non-temporal stores. Page aliasing in this case is
++	   considered true if destination's page alignment - sources' page
++	   alignment is less than 8 * VEC_SIZE. 9. If size >= 16 *
++	   __x86_shared_non_temporal_threshold or source and destination do
++	   page alias copy from 4 pages at once using non-temporal stores.  */
+ 
+ #include <sysdep.h>
+ 
+ #ifndef MEMCPY_SYMBOL
+-# define MEMCPY_SYMBOL(p,s)		MEMMOVE_SYMBOL(p, s)
++# define MEMCPY_SYMBOL(p,s)	MEMMOVE_SYMBOL(p,	s)
+ #endif
+ 
+ #ifndef MEMPCPY_SYMBOL
+-# define MEMPCPY_SYMBOL(p,s)		MEMMOVE_SYMBOL(p, s)
++# define MEMPCPY_SYMBOL(p,s)	MEMMOVE_SYMBOL(p,	s)
+ #endif
+ 
+ #ifndef MEMMOVE_CHK_SYMBOL
+-# define MEMMOVE_CHK_SYMBOL(p,s)	MEMMOVE_SYMBOL(p, s)
++# define MEMMOVE_CHK_SYMBOL(p,s)	MEMMOVE_SYMBOL(p,	s)
+ #endif
+ 
+ #ifndef XMM0
+-# define XMM0				xmm0
++# define XMM0	xmm0
+ #endif
+ 
+ #ifndef YMM0
+-# define YMM0				ymm0
++# define YMM0	ymm0
+ #endif
+ 
+ #ifndef VZEROUPPER
+ # if VEC_SIZE > 16
+-#  define VZEROUPPER vzeroupper
++#  define VZEROUPPER	vzeroupper
+ # else
+ #  define VZEROUPPER
+ # endif
+ #endif
+ 
+ #ifndef PAGE_SIZE
+-# define PAGE_SIZE 4096
++# define PAGE_SIZE	4096
+ #endif
+ 
+ #if PAGE_SIZE != 4096
+@@ -85,78 +80,78 @@
+ #endif
+ 
+ #ifndef LOG_PAGE_SIZE
+-# define LOG_PAGE_SIZE 12
++# define LOG_PAGE_SIZE	12
+ #endif
+ 
+ #if PAGE_SIZE != (1 << LOG_PAGE_SIZE)
+ # error Invalid LOG_PAGE_SIZE
+ #endif
+ 
+-/* Byte per page for large_memcpy inner loop.  */
++	/* Byte per page for large_memcpy inner loop.  */
+ #if VEC_SIZE == 64
+-# define LARGE_LOAD_SIZE (VEC_SIZE * 2)
++# define LARGE_LOAD_SIZE	(VEC_SIZE	*	2)
+ #else
+-# define LARGE_LOAD_SIZE (VEC_SIZE * 4)
++# define LARGE_LOAD_SIZE	(VEC_SIZE	*	4)
+ #endif
+ 
+-/* Amount to shift rdx by to compare for memcpy_large_4x.  */
++	/* Amount to shift rdx by to compare for memcpy_large_4x.  */
+ #ifndef LOG_4X_MEMCPY_THRESH
+-# define LOG_4X_MEMCPY_THRESH 4
++# define LOG_4X_MEMCPY_THRESH	4
+ #endif
+ 
+-/* Avoid short distance rep movsb only with non-SSE vector.  */
++	/* Avoid short distance rep movsb only with non-SSE vector.  */
+ #ifndef AVOID_SHORT_DISTANCE_REP_MOVSB
+-# define AVOID_SHORT_DISTANCE_REP_MOVSB (VEC_SIZE > 16)
++# define AVOID_SHORT_DISTANCE_REP_MOVSB	(VEC_SIZE	>	16)
+ #else
+-# define AVOID_SHORT_DISTANCE_REP_MOVSB 0
++# define AVOID_SHORT_DISTANCE_REP_MOVSB	0
+ #endif
+ 
+ #ifndef PREFETCH
+-# define PREFETCH(addr) prefetcht0 addr
++# define PREFETCH(addr)	prefetcht0	addr
+ #endif
+ 
+-/* Assume 64-byte prefetch size.  */
++	/* Assume 64-byte prefetch size.  */
+ #ifndef PREFETCH_SIZE
+-# define PREFETCH_SIZE 64
++# define PREFETCH_SIZE	64
+ #endif
+ 
+-#define PREFETCHED_LOAD_SIZE (VEC_SIZE * 4)
++#define PREFETCHED_LOAD_SIZE	(VEC_SIZE	*	4)
+ 
+ #if PREFETCH_SIZE == 64
+ # if PREFETCHED_LOAD_SIZE == PREFETCH_SIZE
+-#  define PREFETCH_ONE_SET(dir, base, offset) \
++#  define PREFETCH_ONE_SET(dir,	base,	offset)	\
+ 	PREFETCH ((offset)base)
+ # elif PREFETCHED_LOAD_SIZE == 2 * PREFETCH_SIZE
+-#  define PREFETCH_ONE_SET(dir, base, offset) \
++#  define PREFETCH_ONE_SET(dir,	base,	offset)	\
+ 	PREFETCH ((offset)base); \
+ 	PREFETCH ((offset + dir * PREFETCH_SIZE)base)
+ # elif PREFETCHED_LOAD_SIZE == 4 * PREFETCH_SIZE
+-#  define PREFETCH_ONE_SET(dir, base, offset) \
++#  define PREFETCH_ONE_SET(dir,	base,	offset)	\
+ 	PREFETCH ((offset)base); \
+ 	PREFETCH ((offset + dir * PREFETCH_SIZE)base); \
+ 	PREFETCH ((offset + dir * PREFETCH_SIZE * 2)base); \
+ 	PREFETCH ((offset + dir * PREFETCH_SIZE * 3)base)
+ # else
+-#   error Unsupported PREFETCHED_LOAD_SIZE!
++#  error Unsupported PREFETCHED_LOAD_SIZE!
+ # endif
+ #else
+ # error Unsupported PREFETCH_SIZE!
+ #endif
+ 
+ #if LARGE_LOAD_SIZE == (VEC_SIZE * 2)
+-# define LOAD_ONE_SET(base, offset, vec0, vec1, ...) \
++# define LOAD_ONE_SET(base,	offset,	vec0,	vec1,	...)	\
+ 	VMOVU	(offset)base, vec0; \
+ 	VMOVU	((offset) + VEC_SIZE)base, vec1;
+-# define STORE_ONE_SET(base, offset, vec0, vec1, ...) \
+-	VMOVNT  vec0, (offset)base; \
+-	VMOVNT  vec1, ((offset) + VEC_SIZE)base;
++# define STORE_ONE_SET(base,	offset,	vec0,	vec1,	...)	\
++	VMOVNT	vec0, (offset)base; \
++	VMOVNT	vec1, ((offset) + VEC_SIZE)base;
+ #elif LARGE_LOAD_SIZE == (VEC_SIZE * 4)
+-# define LOAD_ONE_SET(base, offset, vec0, vec1, vec2, vec3) \
++# define LOAD_ONE_SET(base,	offset,	vec0,	vec1,	vec2,	vec3)	\
+ 	VMOVU	(offset)base, vec0; \
+ 	VMOVU	((offset) + VEC_SIZE)base, vec1; \
+ 	VMOVU	((offset) + VEC_SIZE * 2)base, vec2; \
+ 	VMOVU	((offset) + VEC_SIZE * 3)base, vec3;
+-# define STORE_ONE_SET(base, offset, vec0, vec1, vec2, vec3) \
++# define STORE_ONE_SET(base,	offset,	vec0,	vec1,	vec2,	vec3)	\
+ 	VMOVNT	vec0, (offset)base; \
+ 	VMOVNT	vec1, ((offset) + VEC_SIZE)base; \
+ 	VMOVNT	vec2, ((offset) + VEC_SIZE * 2)base; \
+@@ -165,26 +160,37 @@
+ # error Invalid LARGE_LOAD_SIZE
+ #endif
+ 
+-/* Macro for copying inclusive power of 2 range with two register
+-   loads.  */
+-#define COPY_BLOCK(mov_inst, src_reg, dst_reg, size_reg, len, tmp_reg0, tmp_reg1)	\
++	/* Whether to align before movsb. Ultimately we want 64 byte align
++	   and not worth it to load 4x VEC for VEC_SIZE == 16.  */
++#define ALIGN_MOVSB	(VEC_SIZE	>	16)
++
++	/* Number of VECs to align movsb to.  */
++#if VEC_SIZE == 64
++# define MOVSB_ALIGN_TO	(VEC_SIZE)
++#else
++# define MOVSB_ALIGN_TO	(VEC_SIZE	*	2)
++#endif
++
++	/* Macro for copying inclusive power of 2 range with two register
++	   loads.  */
++#define COPY_BLOCK(mov_inst,	src_reg,	dst_reg,	size_reg,	len,	tmp_reg0,	tmp_reg1)	\
+ 	mov_inst (%src_reg), %tmp_reg0; \
+ 	mov_inst -(len)(%src_reg, %size_reg), %tmp_reg1; \
+ 	mov_inst %tmp_reg0, (%dst_reg); \
+ 	mov_inst %tmp_reg1, -(len)(%dst_reg, %size_reg);
+ 
+-/* Define all copies used by L(less_vec) for VEC_SIZE of 16, 32, or
+-   64.  */
+-#define COPY_4_8	COPY_BLOCK(movl, rsi, rdi, rdx, 4, ecx, esi)
+-#define COPY_8_16	COPY_BLOCK(movq, rsi, rdi, rdx, 8, rcx, rsi)
+-#define COPY_16_32	COPY_BLOCK(vmovdqu, rsi, rdi, rdx, 16, xmm0, xmm1)
+-#define COPY_32_64	COPY_BLOCK(vmovdqu64, rsi, rdi, rdx, 32, ymm16, ymm17)
++	/* Define all copies used by L(less_vec) for VEC_SIZE of 16, 32, or
++	   64.  */
++#define COPY_4_8	COPY_BLOCK(movl,	rsi,	rdi,	rdx,	4,	ecx,	esi)
++#define COPY_8_16	COPY_BLOCK(movq,	rsi,	rdi,	rdx,	8,	rcx,	rsi)
++#define COPY_16_32	COPY_BLOCK(vmovdqu,	rsi,	rdi,	rdx,	16,	xmm0,	xmm1)
++#define COPY_32_64	COPY_BLOCK(vmovdqu64,	rsi,	rdi,	rdx,	32,	ymm16,	ymm17)
+ 
+ #ifndef SECTION
+ # error SECTION is not defined!
+ #endif
+ 
+-	.section SECTION(.text),"ax",@progbits
++	.section SECTION(.text), "ax", @progbits
+ #if defined SHARED && IS_IN (libc)
+ ENTRY (MEMMOVE_CHK_SYMBOL (__mempcpy_chk, unaligned))
+ 	cmp	%RDX_LP, %RCX_LP
+@@ -240,7 +246,7 @@ ENTRY (__mempcpy_chk_erms)
+ 	jb	HIDDEN_JUMPTARGET (__chk_fail)
+ END (__mempcpy_chk_erms)
+ 
+-/* Only used to measure performance of REP MOVSB.  */
++	/* Only used to measure performance of REP MOVSB.  */
+ ENTRY (__mempcpy_erms)
+ 	mov	%RDI_LP, %RAX_LP
+ 	/* Skip zero length.  */
+@@ -266,23 +272,23 @@ L(start_movsb):
+ 	jb	1f
+ 	/* Source == destination is less common.  */
+ 	je	2f
+-	lea	(%rsi,%rcx), %RDX_LP
++	lea	(%rsi, %rcx), %RDX_LP
+ 	cmp	%RDX_LP, %RDI_LP
+ 	jb	L(movsb_backward)
+ 1:
+-	rep movsb
++	rep	movsb
+ 2:
+ 	ret
+ L(movsb_backward):
+-	leaq	-1(%rdi,%rcx), %rdi
+-	leaq	-1(%rsi,%rcx), %rsi
++	leaq	-1(%rdi, %rcx), %rdi
++	leaq	-1(%rsi, %rcx), %rsi
+ 	std
+-	rep movsb
++	rep	movsb
+ 	cld
+ 	ret
+ END (__memmove_erms)
+-strong_alias (__memmove_erms, __memcpy_erms)
+-strong_alias (__memmove_chk_erms, __memcpy_chk_erms)
++	strong_alias (__memmove_erms, __memcpy_erms)
++	strong_alias (__memmove_chk_erms, __memcpy_chk_erms)
+ # endif
+ 
+ # ifdef SHARED
+@@ -414,8 +420,43 @@ L(copy_8_15):
+ 	/* COPY_8_16 is exactly 17 bytes so don't want to p2align after as
+ 	   it wastes 15 bytes of code and 1 byte off is fine.  */
+ #endif
++#if defined USE_MULTIARCH && IS_IN (libc) && !ALIGN_MOVSB
++	.p2align 4,, 6
++L(movsb):
++	movq	%rdi, %rcx
++	subq	%rsi, %rcx
++	/* Go to backwards temporal copy dst > src if overlap no matter what
++	   as backward REP MOVSB is slow and we don't want to use NT stores if
++	   there is overlap.  */
++	cmpq	%rdx, %rcx
++	/* L(more_8x_vec_backward_check_nop) checks for src == dst.  */
++	jb	L(more_8x_vec_backward_check_nop)
+ 
++	/* If above x86_rep_movsb_stop_threshold most likely is candidate
++	   for NT moves aswell.  */
++	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
++	jae	L(large_memcpy_2x_check)
++# if AVOID_SHORT_DISTANCE_REP_MOVSB
++	/* Only avoid short movsb if CPU has FSRM.  */
++	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
++	jz	L(skip_short_movsb_check_no_align)
++	/* Avoid "rep movsb" if RCX, the distance between source and
++	   destination, is N*4GB + [1..63] with N >= 0.  */
++
++	/* ecx contains dst - src. Early check for backward copy conditions
++	   means only case of slow movsb with src = dst + [0, 63] is ecx in
++	   [-63, 0]. Use unsigned comparison with -64 check for that case.  */
++	cmpl	$-64, %ecx
++	ja	L(more_8x_vec_forward)
++# endif
++
++L(skip_short_movsb_check_no_align):
++	mov	%RDX_LP, %RCX_LP
++	rep	movsb
++	ret
++#endif
+ 	/* Align if doesn't cost too many bytes.  */
++
+ 	.p2align 4,, 6
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+@@ -430,13 +471,15 @@ L(more_2x_vec):
+ 	/* Load regardless of 4x branch.  */
+ 	VMOVU	(%rsi), %VEC(0)
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
++	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
++
+ 	cmpq	$(VEC_SIZE * 4), %rdx
+ 	jbe	L(last_4x_vec)
+ 	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
+-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
++
+ 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
+ 	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(7)
+ 	VMOVU	%VEC(0), (%rdi)
+@@ -448,20 +491,19 @@ L(more_2x_vec):
+ 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+ 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+-	.p2align 4,, 6
++	.p2align 4
+ L(last_4x_vec):
+ 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
++
+ 	VMOVU	%VEC(0), (%rdi)
+ 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+-	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
+-	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
++	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
++	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
+ 	/* Keep L(nop) target close to jmp for 2-byte encoding.  */
+ L(nop):
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 10
++	.p2align 4
+ L(more_8x_vec):
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+@@ -490,6 +532,7 @@ L(more_8x_vec):
+ 	xorq	%rcx, %r8
+ 	/* Isolate just sign bit of r8.  */
+ 	shrq	$63, %r8
++	decl	%ecx
+ 	/* Get 4k difference dst - src.  */
+ 	andl	$(PAGE_SIZE - 256), %ecx
+ 	/* If r8 is non-zero must do foward for correctness. Otherwise if
+@@ -553,6 +596,7 @@ L(nop_backward):
+ L(more_8x_vec_backward_check_nop):
+ 	testq	%rcx, %rcx
+ 	jz	L(nop_backward)
++
+ L(more_8x_vec_backward):
+ 	/* Load the first 4 * VEC and last VEC to support overlapping
+ 	   addresses.  */
+@@ -595,7 +639,42 @@ L(loop_4x_vec_backward):
+ 	VMOVU	%VEC(8), -VEC_SIZE(%rdx, %rdi)
+ 	VZEROUPPER_RETURN
+ 
+-#if defined USE_MULTIARCH && IS_IN (libc)
++#if defined USE_MULTIARCH && IS_IN (libc) && ALIGN_MOVSB
++L(skip_short_movsb_check):
++	VMOVU	(%rsi), %VEC(4)
++# if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	VEC_SIZE(%rsi), %VEC(5)
++# endif
++# if MOVSB_ALIGN_TO > (VEC_SIZE * 2)
++#  error Unsupported MOVSB_ALIGN_TO
++# endif
++	/* If CPU does not have FSRM two options for aligning. Align src if
++	   dst and src 4k alias. Otherwise align dst.  */
++	testl	$(PAGE_SIZE - 512), %ecx
++	jnz	L(movsb_align_dst)
++	/* rcx already has dst - src.  */
++	movq	%rcx, %r9
++	/* Add src to len. Subtract back after src aligned. -1 because src
++	   is initially aligned to MOVSB_ALIGN_TO - 1.  */
++	leaq	-(1)(%rsi, %rdx), %rcx
++	/* Inclusively align src to MOVSB_ALIGN_TO - 1.  */
++	orq	$(MOVSB_ALIGN_TO - 1), %rsi
++	/* Restore dst and len adjusted with new values for aligned dst.  */
++	leaq	1(%rsi, %r9), %rdi
++	subq	%rsi, %rcx
++	/* Finish aligning src.  */
++	incq	%rsi
++
++	rep	movsb
++
++	/* Store VECs loaded for aligning.  */
++	VMOVU	%VEC(4), (%r8)
++# if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
++# endif
++	VZEROUPPER_RETURN
++
++	.p2align 4,, 6
+ L(movsb):
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+@@ -605,15 +684,19 @@ L(movsb):
+ 	cmpq	%rdx, %rcx
+ 	/* L(more_8x_vec_backward_check_nop) checks for src == dst.  */
+ 	jb	L(more_8x_vec_backward_check_nop)
+-
++# if ALIGN_MOVSB
++	/* Store dst for use after rep movsb.  */
++	movq	%rdi, %r8
++# endif
+ 	/* If above x86_rep_movsb_stop_threshold most likely is candidate
+ 	   for NT moves aswell.  */
+ 	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+ 	jae	L(large_memcpy_2x_check)
+-# if AVOID_SHORT_DISTANCE_REP_MOVSB
++# if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
+ 	/* Only avoid short movsb if CPU has FSRM.  */
+-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
++	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+ 	jz	L(skip_short_movsb_check)
++#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	/* Avoid "rep movsb" if RCX, the distance between source and
+ 	   destination, is N*4GB + [1..63] with N >= 0.  */
+ 
+@@ -622,11 +705,45 @@ L(movsb):
+ 	   [-63, 0]. Use unsigned comparison with -64 check for that case.  */
+ 	cmpl	$-64, %ecx
+ 	ja	L(more_8x_vec_forward)
+-L(skip_short_movsb_check):
++#  endif
+ # endif
++# if ALIGN_MOVSB
++	VMOVU	(%rsi), %VEC(4)
++#  if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	VEC_SIZE(%rsi), %VEC(5)
++#  endif
++#  if MOVSB_ALIGN_TO > (VEC_SIZE * 2)
++#   error Unsupported MOVSB_ALIGN_TO
++#  endif
++	/* Fall through means cpu has FSRM. In that case exclusively align
++	   destination.  */
++L(movsb_align_dst):
++	/* Subtract dst from src. Add back after dst aligned.  */
++	subq	%rdi, %rsi
++	/* Exclusively align dst to MOVSB_ALIGN_TO (64).  */
++	addq	$(MOVSB_ALIGN_TO - 1), %rdi
++	/* Finish aligning dst.  */
++	andq	$-(MOVSB_ALIGN_TO), %rdi
++	/* Add dst to len. Subtract back after dst aligned.  */
++	leaq	(%r8, %rdx), %rcx
++	/* Restore src and len adjusted with new values for aligned dst.  */
++	addq	%rdi, %rsi
++	subq	%rdi, %rcx
++
++	rep	movsb
++
++	/* Store VECs loaded for aligning.  */
++	VMOVU	%VEC(4), (%r8)
++#  if MOVSB_ALIGN_TO > VEC_SIZE
++	VMOVU	%VEC(5), VEC_SIZE(%r8)
++#  endif
++	VZEROUPPER_RETURN
++# else
++L(skip_short_movsb_check):
+ 	mov	%RDX_LP, %RCX_LP
+ 	rep	movsb
+ 	ret
++# endif
+ #endif
+ 
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+@@ -829,17 +946,17 @@ END (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
+ 
+ #if IS_IN (libc)
+ # ifdef USE_MULTIARCH
+-strong_alias (MEMMOVE_SYMBOL (__memmove, unaligned_erms),
+-	      MEMMOVE_SYMBOL (__memcpy, unaligned_erms))
++	strong_alias (MEMMOVE_SYMBOL (__memmove, unaligned_erms),
++	MEMMOVE_SYMBOL (__memcpy, unaligned_erms))
+ #  ifdef SHARED
+-strong_alias (MEMMOVE_SYMBOL (__memmove_chk, unaligned_erms),
+-	      MEMMOVE_SYMBOL (__memcpy_chk, unaligned_erms))
++	strong_alias (MEMMOVE_SYMBOL (__memmove_chk, unaligned_erms),
++	MEMMOVE_SYMBOL (__memcpy_chk, unaligned_erms))
+ #  endif
+ # endif
+ # ifdef SHARED
+-strong_alias (MEMMOVE_CHK_SYMBOL (__memmove_chk, unaligned),
+-	      MEMMOVE_CHK_SYMBOL (__memcpy_chk, unaligned))
++	strong_alias (MEMMOVE_CHK_SYMBOL (__memmove_chk, unaligned),
++	MEMMOVE_CHK_SYMBOL (__memcpy_chk, unaligned))
+ # endif
+ #endif
+-strong_alias (MEMMOVE_SYMBOL (__memmove, unaligned),
+-	      MEMCPY_SYMBOL (__memcpy, unaligned))
++	strong_alias (MEMMOVE_SYMBOL (__memmove, unaligned),
++	MEMCPY_SYMBOL (__memcpy, unaligned))
+-- 
+2.25.1
+

@@ -84,6 +84,11 @@ def dgs_to_str(dgs):
         return "Bidirectional"
     return dgs
 
+def add_offset(out):
+    global time_offset
+    while out.count(',') < time_offset:
+        out += ","
+    return out
 
 class Displayable():
     def __init__(self, hdr, times, cmp_idx):
@@ -103,6 +108,7 @@ class Displayable():
 
     def out_list_score(self):
         out = self.hdr
+        out = add_offset(out)
         out = csv_add(out, str(round(self.times[self.cmp_idx], 3)))
         for i in range(0, len(self.times)):
             if i == self.cmp_idx:
@@ -113,6 +119,7 @@ class Displayable():
 
     def out_list(self):
         out = self.hdr
+        out = add_offset(out)
         for time in self.times:
             out = csv_add(out, str(round(time, 3)))
         return out + "\n"
@@ -122,9 +129,7 @@ class Displayable():
 
     def out_cmp_many(self):
         out = self.hdr
-        global time_offset
-        while out.count(',') < time_offset:
-            out += ","
+        out = add_offset(out)
         for i in range(0, int(len(self.times) / 2)):
             t0, t1, score = self.get_cmp_score(self.times[2 * i],
                                                self.times[2 * i + 1])
@@ -137,9 +142,7 @@ class Displayable():
 
     def out_cmp(self):
         out = self.hdr
-        global time_offset
-        while out.count(',') < time_offset:
-            out += ","
+        out = add_offset(out)
         out = csv_add(self.hdr, str(round(self.times[0], 3)))
         if self.times[1] is not None:
             score = round(self.times[0] / self.times[1], 3)
