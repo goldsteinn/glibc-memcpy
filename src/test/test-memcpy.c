@@ -176,7 +176,7 @@ check_memcpy(const uint8_t * s1_start,
         return 1;
     }
     if (check_region(s1, s2, len)) {
-        fprintf(stderr, "Region Error\n");
+        fprintf(stderr, "Region Error: %lu\n", len);
         return 2;
     }
     if (check_sentinel(s1 + len, s1_end, END)) {
@@ -199,7 +199,7 @@ check_memmove(const uint8_t * s1_start,
     }
 #endif
     if (check_region_mm(s1, s2_tmp, len)) {
-        fprintf(stderr, "Region Error\n");
+        fprintf(stderr, "Region Error: %lu\n", len);
         for (uint32_t i = 0; i < len; ++i) {
             uint32_t tmp = s1[i] == s2_tmp[i];
             fprintf(stderr, "%u: %x vs %x --> %d\n", i, s1[i], s2_tmp[i], tmp);
