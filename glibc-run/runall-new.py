@@ -127,3 +127,8 @@ for i in range(0, 1):
     for c in confs:
         build(c)
         bench(c, incr * i, incr)
+
+
+# for k in low high; do for j in {0..3}; do r=run24; i=${k}-${j}; git checkout master; git branch -D $i; git reset --hard HEAD; git checkout -b $i; git am --abort; git am /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$i/*; done; done
+
+# for k in low high; do for j in {0..3}; do r=run24; name=${k}-${j}; i=users/goldsteinn/memcpy-${k}-movsb-v${j}; git checkout $i; git format-patch origin/HEAD..HEAD; mkdir -p /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$name; mv *.patch /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$name; cp test-patches/* /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$name; done; done
