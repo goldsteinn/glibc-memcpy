@@ -84,11 +84,13 @@ def dgs_to_str(dgs):
         return "Bidirectional"
     return dgs
 
+
 def add_offset(out):
     global time_offset
     while out.count(',') < time_offset:
         out += ","
     return out
+
 
 class Displayable():
     def __init__(self, hdr, times, cmp_idx):
@@ -224,9 +226,7 @@ class JsonFile():
 
     def csv_hdr(self, other, impls):
         out = self.out_fields()
-        global time_offset
-        while out.count(',') < time_offset:
-            out += ","
+        out = add_offset(out)
         for i in range(0, len(impls)):
             out = csv_add(out, self.name(impls[i]))
             if other is not None:
@@ -306,7 +306,7 @@ class JsonFile():
 
     def show_results_cmp_impls(self, impls):
         disps = []
-
+        print(self.func_hdr())
         for key in self.key_order:
             times = [None, None]
             hdr = self.all_results[key].get_hdr()
@@ -341,6 +341,8 @@ class JsonFile():
 
     def show_result_scores(self, impl, others, cmp_s):
         disps = []
+        print(self.func_hdr())
+        print(self.out_fields())
         impl = impl[0]
         for key in self.key_order:
             times = [
@@ -369,6 +371,8 @@ class JsonFile():
 
     def show_results_cmp_others(self, impl, others):
         disps = []
+        print(self.func_hdr())
+        print(self.out_fields())
         for key in self.key_order:
             times = [
                 self.all_results[key].get_stat(fmt_ifunc(

@@ -82,12 +82,14 @@ class Conf():
 
 
 confs = []
-confs.append(Conf(None, "dev0"))
-confs.append(Conf(None, "dev1"))
-confs.append(Conf(None, "dev2"))
-confs.append(Conf(None, "dev3"))
-confs.append(Conf(None, "dev4"))
-confs.append(Conf(None, "dev-memcmp0"))
+confs.append(Conf(None, "high-0"))
+confs.append(Conf(None, "high-1"))
+confs.append(Conf(None, "high-2"))
+confs.append(Conf(None, "high-3"))
+confs.append(Conf(None, "low-0"))
+confs.append(Conf(None, "low-1"))
+confs.append(Conf(None, "low-2"))
+confs.append(Conf(None, "low-3"))
 confs.append(Conf(None, "dev-glibc"))
 
 
@@ -120,7 +122,7 @@ def bench(conf, base, inc):
 
 
 os.system("rm -rf {};".format(result_path.format("*")))
-incr = 20
+incr = 10
 for i in range(0, 1):
     for c in confs:
         build(c)
