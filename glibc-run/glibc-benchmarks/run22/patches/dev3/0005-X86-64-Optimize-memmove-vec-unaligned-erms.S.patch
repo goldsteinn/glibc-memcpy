@@ -1,4 +1,4 @@
-From 882e47038cf579ad6fe26152ec636e3086525f84 Mon Sep 17 00:00:00 2001
+From f9b98aeafc8f76b2672fa3e235b58f7cc2929c53 Mon Sep 17 00:00:00 2001
 From: Noah Goldstein <goldstein.w.n@gmail.com>
 Date: Tue, 24 Aug 2021 00:48:07 -0400
 Subject: [PATCH 5/5] X86-64: Optimize memmove-vec-unaligned-erms.S
@@ -42,8 +42,8 @@ All tests in string/ passing.
  .../multiarch/memmove-avx512-unaligned-erms.S |   2 +-
  .../multiarch/memmove-evex-unaligned-erms.S   |   2 +-
  .../multiarch/memmove-sse2-unaligned-erms.S   |   2 +-
- .../multiarch/memmove-vec-unaligned-erms.S    | 644 +++++++++++-------
- 6 files changed, 405 insertions(+), 260 deletions(-)
+ .../multiarch/memmove-vec-unaligned-erms.S    | 635 +++++++++++-------
+ 6 files changed, 397 insertions(+), 259 deletions(-)
 
 diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
 index cac1d762fb..9226d2c6c9 100644
@@ -126,7 +126,7 @@ index d10121db57..42f0331967 100644
  
  #if defined SHARED && IS_IN (libc)
 diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
-index 9f02624375..df0acfade5 100644
+index abde8438d4..2b481a3a40 100644
 --- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
 +++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
 @@ -14,7 +14,7 @@
@@ -707,7 +707,7 @@ index 9f02624375..df0acfade5 100644
  #if defined USE_MULTIARCH && IS_IN (libc)
  L(movsb_more_2x_vec):
  	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
-@@ -424,52 +535,85 @@ L(more_2x_vec):
+@@ -424,52 +535,78 @@ L(more_2x_vec):
  	   and source.  */
  	cmpq	$(VEC_SIZE * 8), %rdx
  	ja	L(more_8x_vec)
@@ -764,23 +764,16 @@ index 9f02624375..df0acfade5 100644
 +	/* Keep nop target close to jmp for 2-byte encoding.  */
 +L(nop):
  	VZEROUPPER_RETURN
--
 +    
-+#if defined USE_WITH_AVX512 || defined USE_WITH_AVX
++#if !defined USE_WITH_AVX512
 +	/* NOP 16.  */
-+# ifdef USE_WITH_AVX
 +	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
 +	.byte	0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;
-+# endif
++#endif
+ 
++
++	/* Align if doesn't cost too much code size.  */
 +	.p2align 4,, 10
-+#endif
-+#if defined USE_WITH_EVEX
-+	.byte	0x0f, 0x1f, 0x40, 0x00
-+#endif
-+#if defined USE_WITH_SSE2
-+	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00
-+	.byte	0x66, 0x90
-+#endif
  L(more_8x_vec):
 +	movq	%rdi, %rcx
 +	subq	%rsi, %rcx
@@ -803,7 +796,6 @@ index 9f02624375..df0acfade5 100644
 +	leaq	(%rcx, %rdx), %r8
 +	xorq	%rcx, %r8
 +	shrq	$63, %r8
-+    decl	%ecx
 +	andl	$(PAGE_SIZE - 256), %ecx
 +	addl	%r8d, %ecx
 +	jz	L(more_8x_vec_backward)
@@ -819,7 +811,7 @@ index 9f02624375..df0acfade5 100644
  	/* Load the first VEC and last 4 * VEC to support overlapping
  	   addresses.  */
  	VMOVU	(%rsi), %VEC(4)
-@@ -477,23 +621,21 @@ L(more_8x_vec_check):
+@@ -477,23 +614,21 @@ L(more_8x_vec_check):
  	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
  	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
  	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(8)
@@ -857,7 +849,7 @@ index 9f02624375..df0acfade5 100644
  L(loop_4x_vec_forward):
  	/* Copy 4 * VEC a time forward.  */
  	VMOVU	(%rsi), %VEC(0)
-@@ -501,107 +643,107 @@ L(loop_4x_vec_forward):
+@@ -501,107 +636,107 @@ L(loop_4x_vec_forward):
  	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
  	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
  	subq	$-(VEC_SIZE * 4), %rsi
@@ -887,15 +879,15 @@ index 9f02624375..df0acfade5 100644
  	VZEROUPPER_RETURN
 +	/* Entry from fail movsb. Need to test if dst - src == 0 still.  */
  
-+#if defined USE_WITH_SSE2
++#if defined USE_WITH_AVX512 || defined USE_WITH_SSE2
 +	/* NOP 16.  */
-+	.byte	0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
++	.byte	0x66, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
++# if defined USE_WITH_AVX512
++	.byte	0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;
++# endif
 +#endif
-+#if defined USE_WITH_AVX512
-+	.byte	0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
-+	.byte	0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00;
-+#endif
-+	.p2align 4,, 10
++
++	.p2align 4,, 6
 +L(more_8x_vec_backward_test):
 +	testq	%rcx, %rcx
 +	jz	L(nop33)
@@ -1025,7 +1017,7 @@ index 9f02624375..df0acfade5 100644
  	/* Adjust source, destination, and size.  */
  	movq	%rdi, %r8
  	andq	$63, %r8
-@@ -615,8 +757,8 @@ L(large_memcpy_2x):
+@@ -615,8 +750,8 @@ L(large_memcpy_2x):
  	addq	%r8, %rdx
  
  	/* Test if source and destination addresses will alias. If they do
@@ -1036,7 +1028,7 @@ index 9f02624375..df0acfade5 100644
  	testl	$(PAGE_SIZE - VEC_SIZE * 8), %ecx
  	jz	L(large_memcpy_4x)
  
-@@ -769,17 +911,17 @@ END (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
+@@ -769,17 +904,17 @@ END (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
  
  #if IS_IN (libc)
  # ifdef USE_MULTIARCH

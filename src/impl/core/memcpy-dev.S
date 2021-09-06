@@ -273,11 +273,11 @@ L(movsb):
 
 	/* If above x86_rep_movsb_stop_threshold most likely is candidate
 	   for NT moves aswell.  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x_check)
 # if AVOID_SHORT_DISTANCE_REP_MOVSB
 	/* Only avoid short movsb if CPU has FSRM.  */
-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
 	jz	L(skip_short_movsb_check_no_align)
 	/* Avoid "rep movsb" if RCX, the distance between source and
 	   destination, is N*4GB + [1..63] with N >= 0.  */
@@ -299,7 +299,7 @@ L(skip_short_movsb_check_no_align):
 	.p2align 4,, 6
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
-	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
@@ -356,7 +356,7 @@ L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	/* Check non-temporal store threshold.  */
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
 #endif
 	/* To reach this point there cannot be overlap and dst > src. So
@@ -529,11 +529,11 @@ L(movsb):
 # endif
 	/* If above x86_rep_movsb_stop_threshold most likely is candidate
 	   for NT moves aswell.  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x_check)
 # if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
 	/* Only avoid short movsb if CPU has FSRM.  */
-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
 	jz	L(skip_short_movsb_check)
 #  if AVOID_SHORT_DISTANCE_REP_MOVSB
 	/* Avoid "rep movsb" if RCX, the distance between source and
@@ -588,7 +588,7 @@ L(skip_short_movsb_check):
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	.p2align 4
 L(large_memcpy_2x_check):
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	jb	L(more_8x_vec_forward)
 L(large_memcpy_2x):
 	/* To reach this point it is impossible for dst > src and overlap.
@@ -638,7 +638,7 @@ L(large_memcpy_2x):
 
 	movq	%rdx, %r10
 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
-	cmp	x86_shared_non_temporal_threshold(%rip), %r10
+	cmp	__x86_shared_non_temporal_threshold(%rip), %r10
 	jae	L(large_memcpy_4x)
 
 	/* edx will store remainder size for copying tail.  */
