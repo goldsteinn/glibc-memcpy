@@ -56,14 +56,6 @@ def csv_add(s, field):
     return s + str(field)
 
 
-def fmt_ifunc(bench_func, impl):
-    impl_pieces = impl.split("-")
-    out = "__{}_{}_unaligned".format(bench_func, impl_pieces[0])
-    if len(impl_pieces) > 1:
-        out += "_" + impl_pieces[1]
-    return out
-
-
 def set_if_exists(json_map, field, field_val, fields):
     if field in json_map:
         fields[field] = True
@@ -197,7 +189,9 @@ class Result():
 
 
 class JsonFile():
-    def __init__(self, file_fmt):
+    def __init__(self, file_fmt, replacement):
+        self.must_replace = False
+        self.replacement = replacement
         self.file_fmt = file_fmt
         self.key_order = []
         self.all_results = {}
@@ -206,7 +200,7 @@ class JsonFile():
 
     def name(self, impl):
         ret = ""
-        if "dev" in self.file_fmt:
+        if "glibc" not in self.file_fmt:
             ret = "New"
         if "glibc" in self.file_fmt:
             ret = "Cur"
@@ -237,19 +231,50 @@ class JsonFile():
 
         return out
 
+    def fmt_ifunc(self, impl):
+        impl_pieces = impl.split("-")
+        postfix = "_unaligned"
+        if self.get_bench_func() == "memcmp" or self.get_bench_func(
+        ) == "bcmp":
+            if self.get_bench_func() == "memcmp" and (impl == "avx2"
+                                                          or impl == "evex"):
+                postfix = "_movbe"
+            else:
+                postfix = ""
+        out = "__{}_{}{}".format(self.get_bench_func(), impl_pieces[0],
+                                     postfix)
+        if len(impl_pieces) > 1:
+            out += "_" + impl_pieces[1]
+        return out
+
     def load_file(self, fname):
         if os.access(fname, os.R_OK) is False:
             return None
         with open(fname) as json_file:
             return json.load(json_file)
 
+    def get_bench_func(self):
+        return self.bench_func
+
+    def eq_bench_func(self, other):
+        scmp = self.bench_func
+        ocmp = other.bench_func
+        if self.must_replace is True:
+            scmp = self.replacement[0]
+        if other.must_replace is True:
+            ocmp = other.replacement[0]
+        return ocmp == scmp
+
+    def set_bench_func(self, k):
+        if self.bench_func == "":
+            self.bench_func = k
+        assert self.bench_func == k
+
     def get_results(self, json_obj):
         for k in json_obj["functions"]:
-            if self.bench_func == "":
-                self.bench_func = k
-            assert self.bench_func == k
-        results = json_obj["functions"][self.bench_func]["results"]
-        ifuncs = json_obj["functions"][self.bench_func]["ifuncs"]
+            self.set_bench_func(k)
+        results = json_obj["functions"][self.get_bench_func()]["results"]
+        ifuncs = json_obj["functions"][self.get_bench_func()]["ifuncs"]
 
         for result in results:
             length = None
@@ -274,8 +299,10 @@ class JsonFile():
                                              self.fields)
             sz, self.fields = set_if_exists(result, "overlap", sz, self.fields)
             sz, self.fields = set_if_exists(result, "size", sz, self.fields)
+            sz, self.fields = set_if_exists(result, "result", sz, self.fields)
+            
             key = get_key(length, align1, align2, dgs, wfs, sz)
-            if "memmove" in self.bench_func and align1 == align2:
+            if "memmove" in self.get_bench_func() and align1 == align2:
                 continue
             if key not in self.all_results:
                 self.key_order.append(key)
@@ -289,7 +316,17 @@ class JsonFile():
 
             json_obj = self.load_file(file_path)
             if json_obj is None:
-                continue
+                if self.must_replace:
+                    continue
+                json_obj = self.load_file(
+                    file_path.replace(self.replacement[0],
+                                      self.replacement[1]))
+                if json_obj is None:
+                    continue
+                else:
+                    self.must_replace = True
+                    self.file_fmt = self.file_fmt.replace(
+                        self.replacement[0], self.replacement[1])
 
             self.get_results(json_obj)
 
@@ -312,7 +349,7 @@ class JsonFile():
             hdr = self.all_results[key].get_hdr()
             for i in range(0, len(impls)):
                 times[i] = self.all_results[key].get_stat(
-                    fmt_ifunc(self.bench_func, impls[i]))
+                    fmt_ifunc(self.get_bench_func(), impls[i]))
             disps.append(Displayable(hdr, times, None))
         for disp in disps:
             print(disp.out(), end="")
@@ -328,12 +365,12 @@ class JsonFile():
 
             assert key in other.all_results
             assert other.all_results[key].get_hdr() == hdr
-            assert other.bench_func == self.bench_func
+            assert self.eq_bench_func(other)
             for impl in impls:
                 times.append(self.all_results[key].get_stat(
-                    fmt_ifunc(self.bench_func, impl)))
+                    self.fmt_ifunc(impl)))
                 times.append(other.all_results[key].get_stat(
-                    fmt_ifunc(other.bench_func, impl)))
+                    other.fmt_ifunc(impl)))
 
             disps.append(Displayable(hdr, times, -1))
         for disp in disps:
@@ -346,8 +383,8 @@ class JsonFile():
         impl = impl[0]
         for key in self.key_order:
             times = [
-                self.all_results[key].get_stat(fmt_ifunc(
-                    self.bench_func, impl))
+                self.all_results[key].get_stat(
+                    fmt_ifunc(self.get_bench_func(), impl))
             ]
             hdr = self.all_results[key].get_hdr()
             cmp_idx = None
@@ -361,10 +398,10 @@ class JsonFile():
 #                print("{} -> {} [{}]".format(key, other.file_fmt, key in other.all_results))
                 assert key in other.all_results
                 assert other.all_results[key].get_hdr() == hdr
-                assert other.bench_func == self.bench_func
+                assert other.get_bench_func() == self.get_bench_func()
 
                 times.append(other.all_results[key].get_stat(
-                    fmt_ifunc(self.bench_func, impl)))
+                    fmt_ifunc(self.get_bench_func(), impl)))
             disps.append(Displayable(hdr, times, cmp_idx))
         for disp in disps:
             print(disp.out(), end="")
@@ -375,18 +412,18 @@ class JsonFile():
         print(self.out_fields())
         for key in self.key_order:
             times = [
-                self.all_results[key].get_stat(fmt_ifunc(
-                    self.bench_func, impl))
+                self.all_results[key].get_stat(
+                    fmt_ifunc(self.get_bench_func(), impl))
             ]
 
             hdr = self.all_results[key].get_hdr()
             for other in others:
                 assert key in other.all_results
                 assert other.all_results[key].get_hdr() == hdr
-                assert other.bench_func == self.bench_func
+                assert other.get_bench_func() == self.get_bench_func()
 
                 times.append(other.all_results[key].get_stat(
-                    fmt_ifunc(self.bench_func, impl)))
+                    fmt_ifunc(self.get_bench_func(), impl)))
 
             disps.append(Displayable(hdr, times, None))
         for disp in disps:
@@ -397,7 +434,7 @@ for i in range(0, len(version_dirs)):
     all_json_files.append([])
     for cmp_file in cmp_files:
 
-        res = JsonFile(version_dirs[i] + cmp_file)
+        res = JsonFile(version_dirs[i] + cmp_file, ["bcmp", "memcmp"])
         res.parse_all_files()
         all_json_files[i].append(res)
 
