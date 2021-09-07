@@ -78,7 +78,7 @@ run_fixed_bench(bench_conf_t            conf,
     bench_char_t * restrict dst =
         (conf.direction ? mem_hi : mem_lo) + conf.al_dst;
     bench_char_t * restrict src =
-        (conf.direction ? mem_lo : mem_hi) + conf.al_src;
+        (conf.direction ? mem_hi : mem_lo) + conf.al_src;
     uint64_t sz = conf.sz;
     
     DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));

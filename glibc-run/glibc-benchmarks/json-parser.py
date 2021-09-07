@@ -237,12 +237,12 @@ class JsonFile():
         if self.get_bench_func() == "memcmp" or self.get_bench_func(
         ) == "bcmp":
             if self.get_bench_func() == "memcmp" and (impl == "avx2"
-                                                          or impl == "evex"):
+                                                      or impl == "evex"):
                 postfix = "_movbe"
             else:
                 postfix = ""
         out = "__{}_{}{}".format(self.get_bench_func(), impl_pieces[0],
-                                     postfix)
+                                 postfix)
         if len(impl_pieces) > 1:
             out += "_" + impl_pieces[1]
         return out
@@ -300,7 +300,7 @@ class JsonFile():
             sz, self.fields = set_if_exists(result, "overlap", sz, self.fields)
             sz, self.fields = set_if_exists(result, "size", sz, self.fields)
             sz, self.fields = set_if_exists(result, "result", sz, self.fields)
-            
+
             key = get_key(length, align1, align2, dgs, wfs, sz)
             if "memmove" in self.get_bench_func() and align1 == align2:
                 continue
@@ -382,10 +382,7 @@ class JsonFile():
         print(self.out_fields())
         impl = impl[0]
         for key in self.key_order:
-            times = [
-                self.all_results[key].get_stat(
-                    fmt_ifunc(self.get_bench_func(), impl))
-            ]
+            times = [self.all_results[key].get_stat(self.fmt_ifunc(impl))]
             hdr = self.all_results[key].get_hdr()
             cmp_idx = None
             for i in range(0, len(others)):
@@ -401,7 +398,7 @@ class JsonFile():
                 assert other.get_bench_func() == self.get_bench_func()
 
                 times.append(other.all_results[key].get_stat(
-                    fmt_ifunc(self.get_bench_func(), impl)))
+                    self.fmt_ifunc(impl)))
             disps.append(Displayable(hdr, times, cmp_idx))
         for disp in disps:
             print(disp.out(), end="")
@@ -411,10 +408,7 @@ class JsonFile():
         print(self.func_hdr())
         print(self.out_fields())
         for key in self.key_order:
-            times = [
-                self.all_results[key].get_stat(
-                    fmt_ifunc(self.get_bench_func(), impl))
-            ]
+            times = [self.all_results[key].get_stat(self.fmt_ifunc(impl))]
 
             hdr = self.all_results[key].get_hdr()
             for other in others:
@@ -423,7 +417,7 @@ class JsonFile():
                 assert other.get_bench_func() == self.get_bench_func()
 
                 times.append(other.all_results[key].get_stat(
-                    fmt_ifunc(self.get_bench_func(), impl)))
+                    self.fmt_ifunc(impl)))
 
             disps.append(Displayable(hdr, times, None))
         for disp in disps:
