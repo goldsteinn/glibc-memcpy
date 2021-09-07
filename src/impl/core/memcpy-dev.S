@@ -399,7 +399,10 @@ L(more_2x_vec):
 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-	.p2align 4
+	/* Align if doesn't cost too much code size. 6 bytes so that after
+	   jump to target a full mov instruction will always be able to be
+	   fetched.  */
+	.p2align 4,, 6
 L(last_4x_vec):
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
@@ -441,39 +444,41 @@ L(more_8x_vec):
 	/* Isolate just sign bit of r8.  */
 	shrq	$63, %r8
 	/* Get 4k difference dst - src.  */
-	andl	$(PAGE_SIZE - 1024), %ecx
+	andl	$(PAGE_SIZE - 2048), %ecx
 	/* If r8 is non-zero must do foward for correctness. Otherwise if
 	   ecx is non-zero there is 4k False Alaising so do backward copy.  */
 	addl	%r8d, %ecx
 	jz	L(more_8x_vec_backward)
+
 	/* Entry if rdx is greater than x86_rep_movsb_stop_threshold but
-	   less than x86_shared_non_temporal_threshold, if rdx is greater than
-	   x86_shared_non_temporal_threshold but there is overlap, or from
-	   short distance movsb.  */
+	   less than x86_shared_non_temporal_threshold, if rdx is greater
+	   than x86_shared_non_temporal_threshold but there is overlap, or
+	   from short distance movsb.  */
 L(more_8x_vec_forward):
 	/* Load first and last 4 * VEC to support overlapping addresses.  */
 	VMOVU	(%rsi), %VEC(4)
-	leaq	(VEC_SIZE * -4)(%rsi, %rdx), %r8
-	VMOVU	(%r8), %VEC(5)
-	VMOVU	VEC_SIZE(%r8), %VEC(6)
-	VMOVU	(VEC_SIZE * 2)(%r8), %VEC(7)
-	VMOVU	(VEC_SIZE * 3)(%r8), %VEC(8)
-	/* Align dst.  */
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(5)
+	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(6)
 	/* Save begining of dst.  */
 	movq	%rdi, %rcx
 	/* Align dst to VEC_SIZE - 1.  */
 	orq	$(VEC_SIZE - 1), %rdi
+	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(7)
+	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(8)
+
+	/* Align dst.  */
+
 	/* Subtract dst from src. Add back after dst aligned.  */
 	subq	%rcx, %rsi
+	/* Restore src adjusted with new value for aligned dst.  */
+	leaq	1(%rdi, %rsi), %rsi
 	/* Finish aligning dst.  */
 	incq	%rdi
-	/* Restore src adjusted with new value for aligned dst.  */
-	addq	%rdi, %rsi
-	/* Store end of buffer in rdx.  */
-	addq	%rcx, %rdx
+	/* Store end of buffer minus tail in rdx.  */
+	leaq	(VEC_SIZE * -4)(%rcx, %rdx), %rdx
 
 	/* Dont use multi-byte nop to align.  */
-	.p2align 4,, 11
+	.p2align 4,, 10
 L(loop_4x_vec_forward):
 	/* Copy 4 * VEC a time forward.  */
 	VMOVU	(%rsi), %VEC(0)
@@ -486,21 +491,20 @@ L(loop_4x_vec_forward):
 	VMOVA	%VEC(2), (VEC_SIZE * 2)(%rdi)
 	VMOVA	%VEC(3), (VEC_SIZE * 3)(%rdi)
 	subq	$-(VEC_SIZE * 4), %rdi
-	cmpq	%rsi, %r8
+	cmpq	%rdi, %rdx
 	ja	L(loop_4x_vec_forward)
-
 	/* Store the last 4 * VEC.  */
-	VMOVU	%VEC(5), (VEC_SIZE * -4)(%rdx)
-	VMOVU	%VEC(6), (VEC_SIZE * -3)(%rdx)
-	VMOVU	%VEC(7), (VEC_SIZE * -2)(%rdx)
-	VMOVU	%VEC(8), (VEC_SIZE * -1)(%rdx)
+	VMOVU	%VEC(5), (VEC_SIZE * 3)(%rdx)
+	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rdx)
+	VMOVU	%VEC(7), VEC_SIZE(%rdx)
+	VMOVU	%VEC(8), (%rdx)
 	/* Store the first VEC.  */
 	VMOVU	%VEC(4), (%rcx)
 	/* Keep L(nop_backward) target close to jmp for 2-byte encoding.  */
 L(nop_backward):
 	VZEROUPPER_RETURN
 
-	.p2align 4,, 9
+	.p2align 4,, 10
 L(more_8x_vec_backward_check_nop):
 	testq	%rcx, %rcx
 	jz	L(nop_backward)
@@ -520,6 +524,7 @@ L(more_8x_vec_backward):
 	andq	$-(VEC_SIZE), %rcx
 	/* Restore src.  */
 	addq	%rcx, %rsi
+
 	/* Don't use multi-byte nop to align.  */
 	.p2align 4,, 11
 L(loop_4x_vec_backward):

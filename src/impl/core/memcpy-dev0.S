@@ -441,7 +441,7 @@ L(more_8x_vec):
 	/* Isolate just sign bit of r8.  */
 	shrq	$63, %r8
 	/* Get 4k difference dst - src.  */
-	andl	$(PAGE_SIZE - 512), %ecx
+	andl	$(PAGE_SIZE - 2048), %ecx
 	/* If r8 is non-zero must do foward for correctness. Otherwise if
 	   ecx is non-zero there is 4k False Alaising so do backward copy.  */
 	addl	%r8d, %ecx
