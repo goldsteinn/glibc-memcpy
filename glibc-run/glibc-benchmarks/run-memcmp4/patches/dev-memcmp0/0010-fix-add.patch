@@ -1,0 +1,25 @@
+From 23261e58020290967d8992760ce287e8a19b8f1e Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 8 Sep 2021 00:33:47 -0400
+Subject: [PATCH 10/10] fix add
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 617ae9f3bf..092a132942 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -150,7 +150,7 @@ ENTRY (MEMCMP)
+ 	   without any branches.  */
+ 
+ # ifdef USE_AS_BCMP
+-	addq	%rdx, %rdi
++	addq	%rdx, %rsi
+ # endif
+ 	vmovdqu	-(VEC_SIZE * 4)(%LAST_4X_S2), %ymm1
+ 	vmovdqu	-(VEC_SIZE * 3)(%LAST_4X_S2), %ymm2
+-- 
+2.29.2
+

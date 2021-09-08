@@ -1,0 +1,1913 @@
+From c835e28444d26549ba9109e7870716654af2a15e Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 6 Sep 2021 01:33:40 -0400
+Subject: [PATCH 03/11] sse4
+
+---
+ sysdeps/x86_64/multiarch/memcmp-sse4.S | 761 ++++++++++++++++++++++++-
+ 1 file changed, 746 insertions(+), 15 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-sse4.S b/sysdeps/x86_64/multiarch/memcmp-sse4.S
+index b82adcd5fa..b9528ed58e 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-sse4.S
++++ b/sysdeps/x86_64/multiarch/memcmp-sse4.S
+@@ -72,7 +72,11 @@ L(79bytesormore):
+ 	movdqu	(%rdi), %xmm2
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 	mov	%rsi, %rcx
+ 	and	$-16, %rsi
+ 	add	$16, %rsi
+@@ -91,34 +95,58 @@ L(less128bytes):
+ 	movdqu	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqu	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 
+ 	movdqu	32(%rdi), %xmm2
+ 	pxor	32(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(48bytesin256)
++# endif
+ 
+ 	movdqu	48(%rdi), %xmm2
+ 	pxor	48(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesin256)
++# endif
+ 	cmp	$32, %rdx
+ 	jb	L(less32bytesin64)
+ 
+ 	movdqu	64(%rdi), %xmm2
+ 	pxor	64(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(80bytesin256)
++# endif
+ 
+ 	movdqu	80(%rdi), %xmm2
+ 	pxor	80(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(96bytesin256)
++# endif
+ 	sub	$32, %rdx
+ 	add	$32, %rdi
+ 	add	$32, %rsi
+@@ -140,42 +168,74 @@ L(less256bytes):
+ 	movdqu	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqu	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 
+ 	movdqu	32(%rdi), %xmm2
+ 	pxor	32(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(48bytesin256)
++# endif
+ 
+ 	movdqu	48(%rdi), %xmm2
+ 	pxor	48(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesin256)
++# endif
+ 
+ 	movdqu	64(%rdi), %xmm2
+ 	pxor	64(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(80bytesin256)
++# endif
+ 
+ 	movdqu	80(%rdi), %xmm2
+ 	pxor	80(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(96bytesin256)
++# endif
+ 
+ 	movdqu	96(%rdi), %xmm2
+ 	pxor	96(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(112bytesin256)
++# endif
+ 
+ 	movdqu	112(%rdi), %xmm2
+ 	pxor	112(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(128bytesin256)
++# endif
+ 
+ 	add	$128, %rsi
+ 	add	$128, %rdi
+@@ -189,12 +249,20 @@ L(less256bytes):
+ 	movdqu	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqu	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 	sub	$32, %rdx
+ 	add	$32, %rdi
+ 	add	$32, %rsi
+@@ -208,82 +276,146 @@ L(less512bytes):
+ 	movdqu	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqu	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 
+ 	movdqu	32(%rdi), %xmm2
+ 	pxor	32(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(48bytesin256)
++# endif
+ 
+ 	movdqu	48(%rdi), %xmm2
+ 	pxor	48(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesin256)
++# endif
+ 
+ 	movdqu	64(%rdi), %xmm2
+ 	pxor	64(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(80bytesin256)
++# endif
+ 
+ 	movdqu	80(%rdi), %xmm2
+ 	pxor	80(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(96bytesin256)
++# endif
+ 
+ 	movdqu	96(%rdi), %xmm2
+ 	pxor	96(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(112bytesin256)
++# endif
+ 
+ 	movdqu	112(%rdi), %xmm2
+ 	pxor	112(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(128bytesin256)
++# endif
+ 
+ 	movdqu	128(%rdi), %xmm2
+ 	pxor	128(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(144bytesin256)
++# endif
+ 
+ 	movdqu	144(%rdi), %xmm2
+ 	pxor	144(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(160bytesin256)
++# endif
+ 
+ 	movdqu	160(%rdi), %xmm2
+ 	pxor	160(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(176bytesin256)
++# endif
+ 
+ 	movdqu	176(%rdi), %xmm2
+ 	pxor	176(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(192bytesin256)
++# endif
+ 
+ 	movdqu	192(%rdi), %xmm2
+ 	pxor	192(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(208bytesin256)
++# endif
+ 
+ 	movdqu	208(%rdi), %xmm2
+ 	pxor	208(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(224bytesin256)
++# endif
+ 
+ 	movdqu	224(%rdi), %xmm2
+ 	pxor	224(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(240bytesin256)
++# endif
+ 
+ 	movdqu	240(%rdi), %xmm2
+ 	pxor	240(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(256bytesin256)
++# endif
+ 
+ 	add	$256, %rsi
+ 	add	$256, %rdi
+@@ -300,12 +432,20 @@ L(less512bytes):
+ 	movdqu	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqu	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 	sub	$32, %rdx
+ 	add	$32, %rdi
+ 	add	$32, %rsi
+@@ -346,7 +486,11 @@ L(64bytesormore_loop):
+ 	por	%xmm5, %xmm1
+ 
+ 	ptest	%xmm1, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesormore_loop_end)
++# endif
+ 	add	$64, %rsi
+ 	add	$64, %rdi
+ 	sub	$64, %rdx
+@@ -380,7 +524,11 @@ L(L2_L3_unaligned_128bytes_loop):
+ 	por	%xmm5, %xmm1
+ 
+ 	ptest	%xmm1, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesormore_loop_end)
++# endif
+ 	add	$64, %rsi
+ 	add	$64, %rdi
+ 	sub	$64, %rdx
+@@ -404,34 +552,58 @@ L(less128bytesin2aligned):
+ 	movdqa	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqa	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 
+ 	movdqa	32(%rdi), %xmm2
+ 	pxor	32(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(48bytesin256)
++# endif
+ 
+ 	movdqa	48(%rdi), %xmm2
+ 	pxor	48(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesin256)
++# endif
+ 	cmp	$32, %rdx
+ 	jb	L(less32bytesin64in2alinged)
+ 
+ 	movdqa	64(%rdi), %xmm2
+ 	pxor	64(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(80bytesin256)
++# endif
+ 
+ 	movdqa	80(%rdi), %xmm2
+ 	pxor	80(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(96bytesin256)
++# endif
+ 	sub	$32, %rdx
+ 	add	$32, %rdi
+ 	add	$32, %rsi
+@@ -454,42 +626,74 @@ L(less256bytesin2alinged):
+ 	movdqa	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqa	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 
+ 	movdqa	32(%rdi), %xmm2
+ 	pxor	32(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(48bytesin256)
++# endif
+ 
+ 	movdqa	48(%rdi), %xmm2
+ 	pxor	48(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesin256)
++# endif
+ 
+ 	movdqa	64(%rdi), %xmm2
+ 	pxor	64(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(80bytesin256)
++# endif
+ 
+ 	movdqa	80(%rdi), %xmm2
+ 	pxor	80(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(96bytesin256)
++# endif
+ 
+ 	movdqa	96(%rdi), %xmm2
+ 	pxor	96(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(112bytesin256)
++# endif
+ 
+ 	movdqa	112(%rdi), %xmm2
+ 	pxor	112(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(128bytesin256)
++# endif
+ 
+ 	add	$128, %rsi
+ 	add	$128, %rdi
+@@ -503,12 +707,20 @@ L(less256bytesin2alinged):
+ 	movdqu	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqu	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 	sub	$32, %rdx
+ 	add	$32, %rdi
+ 	add	$32, %rsi
+@@ -524,82 +736,146 @@ L(256bytesormorein2aligned):
+ 	movdqa	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqa	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 
+ 	movdqa	32(%rdi), %xmm2
+ 	pxor	32(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(48bytesin256)
++# endif
+ 
+ 	movdqa	48(%rdi), %xmm2
+ 	pxor	48(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesin256)
++# endif
+ 
+ 	movdqa	64(%rdi), %xmm2
+ 	pxor	64(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(80bytesin256)
++# endif
+ 
+ 	movdqa	80(%rdi), %xmm2
+ 	pxor	80(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(96bytesin256)
++# endif
+ 
+ 	movdqa	96(%rdi), %xmm2
+ 	pxor	96(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(112bytesin256)
++# endif
+ 
+ 	movdqa	112(%rdi), %xmm2
+ 	pxor	112(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(128bytesin256)
++# endif
+ 
+ 	movdqa	128(%rdi), %xmm2
+ 	pxor	128(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(144bytesin256)
++# endif
+ 
+ 	movdqa	144(%rdi), %xmm2
+ 	pxor	144(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(160bytesin256)
++# endif
+ 
+ 	movdqa	160(%rdi), %xmm2
+ 	pxor	160(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(176bytesin256)
++# endif
+ 
+ 	movdqa	176(%rdi), %xmm2
+ 	pxor	176(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(192bytesin256)
++# endif
+ 
+ 	movdqa	192(%rdi), %xmm2
+ 	pxor	192(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(208bytesin256)
++# endif
+ 
+ 	movdqa	208(%rdi), %xmm2
+ 	pxor	208(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(224bytesin256)
++# endif
+ 
+ 	movdqa	224(%rdi), %xmm2
+ 	pxor	224(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(240bytesin256)
++# endif
+ 
+ 	movdqa	240(%rdi), %xmm2
+ 	pxor	240(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(256bytesin256)
++# endif
+ 
+ 	add	$256, %rsi
+ 	add	$256, %rdi
+@@ -616,12 +892,20 @@ L(256bytesormorein2aligned):
+ 	movdqa	(%rdi), %xmm2
+ 	pxor	(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(16bytesin256)
++# endif
+ 
+ 	movdqa	16(%rdi), %xmm2
+ 	pxor	16(%rsi), %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(32bytesin256)
++# endif
+ 	sub	$32, %rdx
+ 	add	$32, %rdi
+ 	add	$32, %rsi
+@@ -663,7 +947,11 @@ L(64bytesormore_loopin2aligned):
+ 	por	%xmm5, %xmm1
+ 
+ 	ptest	%xmm1, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesormore_loop_end)
++# endif
+ 	add	$64, %rsi
+ 	add	$64, %rdi
+ 	sub	$64, %rdx
+@@ -697,7 +985,11 @@ L(L2_L3_aligned_128bytes_loop):
+ 	por	%xmm5, %xmm1
+ 
+ 	ptest	%xmm1, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(64bytesormore_loop_end)
++# endif
+ 	add	$64, %rsi
+ 	add	$64, %rdi
+ 	sub	$64, %rdx
+@@ -708,7 +1000,7 @@ L(L2_L3_aligned_128bytes_loop):
+ 	add	%rdx, %rdi
+ 	BRANCH_TO_JMPTBL_ENTRY(L(table_64bytes), %rdx, 4)
+ 
+-
++# ifndef USE_AS_BCMP
+ 	.p2align 4
+ L(64bytesormore_loop_end):
+ 	add	$16, %rdi
+@@ -791,17 +1083,29 @@ L(32bytesin256):
+ L(16bytesin256):
+ 	add	$16, %rdi
+ 	add	$16, %rsi
++# endif
+ L(16bytes):
+ 	mov	-16(%rdi), %rax
+ 	mov	-16(%rsi), %rcx
+ 	cmp	%rax, %rcx
++# ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++# else
+ 	jne	L(diffin8bytes)
++# endif
+ L(8bytes):
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
++# ifdef USE_AS_BCMP
++	sub	%rcx, %rax
++	mov	%rax, %rcx
++	shr	$32, %rcx
++	or	%ecx, %eax
++# else
+ 	cmp	%rax, %rcx
+ 	jne	L(diffin8bytes)
+ 	xor	%eax, %eax
++# endif
+ 	ret
+ 
+ 	.p2align 4
+@@ -809,16 +1113,26 @@ L(12bytes):
+ 	mov	-12(%rdi), %rax
+ 	mov	-12(%rsi), %rcx
+ 	cmp	%rax, %rcx
++# ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++# else
+ 	jne	L(diffin8bytes)
++# endif
+ L(4bytes):
+ 	mov	-4(%rsi), %ecx
+-# ifndef USE_AS_WMEMCMP
++# ifdef USE_AS_BCMP
+ 	mov	-4(%rdi), %eax
+-	cmp	%eax, %ecx
++	sub	%ecx, %eax
++	ret
+ # else
++#  ifndef USE_AS_WMEMCMP
++	mov	-4(%rdi), %eax
++	cmp	%eax, %ecx
++#  else
+ 	cmp	-4(%rdi), %ecx
+-# endif
++#  endif
+ 	jne	L(diffin4bytes)
++# endif
+ L(0bytes):
+ 	xor	%eax, %eax
+ 	ret
+@@ -832,31 +1146,51 @@ L(65bytes):
+ 	mov	$-65, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(49bytes):
+ 	movdqu	-49(%rdi), %xmm1
+ 	movdqu	-49(%rsi), %xmm2
+ 	mov	$-49, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(33bytes):
+ 	movdqu	-33(%rdi), %xmm1
+ 	movdqu	-33(%rsi), %xmm2
+ 	mov	$-33, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(17bytes):
+ 	mov	-17(%rdi), %rax
+ 	mov	-17(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ L(9bytes):
+ 	mov	-9(%rdi), %rax
+ 	mov	-9(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	movzbl	-1(%rdi), %eax
+ 	movzbl	-1(%rsi), %edx
+ 	sub	%edx, %eax
+@@ -867,12 +1201,23 @@ L(13bytes):
+ 	mov	-13(%rdi), %rax
+ 	mov	-13(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
++#  ifdef USE_AS_BCMP
++	sub	%rcx, %rax
++	mov	%rax, %rcx
++	shr	$32, %rcx
++	or	%ecx, %eax
++#  else
+ 	cmp	%rax, %rcx
+ 	jne	L(diffin8bytes)
+ 	xor	%eax, %eax
++#  endif
+ 	ret
+ 
+ 	.p2align 4
+@@ -880,7 +1225,11 @@ L(5bytes):
+ 	mov	-5(%rdi), %eax
+ 	mov	-5(%rsi), %ecx
+ 	cmp	%eax, %ecx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin4bytes)
++#  endif
+ 	movzbl	-1(%rdi), %eax
+ 	movzbl	-1(%rsi), %edx
+ 	sub	%edx, %eax
+@@ -893,37 +1242,59 @@ L(66bytes):
+ 	mov	$-66, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(50bytes):
+ 	movdqu	-50(%rdi), %xmm1
+ 	movdqu	-50(%rsi), %xmm2
+ 	mov	$-50, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(34bytes):
+ 	movdqu	-34(%rdi), %xmm1
+ 	movdqu	-34(%rsi), %xmm2
+ 	mov	$-34, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(18bytes):
+ 	mov	-18(%rdi), %rax
+ 	mov	-18(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ L(10bytes):
+ 	mov	-10(%rdi), %rax
+ 	mov	-10(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	movzwl	-2(%rdi), %eax
+ 	movzwl	-2(%rsi), %ecx
++#  ifndef USE_AS_BCMP
+ 	cmp	%cl, %al
+ 	jne	L(end)
+ 	and	$0xffff, %eax
+ 	and	$0xffff, %ecx
++#  endif
+ 	sub	%ecx, %eax
+ 	ret
+ 
+@@ -932,12 +1303,23 @@ L(14bytes):
+ 	mov	-14(%rdi), %rax
+ 	mov	-14(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
++#  ifdef USE_AS_BCMP
++	sub	%rcx, %rax
++	mov	%rax, %rcx
++	shr	$32, %rcx
++	or	%ecx, %eax
++#  else
+ 	cmp	%rax, %rcx
+ 	jne	L(diffin8bytes)
+ 	xor	%eax, %eax
++#  endif
+ 	ret
+ 
+ 	.p2align 4
+@@ -945,14 +1327,20 @@ L(6bytes):
+ 	mov	-6(%rdi), %eax
+ 	mov	-6(%rsi), %ecx
+ 	cmp	%eax, %ecx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin4bytes)
++#  endif
+ L(2bytes):
+ 	movzwl	-2(%rsi), %ecx
+ 	movzwl	-2(%rdi), %eax
++#  ifndef USE_AS_BCMP
+ 	cmp	%cl, %al
+ 	jne	L(end)
+ 	and	$0xffff, %eax
+ 	and	$0xffff, %ecx
++#  endif
+ 	sub	%ecx, %eax
+ 	ret
+ 
+@@ -963,36 +1351,60 @@ L(67bytes):
+ 	mov	$-67, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(51bytes):
+ 	movdqu	-51(%rdi), %xmm2
+ 	movdqu	-51(%rsi), %xmm1
+ 	mov	$-51, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(35bytes):
+ 	movdqu	-35(%rsi), %xmm1
+ 	movdqu	-35(%rdi), %xmm2
+ 	mov	$-35, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(19bytes):
+ 	mov	-19(%rdi), %rax
+ 	mov	-19(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ L(11bytes):
+ 	mov	-11(%rdi), %rax
+ 	mov	-11(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	mov	-4(%rdi), %eax
+ 	mov	-4(%rsi), %ecx
++#  ifdef USE_AS_BCMP
++	sub	%ecx, %eax
++#  else
+ 	cmp	%eax, %ecx
+ 	jne	L(diffin4bytes)
+ 	xor	%eax, %eax
++#  endif
+ 	ret
+ 
+ 	.p2align 4
+@@ -1000,12 +1412,23 @@ L(15bytes):
+ 	mov	-15(%rdi), %rax
+ 	mov	-15(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
++#  ifdef USE_AS_BCMP
++	sub	%rcx, %rax
++	mov	%rax, %rcx
++	shr	$32, %rcx
++	or	%ecx, %eax
++#  else
+ 	cmp	%rax, %rcx
+ 	jne	L(diffin8bytes)
+ 	xor	%eax, %eax
++#  endif
+ 	ret
+ 
+ 	.p2align 4
+@@ -1013,12 +1436,20 @@ L(7bytes):
+ 	mov	-7(%rdi), %eax
+ 	mov	-7(%rsi), %ecx
+ 	cmp	%eax, %ecx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin4bytes)
++#  endif
+ 	mov	-4(%rdi), %eax
+ 	mov	-4(%rsi), %ecx
++#  ifdef USE_AS_BCMP
++	sub	%ecx, %eax
++#  else
+ 	cmp	%eax, %ecx
+ 	jne	L(diffin4bytes)
+ 	xor	%eax, %eax
++#  endif
+ 	ret
+ 
+ 	.p2align 4
+@@ -1026,7 +1457,11 @@ L(3bytes):
+ 	movzwl	-3(%rdi), %eax
+ 	movzwl	-3(%rsi), %ecx
+ 	cmp	%eax, %ecx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin2bytes)
++#  endif
+ L(1bytes):
+ 	movzbl	-1(%rdi), %eax
+ 	movzbl	-1(%rsi), %ecx
+@@ -1041,38 +1476,58 @@ L(68bytes):
+ 	mov	$-68, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(52bytes):
+ 	movdqu	-52(%rdi), %xmm2
+ 	movdqu	-52(%rsi), %xmm1
+ 	mov	$-52, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(36bytes):
+ 	movdqu	-36(%rdi), %xmm2
+ 	movdqu	-36(%rsi), %xmm1
+ 	mov	$-36, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(20bytes):
+ 	movdqu	-20(%rdi), %xmm2
+ 	movdqu	-20(%rsi), %xmm1
+ 	mov	$-20, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ 	mov	-4(%rsi), %ecx
+-
+-# ifndef USE_AS_WMEMCMP
++# ifdef USE_AS_BCMP
+ 	mov	-4(%rdi), %eax
+-	cmp	%eax, %ecx
++	sub	%ecx, %eax
+ # else
++#  ifndef USE_AS_WMEMCMP
++	mov	-4(%rdi), %eax
++	cmp	%eax, %ecx
++#  else
+ 	cmp	-4(%rdi), %ecx
+-# endif
++#  endif
+ 	jne	L(diffin4bytes)
+ 	xor	%eax, %eax
++# endif
+ 	ret
+ 
+ # ifndef USE_AS_WMEMCMP
+@@ -1084,32 +1539,52 @@ L(69bytes):
+ 	mov	$-69, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(53bytes):
+ 	movdqu	-53(%rsi), %xmm1
+ 	movdqu	-53(%rdi), %xmm2
+ 	mov	$-53, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(37bytes):
+ 	movdqu	-37(%rsi), %xmm1
+ 	movdqu	-37(%rdi), %xmm2
+ 	mov	$-37, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(21bytes):
+ 	movdqu	-21(%rsi), %xmm1
+ 	movdqu	-21(%rdi), %xmm2
+ 	mov	$-21, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	xor	%eax, %eax
+ 	ret
+ 
+@@ -1120,32 +1595,52 @@ L(70bytes):
+ 	mov	$-70, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(54bytes):
+ 	movdqu	-54(%rsi), %xmm1
+ 	movdqu	-54(%rdi), %xmm2
+ 	mov	$-54, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(38bytes):
+ 	movdqu	-38(%rsi), %xmm1
+ 	movdqu	-38(%rdi), %xmm2
+ 	mov	$-38, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(22bytes):
+ 	movdqu	-22(%rsi), %xmm1
+ 	movdqu	-22(%rdi), %xmm2
+ 	mov	$-22, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	xor	%eax, %eax
+ 	ret
+ 
+@@ -1156,32 +1651,52 @@ L(71bytes):
+ 	mov	$-71, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(55bytes):
+ 	movdqu	-55(%rdi), %xmm2
+ 	movdqu	-55(%rsi), %xmm1
+ 	mov	$-55, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(39bytes):
+ 	movdqu	-39(%rdi), %xmm2
+ 	movdqu	-39(%rsi), %xmm1
+ 	mov	$-39, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(23bytes):
+ 	movdqu	-23(%rdi), %xmm2
+ 	movdqu	-23(%rsi), %xmm1
+ 	mov	$-23, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	xor	%eax, %eax
+ 	ret
+ # endif
+@@ -1193,33 +1708,53 @@ L(72bytes):
+ 	mov	$-72, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(56bytes):
+ 	movdqu	-56(%rdi), %xmm2
+ 	movdqu	-56(%rsi), %xmm1
+ 	mov	$-56, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(40bytes):
+ 	movdqu	-40(%rdi), %xmm2
+ 	movdqu	-40(%rsi), %xmm1
+ 	mov	$-40, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(24bytes):
+ 	movdqu	-24(%rdi), %xmm2
+ 	movdqu	-24(%rsi), %xmm1
+ 	mov	$-24, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ 
+ 	mov	-8(%rsi), %rcx
+ 	mov	-8(%rdi), %rax
+ 	cmp	%rax, %rcx
++# ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++# else
+ 	jne	L(diffin8bytes)
++# endif
+ 	xor	%eax, %eax
+ 	ret
+ 
+@@ -1232,32 +1767,52 @@ L(73bytes):
+ 	mov	$-73, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(57bytes):
+ 	movdqu	-57(%rdi), %xmm2
+ 	movdqu	-57(%rsi), %xmm1
+ 	mov	$-57, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(41bytes):
+ 	movdqu	-41(%rdi), %xmm2
+ 	movdqu	-41(%rsi), %xmm1
+ 	mov	$-41, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(25bytes):
+ 	movdqu	-25(%rdi), %xmm2
+ 	movdqu	-25(%rsi), %xmm1
+ 	mov	$-25, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-9(%rdi), %rax
+ 	mov	-9(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	movzbl	-1(%rdi), %eax
+ 	movzbl	-1(%rsi), %ecx
+ 	sub	%ecx, %eax
+@@ -1270,35 +1825,60 @@ L(74bytes):
+ 	mov	$-74, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(58bytes):
+ 	movdqu	-58(%rdi), %xmm2
+ 	movdqu	-58(%rsi), %xmm1
+ 	mov	$-58, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(42bytes):
+ 	movdqu	-42(%rdi), %xmm2
+ 	movdqu	-42(%rsi), %xmm1
+ 	mov	$-42, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(26bytes):
+ 	movdqu	-26(%rdi), %xmm2
+ 	movdqu	-26(%rsi), %xmm1
+ 	mov	$-26, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-10(%rdi), %rax
+ 	mov	-10(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	movzwl	-2(%rdi), %eax
+ 	movzwl	-2(%rsi), %ecx
++#  ifdef USE_AS_BCMP
++	sub	%ecx, %eax
++	ret
++#  else
+ 	jmp	L(diffin2bytes)
++#  endif
+ 
+ 	.p2align 4
+ L(75bytes):
+@@ -1307,37 +1887,61 @@ L(75bytes):
+ 	mov	$-75, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(59bytes):
+ 	movdqu	-59(%rdi), %xmm2
+ 	movdqu	-59(%rsi), %xmm1
+ 	mov	$-59, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(43bytes):
+ 	movdqu	-43(%rdi), %xmm2
+ 	movdqu	-43(%rsi), %xmm1
+ 	mov	$-43, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(27bytes):
+ 	movdqu	-27(%rdi), %xmm2
+ 	movdqu	-27(%rsi), %xmm1
+ 	mov	$-27, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-11(%rdi), %rax
+ 	mov	-11(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	mov	-4(%rdi), %eax
+ 	mov	-4(%rsi), %ecx
++#  ifdef USE_AS_BCMP
++	sub	%ecx, %eax
++#  else
+ 	cmp	%eax, %ecx
+ 	jne	L(diffin4bytes)
+ 	xor	%eax, %eax
++#  endif
+ 	ret
+ # endif
+ 	.p2align 4
+@@ -1347,41 +1951,66 @@ L(76bytes):
+ 	mov	$-76, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(60bytes):
+ 	movdqu	-60(%rdi), %xmm2
+ 	movdqu	-60(%rsi), %xmm1
+ 	mov	$-60, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(44bytes):
+ 	movdqu	-44(%rdi), %xmm2
+ 	movdqu	-44(%rsi), %xmm1
+ 	mov	$-44, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(28bytes):
+ 	movdqu	-28(%rdi), %xmm2
+ 	movdqu	-28(%rsi), %xmm1
+ 	mov	$-28, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ 	mov	-12(%rdi), %rax
+ 	mov	-12(%rsi), %rcx
+ 	cmp	%rax, %rcx
++# ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++# else
+ 	jne	L(diffin8bytes)
++# endif
+ 	mov	-4(%rsi), %ecx
+-# ifndef USE_AS_WMEMCMP
++# ifdef USE_AS_BCMP
+ 	mov	-4(%rdi), %eax
+-	cmp	%eax, %ecx
++	sub	%ecx, %eax
+ # else
++#  ifndef USE_AS_WMEMCMP
++	mov	-4(%rdi), %eax
++	cmp	%eax, %ecx
++#  else
+ 	cmp	-4(%rdi), %ecx
+-# endif
++#  endif
+ 	jne	L(diffin4bytes)
+ 	xor	%eax, %eax
++# endif
+ 	ret
+ 
+ # ifndef USE_AS_WMEMCMP
+@@ -1393,38 +2022,62 @@ L(77bytes):
+ 	mov	$-77, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(61bytes):
+ 	movdqu	-61(%rdi), %xmm2
+ 	movdqu	-61(%rsi), %xmm1
+ 	mov	$-61, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(45bytes):
+ 	movdqu	-45(%rdi), %xmm2
+ 	movdqu	-45(%rsi), %xmm1
+ 	mov	$-45, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(29bytes):
+ 	movdqu	-29(%rdi), %xmm2
+ 	movdqu	-29(%rsi), %xmm1
+ 	mov	$-29, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 
+ 	mov	-13(%rdi), %rax
+ 	mov	-13(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	xor	%eax, %eax
+ 	ret
+ 
+@@ -1435,36 +2088,60 @@ L(78bytes):
+ 	mov	$-78, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(62bytes):
+ 	movdqu	-62(%rdi), %xmm2
+ 	movdqu	-62(%rsi), %xmm1
+ 	mov	$-62, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(46bytes):
+ 	movdqu	-46(%rdi), %xmm2
+ 	movdqu	-46(%rsi), %xmm1
+ 	mov	$-46, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(30bytes):
+ 	movdqu	-30(%rdi), %xmm2
+ 	movdqu	-30(%rsi), %xmm1
+ 	mov	$-30, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-14(%rdi), %rax
+ 	mov	-14(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	xor	%eax, %eax
+ 	ret
+ 
+@@ -1475,36 +2152,60 @@ L(79bytes):
+ 	mov	$-79, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(63bytes):
+ 	movdqu	-63(%rdi), %xmm2
+ 	movdqu	-63(%rsi), %xmm1
+ 	mov	$-63, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(47bytes):
+ 	movdqu	-47(%rdi), %xmm2
+ 	movdqu	-47(%rsi), %xmm1
+ 	mov	$-47, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ L(31bytes):
+ 	movdqu	-31(%rdi), %xmm2
+ 	movdqu	-31(%rsi), %xmm1
+ 	mov	$-31, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++#  ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++#  else
+ 	jnc	L(less16bytes)
++#  endif
+ 	mov	-15(%rdi), %rax
+ 	mov	-15(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
+ 	cmp	%rax, %rcx
++#  ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++#  else
+ 	jne	L(diffin8bytes)
++#  endif
+ 	xor	%eax, %eax
+ 	ret
+ # endif
+@@ -1515,37 +2216,58 @@ L(64bytes):
+ 	mov	$-64, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(48bytes):
+ 	movdqu	-48(%rdi), %xmm2
+ 	movdqu	-48(%rsi), %xmm1
+ 	mov	$-48, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ L(32bytes):
+ 	movdqu	-32(%rdi), %xmm2
+ 	movdqu	-32(%rsi), %xmm1
+ 	mov	$-32, %dl
+ 	pxor	%xmm1, %xmm2
+ 	ptest	%xmm2, %xmm0
++# ifdef USE_AS_BCMP
++	jnc	L(return_not_equals)
++# else
+ 	jnc	L(less16bytes)
++# endif
+ 
+ 	mov	-16(%rdi), %rax
+ 	mov	-16(%rsi), %rcx
+ 	cmp	%rax, %rcx
++# ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++# else
+ 	jne	L(diffin8bytes)
++# endif
+ 
+ 	mov	-8(%rdi), %rax
+ 	mov	-8(%rsi), %rcx
+ 	cmp	%rax, %rcx
++# ifdef USE_AS_BCMP
++	jne	L(return_not_equals)
++# else
+ 	jne	L(diffin8bytes)
++# endif
+ 	xor	%eax, %eax
+ 	ret
+ 
+ /*
+  * Aligned 8 bytes to avoid 2 branch "taken" in one 16 alinged code block.
+  */
++# ifndef USE_AS_BCMP
+ 	.p2align 3
+ L(less16bytes):
+ 	movsbq	%dl, %rdx
+@@ -1561,16 +2283,16 @@ L(diffin8bytes):
+ 	shr	$32, %rcx
+ 	shr	$32, %rax
+ 
+-# ifdef USE_AS_WMEMCMP
++#  ifdef USE_AS_WMEMCMP
+ /* for wmemcmp */
+ 	cmp	%eax, %ecx
+ 	jne	L(diffin4bytes)
+ 	xor	%eax, %eax
+ 	ret
+-# endif
++#  endif
+ 
+ L(diffin4bytes):
+-# ifndef USE_AS_WMEMCMP
++#  ifndef USE_AS_WMEMCMP
+ 	cmp	%cx, %ax
+ 	jne	L(diffin2bytes)
+ 	shr	$16, %ecx
+@@ -1589,7 +2311,7 @@ L(end):
+ 	and	$0xff, %ecx
+ 	sub	%ecx, %eax
+ 	ret
+-# else
++#  else
+ 
+ /* for wmemcmp */
+ 	mov	$1, %eax
+@@ -1601,6 +2323,15 @@ L(end):
+ L(nequal_bigger):
+ 	ret
+ 
++L(unreal_case):
++	xor	%eax, %eax
++	ret
++#  endif
++# else
++	.p2align 4
++L(return_not_equals):
++	mov	$1, %eax
++	ret
+ L(unreal_case):
+ 	xor	%eax, %eax
+ 	ret
+-- 
+2.29.2
+
