@@ -1,0 +1,223 @@
+From 63a5fd80df57726b901b93381a82c564586cfbf2 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 8 Sep 2021 02:00:16 -0400
+Subject: [PATCH 02/11] reformat
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 86 +++++++++----------
+ 1 file changed, 43 insertions(+), 43 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 766d6ee4ac..a27386e0e9 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -199,9 +199,9 @@ L(start):
+ 	ja	L(more_2x_vec)
+ 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
+ 	VMOVU	(%rsi), %VEC(0)
+-	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(1)
++	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(1)
+ 	VMOVU	%VEC(0), (%rdi)
+-	VMOVU	%VEC(1), -VEC_SIZE(%rdi,%rdx)
++	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ END (MEMMOVE_SYMBOL (__memmove, unaligned))
+ 
+@@ -237,22 +237,22 @@ L(start_erms):
+ 	cmp	$(VEC_SIZE * 2), %RDX_LP
+ 	ja	L(movsb_more_2x_vec)
+ L(last_2x_vec):
+-	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE. */
++	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
+ 	VMOVU	(%rsi), %VEC(0)
+-	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(1)
++	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(1)
+ 	VMOVU	%VEC(0), (%rdi)
+-	VMOVU	%VEC(1), -VEC_SIZE(%rdi,%rdx)
++	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
+ L(return):
+ 	ZERO_UPPER_VEC_REGISTERS_RETURN
+ 
+ L(movsb):
+-	cmp     __x86_rep_movsb_stop_threshold(%rip), %RDX_LP
++	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+ 	jae	L(more_8x_vec)
+ 	cmpq	%rsi, %rdi
+ 	jb	1f
+ 	/* Source == destination is less common.  */
+ 	je	L(nop)
+-	leaq	(%rsi,%rdx), %r9
++	leaq	(%rsi, %rdx), %r9
+ 	cmpq	%r9, %rdi
+ 	/* Avoid slow backward REP MOVSB.  */
+ 	jb	L(more_8x_vec_backward)
+@@ -270,14 +270,15 @@ L(movsb):
+ 	movq	%rsi, %rcx
+ 	subq	%rdi, %rcx
+ 2:
+-/* Avoid "rep movsb" if RCX, the distance between source and destination,
+-   is N*4GB + [1..63] with N >= 0.  */
++	/* Avoid "rep movsb" if RCX, the distance between source and
++	   destination, is N*4GB + [1..63] with N >= 0.  */
+ 	cmpl	$63, %ecx
+-	jbe	L(more_2x_vec)	/* Avoid "rep movsb" if ECX <= 63.  */
++	/* Avoid "rep movsb" if ECX <= 63.  */
++	jbe	L(more_2x_vec)
+ 3:
+ #endif
+ 	mov	%RDX_LP, %RCX_LP
+-	rep movsb
++	rep	movsb
+ L(nop):
+ 	ret
+ 
+@@ -307,37 +308,37 @@ L(less_vec):
+ L(between_32_63):
+ 	/* From 32 to 63.  No branch when size == 32.  */
+ 	VMOVU	(%rsi), %YMM0
+-	VMOVU	-32(%rsi,%rdx), %YMM1
++	VMOVU	-32(%rsi, %rdx), %YMM1
+ 	VMOVU	%YMM0, (%rdi)
+-	VMOVU	%YMM1, -32(%rdi,%rdx)
++	VMOVU	%YMM1, -32(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ #endif
+ 	/* From 16 to 31.  No branch when size == 16.  */
+ L(between_16_31):
+ 	VMOVU	(%rsi), %XMM0
+-	VMOVU	-16(%rsi,%rdx), %XMM1
++	VMOVU	-16(%rsi, %rdx), %XMM1
+ 	VMOVU	%XMM0, (%rdi)
+-	VMOVU	%XMM1, -16(%rdi,%rdx)
++	VMOVU	%XMM1, -16(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ L(between_8_15):
+ 	/* From 8 to 15.  No branch when size == 8.  */
+-	movq	-8(%rsi,%rdx), %rcx
++	movq	-8(%rsi, %rdx), %rcx
+ 	movq	(%rsi), %rsi
+-	movq	%rcx, -8(%rdi,%rdx)
++	movq	%rcx, -8(%rdi, %rdx)
+ 	movq	%rsi, (%rdi)
+ 	ret
+ L(between_4_7):
+ 	/* From 4 to 7.  No branch when size == 4.  */
+-	movl	-4(%rsi,%rdx), %ecx
++	movl	-4(%rsi, %rdx), %ecx
+ 	movl	(%rsi), %esi
+-	movl	%ecx, -4(%rdi,%rdx)
++	movl	%ecx, -4(%rdi, %rdx)
+ 	movl	%esi, (%rdi)
+ 	ret
+ L(between_2_3):
+ 	/* From 2 to 3.  No branch when size == 2.  */
+-	movzwl	-2(%rsi,%rdx), %ecx
++	movzwl	-2(%rsi, %rdx), %ecx
+ 	movzwl	(%rsi), %esi
+-	movw	%cx, -2(%rdi,%rdx)
++	movw	%cx, -2(%rdi, %rdx)
+ 	movw	%si, (%rdi)
+ 	ret
+ 
+@@ -351,40 +352,40 @@ L(more_2x_vec):
+ 	ja	L(more_8x_vec)
+ 	cmpq	$(VEC_SIZE * 4), %rdx
+ 	jbe	L(last_4x_vec)
+-	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively. */
++	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
+ 	VMOVU	(%rsi), %VEC(0)
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
+-	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(4)
+-	VMOVU	-(VEC_SIZE * 2)(%rsi,%rdx), %VEC(5)
+-	VMOVU	-(VEC_SIZE * 3)(%rsi,%rdx), %VEC(6)
+-	VMOVU	-(VEC_SIZE * 4)(%rsi,%rdx), %VEC(7)
++	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
++	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
++	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(7)
+ 	VMOVU	%VEC(0), (%rdi)
+ 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+ 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
+ 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
+-	VMOVU	%VEC(4), -VEC_SIZE(%rdi,%rdx)
+-	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi,%rdx)
+-	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi,%rdx)
+-	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi,%rdx)
++	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
++	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
++	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
++	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ L(last_4x_vec):
+-	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively. */
++	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+ 	VMOVU	(%rsi), %VEC(0)
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+-	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(2)
+-	VMOVU	-(VEC_SIZE * 2)(%rsi,%rdx), %VEC(3)
++	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+ 	VMOVU	%VEC(0), (%rdi)
+ 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+-	VMOVU	%VEC(2), -VEC_SIZE(%rdi,%rdx)
+-	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi,%rdx)
++	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
++	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ 
+ L(more_8x_vec):
+ 	/* Check if non-temporal move candidate.  */
+ 	/* Check non-temporal store threshold.  */
+-	cmp __x86_shared_non_temporal_threshold(%rip), %RDX_LP
++	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
+ 	ja	L(large_memcpy_2x)
+ 	/* Entry if rdx is greater than non-temporal threshold but there
+ 	   is overlap.  */
+@@ -403,8 +404,8 @@ L(more_8x_vec_check):
+ 	/* Save start and stop of the destination buffer.  */
+ 	movq	%rdi, %r11
+ 	leaq	-VEC_SIZE(%rdi, %rdx), %rcx
+-	/* Align destination for aligned stores in the loop.  Compute
+-	   how much destination is misaligned.  */
++	/* Align destination for aligned stores in the loop. Compute how
++	   much destination is misaligned.  */
+ 	movq	%rdi, %r8
+ 	andq	$(VEC_SIZE - 1), %r8
+ 	/* Get the negative of offset for alignment.  */
+@@ -448,10 +449,10 @@ L(more_8x_vec_backward):
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(7)
+-	VMOVU	-VEC_SIZE(%rsi,%rdx), %VEC(8)
++	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(8)
+ 	/* Save stop of the destination buffer.  */
+ 	leaq	-VEC_SIZE(%rdi, %rdx), %r11
+-	/* Align destination end for aligned stores in the loop.  Compute
++	/* Align destination end for aligned stores in the loop. Compute
+ 	   how much destination end is misaligned.  */
+ 	leaq	-VEC_SIZE(%rsi, %rdx), %rcx
+ 	movq	%r11, %r9
+@@ -529,8 +530,8 @@ L(large_memcpy_2x):
+ 	addq	%r8, %rdx
+ 
+ 	/* Test if source and destination addresses will alias. If they do
+-	   the larger pipeline in large_memcpy_4x alleviated the
+-	   performance drop.  */
++	   the larger pipeline in large_memcpy_4x alleviated the performance
++	   drop.  */
+ 	testl	$(PAGE_SIZE - VEC_SIZE * 8), %ecx
+ 	jz	L(large_memcpy_4x)
+ 
+@@ -679,7 +680,6 @@ L(large_memcpy_4x_end):
+ 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ END (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
+-
+ strong_alias (MEMMOVE_SYMBOL (__memmove, unaligned_erms),
+ 	      MEMMOVE_SYMBOL (__memcpy, unaligned_erms))
+ #ifdef SHARED
+-- 
+2.25.1
+
