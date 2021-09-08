@@ -265,11 +265,11 @@ L(copy_8_15):
 	/* COPY_8_16 is exactly 17 bytes so don't want to p2align after as
 	   it wastes 15 bytes of code and 1 byte off is fine.  */
 #endif
-//    NOP32
-	.p2align 4//,,6
+
+	.p2align 4,, 6
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
-	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
 	ja	L(movsb)
 # if !AVOID_SHORT_DISTANCE_REP_MOVSB && !ALIGN_MOVSB
 	VMOVU	(%rsi), %VEC(4)
@@ -301,7 +301,7 @@ L(more_2x_vec):
 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
-	.p2align 4//,,6
+	.p2align 4,, 6
 L(last_4x_vec):
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
@@ -313,7 +313,7 @@ L(last_4x_vec):
 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
-	.p2align 4//,,10
+	.p2align 4,, 10
 L(more_8x_vec):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
@@ -327,7 +327,7 @@ L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	/* Check non-temporal store threshold.  */
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	ja	L(large_memcpy_2x)
 #endif
 	/* To reach this point there cannot be overlap and dst > src. So
@@ -374,7 +374,7 @@ L(more_8x_vec_forward):
 	leaq	(VEC_SIZE * -4)(%rcx, %rdx), %rdx
 
 	/* Dont use multi-byte nop to align.  */
-	.p2align 4,, 11
+	.p2align 4,, 10
 L(loop_4x_vec_forward):
 	/* Copy 4 * VEC a time forward.  */
 	VMOVU	(%rsi), %VEC(0)
@@ -455,7 +455,7 @@ L(loop_4x_vec_backward):
 
 #if defined USE_MULTIARCH && IS_IN (libc)
 # if ALIGN_MOVSB
-	.p2align 4,, 12
+    .p2align 4,,12
 L(skip_short_movsb_check):
 #  if MOVSB_ALIGN_TO > VEC_SIZE
 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
@@ -503,13 +503,13 @@ L(movsb):
 	/* Store dst for use after rep movsb.  */
 	movq	%rdi, %r8
 # endif
-	/* If above x86_rep_movsb_stop_threshold most likely is candidate
+	/* If above __x86_rep_movsb_stop_threshold most likely is candidate
 	   for NT moves aswell.  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x_check)
 # if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
 	/* Only avoid short movsb if CPU has FSRM.  */
-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
+	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
 	jz	L(skip_short_movsb_check)
 #  if AVOID_SHORT_DISTANCE_REP_MOVSB
 	/* Avoid "rep movsb" if RCX, the distance between source and
@@ -571,7 +571,7 @@ L(large_memcpy_2x_check):
 #  if !AVOID_SHORT_DISTANCE_REP_MOVSB && !ALIGN_MOVSB
 	VMOVU	(%rsi), %VEC(4)
 #  endif
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
 	jb	L(more_8x_vec_forward)
 # endif
 L(large_memcpy_2x):
@@ -621,7 +621,7 @@ L(large_memcpy_2x):
 
 	movq	%rdx, %r10
 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
-	cmp	x86_shared_non_temporal_threshold(%rip), %r10
+	cmp	__x86_shared_non_temporal_threshold(%rip), %r10
 	jae	L(large_memcpy_4x)
 
 	/* edx will store remainder size for copying tail.  */

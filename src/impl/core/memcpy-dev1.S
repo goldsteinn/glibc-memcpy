@@ -310,7 +310,7 @@ L(movsb):
 	/* Save dest for storing aligning VECs later.  */
 	movq	%rdi, %r8
 # endif
-	/* If above x86_rep_movsb_stop_threshold most likely is candidate
+	/* If above __x86_rep_movsb_stop_threshold most likely is candidate
 	   for NT moves aswell.  */
 	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
 	jae	L(large_memcpy_2x_check)
