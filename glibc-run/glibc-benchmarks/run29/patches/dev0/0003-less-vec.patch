@@ -1,0 +1,272 @@
+From a5803e6e66643fdfd3153115e60af2007fdc8b53 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 8 Sep 2021 02:14:12 -0400
+Subject: [PATCH 03/10] less vec
+
+---
+ sysdeps/x86/sysdep.h                          |  13 +-
+ .../multiarch/memmove-vec-unaligned-erms.S    | 164 +++++++++++-------
+ 2 files changed, 107 insertions(+), 70 deletions(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index cac1d762fb..9226d2c6c9 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -78,15 +78,18 @@ enum cf_protection_level
+ #define ASM_SIZE_DIRECTIVE(name) .size name,.-name;
+ 
+ /* Define an entry point visible from C.  */
+-#define	ENTRY(name)							      \
+-  .globl C_SYMBOL_NAME(name);						      \
+-  .type C_SYMBOL_NAME(name),@function;					      \
+-  .align ALIGNARG(4);							      \
++#define	P2ALIGN_ENTRY(name, alignment)							      \
++  .globl C_SYMBOL_NAME(name);							      \
++  .type C_SYMBOL_NAME(name),@function;							      \
++  .align ALIGNARG(alignment);							      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+-  _CET_ENDBR;								      \
++  _CET_ENDBR;							      \
+   CALL_MCOUNT
+ 
++#define	ENTRY(name) P2ALIGN_ENTRY(name, 4)
++
++
+ #undef	END
+ #define END(name)							      \
+   cfi_endproc;								      \
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index a27386e0e9..1adee8671f 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -161,6 +161,21 @@
+ # error Invalid LARGE_LOAD_SIZE
+ #endif
+ 
++/* Macro for copying inclusive power of 2 range with two register
++   loads.  */
++#define COPY_BLOCK(mov_inst, src_reg, dst_reg, size_reg, len, tmp_reg0, tmp_reg1)	\
++	mov_inst (%src_reg), %tmp_reg0; \
++	mov_inst -(len)(%src_reg, %size_reg), %tmp_reg1; \
++	mov_inst %tmp_reg0, (%dst_reg); \
++	mov_inst %tmp_reg1, -(len)(%dst_reg, %size_reg);
++
++/* Define all copies used by L(less_vec) for VEC_SIZE of 16, 32, or
++   64.  */
++#define COPY_4_8	COPY_BLOCK(movl, rsi, rdi, rdx, 4, ecx, esi)
++#define COPY_8_16	COPY_BLOCK(movq, rsi, rdi, rdx, 8, rcx, rsi)
++#define COPY_16_32	COPY_BLOCK(vmovdqu, rsi, rdi, rdx, 16, xmm0, xmm1)
++#define COPY_32_64	COPY_BLOCK(vmovdqu64, rsi, rdi, rdx, 32, ymm16, ymm17)
++
+ #ifndef SECTION
+ # error SECTION is not defined!
+ #endif
+@@ -194,6 +209,8 @@ L(start):
+ 	movl	%edx, %edx
+ #endif
+ 	cmp	$VEC_SIZE, %RDX_LP
++	/* Based on SPEC2017 distribution both 16 and 32 memcpy calls are
++	   really hot so we want them to take the same branch path.  */
+ 	jb	L(less_vec)
+ 	cmp	$(VEC_SIZE * 2), %RDX_LP
+ 	ja	L(more_2x_vec)
+@@ -225,7 +242,7 @@ ENTRY (MEMMOVE_CHK_SYMBOL (__memmove_chk, unaligned_erms))
+ END (MEMMOVE_CHK_SYMBOL (__memmove_chk, unaligned_erms))
+ #endif
+ 
+-ENTRY (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
++P2ALIGN_ENTRY (MEMMOVE_SYMBOL (__memmove, unaligned_erms), 6)
+ 	movq	%rdi, %rax
+ L(start_erms):
+ #ifdef __ILP32__
+@@ -233,6 +250,8 @@ L(start_erms):
+ 	movl	%edx, %edx
+ #endif
+ 	cmp	$VEC_SIZE, %RDX_LP
++	/* Based on SPEC2017 distribution both 16 and 32 memcpy calls are
++	   really hot so we want them to take the same branch path.  */
+ 	jb	L(less_vec)
+ 	cmp	$(VEC_SIZE * 2), %RDX_LP
+ 	ja	L(movsb_more_2x_vec)
+@@ -245,6 +264,80 @@ L(last_2x_vec):
+ L(return):
+ 	ZERO_UPPER_VEC_REGISTERS_RETURN
+ 
++#if VEC_SIZE == 64
++L(copy_8_15):
++	COPY_8_16
++	ret
++
++L(copy_33_63):
++	COPY_32_64
++	ret
++#endif
++	/* Only worth aligning if near end of 16 byte block and won't get
++	   first branch in first decode after jump.  */
++	.p2align 4,, 6
++L(less_vec):
++#if VEC_SIZE != 32 && VEC_SIZE != 64
++# error Unsupported VEC_SIZE!
++#endif
++	/* Second set of branches for smallest copies.  */
++	cmpl	$(VEC_SIZE / 4), %edx
++	jb	L(less_quarter_vec)
++
++	cmpl	$(VEC_SIZE / 2), %edx
++#if VEC_SIZE == 64
++	/* We branch to [33, 63] instead of [16, 32] to give [16, 32] fall
++	   through path as [16, 32] is hotter.  */
++	ja	L(copy_33_63)
++	COPY_16_32
++#else
++	/* Branch to [8, 15]. Fall through to [16, 32].  */
++	jb	L(copy_8_15)
++	COPY_16_32
++#endif
++	ret
++	/* Align if won't cost too many bytes.  */
++	.p2align 4,, 6
++L(copy_4_7):
++	COPY_4_8
++	ret
++
++	/* Cold target. No need to align.  */
++L(copy_1):
++	movzbl	(%rsi), %ecx
++	movb	%cl, (%rdi)
++	ret
++
++	/* Colder copy case for [0, VEC_SIZE / 4 - 1].  */
++L(less_quarter_vec):
++#if VEC_SIZE > 32
++	cmpl	$8, %edx
++	jae	L(copy_8_15)
++#endif
++	cmpl	$4, %edx
++	jae	L(copy_4_7)
++	cmpl	$1, %edx
++	je	L(copy_1)
++	jb	L(copy_0)
++	/* Fall through into copy [2, 3] as it is more common than [0, 1].
++	 */
++	movzwl	(%rsi), %ecx
++	movzbl	-1(%rsi, %rdx), %esi
++	movw	%cx, (%rdi)
++	movb	%sil, -1(%rdi, %rdx)
++L(copy_0):
++	ret
++
++	.p2align 4,, 6
++#if VEC_SIZE == 32
++L(copy_8_15):
++	COPY_8_16
++	ret
++	/* COPY_8_16 is exactly 17 bytes so don't want to p2align after as
++	   it wastes 15 bytes of code and 1 byte off is fine.  */
++#endif
++
++#if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb):
+ 	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+ 	jae	L(more_8x_vec)
+@@ -256,15 +349,15 @@ L(movsb):
+ 	cmpq	%r9, %rdi
+ 	/* Avoid slow backward REP MOVSB.  */
+ 	jb	L(more_8x_vec_backward)
+-#if AVOID_SHORT_DISTANCE_REP_MOVSB
++# if AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+ 	jz	3f
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+ 	jmp	2f
+-#endif
++# endif
+ 1:
+-#if AVOID_SHORT_DISTANCE_REP_MOVSB
++# if AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+ 	jz	3f
+ 	movq	%rsi, %rcx
+@@ -276,75 +369,16 @@ L(movsb):
+ 	/* Avoid "rep movsb" if ECX <= 63.  */
+ 	jbe	L(more_2x_vec)
+ 3:
+-#endif
++# endif
+ 	mov	%RDX_LP, %RCX_LP
+ 	rep	movsb
+ L(nop):
+ 	ret
+ 
+-L(less_vec):
+-	/* Less than 1 VEC.  */
+-#if VEC_SIZE != 32 && VEC_SIZE != 64
+-# error Unsupported VEC_SIZE!
+-#endif
+-#if VEC_SIZE > 32
+-	cmpb	$32, %dl
+-	jae	L(between_32_63)
+-#endif
+-	cmpb	$16, %dl
+-	jae	L(between_16_31)
+-	cmpb	$8, %dl
+-	jae	L(between_8_15)
+-	cmpb	$4, %dl
+-	jae	L(between_4_7)
+-	cmpb	$1, %dl
+-	ja	L(between_2_3)
+-	jb	1f
+-	movzbl	(%rsi), %ecx
+-	movb	%cl, (%rdi)
+-1:
+-	ret
+-#if VEC_SIZE > 32
+-L(between_32_63):
+-	/* From 32 to 63.  No branch when size == 32.  */
+-	VMOVU	(%rsi), %YMM0
+-	VMOVU	-32(%rsi, %rdx), %YMM1
+-	VMOVU	%YMM0, (%rdi)
+-	VMOVU	%YMM1, -32(%rdi, %rdx)
+-	VZEROUPPER_RETURN
+-#endif
+-	/* From 16 to 31.  No branch when size == 16.  */
+-L(between_16_31):
+-	VMOVU	(%rsi), %XMM0
+-	VMOVU	-16(%rsi, %rdx), %XMM1
+-	VMOVU	%XMM0, (%rdi)
+-	VMOVU	%XMM1, -16(%rdi, %rdx)
+-	VZEROUPPER_RETURN
+-L(between_8_15):
+-	/* From 8 to 15.  No branch when size == 8.  */
+-	movq	-8(%rsi, %rdx), %rcx
+-	movq	(%rsi), %rsi
+-	movq	%rcx, -8(%rdi, %rdx)
+-	movq	%rsi, (%rdi)
+-	ret
+-L(between_4_7):
+-	/* From 4 to 7.  No branch when size == 4.  */
+-	movl	-4(%rsi, %rdx), %ecx
+-	movl	(%rsi), %esi
+-	movl	%ecx, -4(%rdi, %rdx)
+-	movl	%esi, (%rdi)
+-	ret
+-L(between_2_3):
+-	/* From 2 to 3.  No branch when size == 2.  */
+-	movzwl	-2(%rsi, %rdx), %ecx
+-	movzwl	(%rsi), %esi
+-	movw	%cx, -2(%rdi, %rdx)
+-	movw	%si, (%rdi)
+-	ret
+-
+ L(movsb_more_2x_vec):
+ 	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
+ 	ja	L(movsb)
++#endif
+ L(more_2x_vec):
+ 	/* More than 2 * VEC and there may be overlap between destination
+ 	   and source.  */
+-- 
+2.25.1
+
