@@ -1,7 +1,7 @@
 #include "cpu-event-defs/event-defs.h"
 #include "perf-ev-defines.h"
 #include "perf-ev-init.h"
-// echo 2 > /sys/devices/cpu/rdpmc 
+// echo 2 > /sys/devices/cpu/rdpmc
 const perf_ev_t perf_events_in_use[] = {
 #if PERF_EV_WITH_BUILTINS
     INST_RETIRED_ANY_P,
@@ -9,6 +9,8 @@ const perf_ev_t perf_events_in_use[] = {
     UNHALTED_REFERENCE_CYCLES,
 #endif
 #if PERF_EVENTS
+    MISPREDICTED_BRANCH_RETIRED,
+#if 0
     MEM_LOAD_RETIRED_L1_HIT,
     MEM_LOAD_RETIRED_L1_MISS,
     //        UOPS_DISPATCHED_PORT_2_3,
@@ -20,7 +22,7 @@ const perf_ev_t perf_events_in_use[] = {
     //RESOURCE_STALLS_SB,
         MISPREDICTED_BRANCH_RETIRED,
     IDQ_UOPS_NOT_DELIVERED_CORE,
-    
+
     UOPS_DISPATCHED_PORT_0,
     UOPS_DISPATCHED_PORT_6,
     UOPS_DISPATCHED_PORT_2_3,
@@ -53,5 +55,6 @@ const perf_ev_t perf_events_in_use[] = {
 // UOPS_DISPATCHED_PORT_4_9,
 
 // UOPS_DISPATCHED_PORT_7_8,
+#endif
 #endif
 };

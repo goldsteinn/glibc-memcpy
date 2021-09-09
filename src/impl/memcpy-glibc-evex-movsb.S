@@ -5,5 +5,5 @@
 //#define USE_WITH_ERMS
 
 #include "evex-vecs.h"
-
-#include "core/memcpy-glibc.S"
+#define NO_MOVSB
+#include "core/memcpy-dev.S"

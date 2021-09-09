@@ -6,4 +6,6 @@
 
 #include "avx2-vecs.h"
 
-#include "core/memcpy-glibc.S"
+#define NO_MOVSB
+    #include "core/memcpy-dev.S"
+    //#include "core/memcpy-glibc.S"
