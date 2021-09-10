@@ -1,0 +1,118 @@
+From 523b65e221e524c6c72b0c1eccadc63ff5a2b73e Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 9 Sep 2021 22:09:01 -0500
+Subject: [PATCH 13/13] reconfigure evex
+
+---
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 78 +++++++++++---------
+ 1 file changed, 43 insertions(+), 35 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index 2183d6e330..9fded3ef03 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -208,6 +208,29 @@ ENTRY (MEMCMP)
+ L(return_neq0):
+ 	/* NB: eax must be zero to reach here.  */
+ 	ret
++# ifdef USE_AS_BCMP
++	.p2align 4
++#  ifdef USE_AS_WMEMCMP
++L(one_or_less):
++	jb	L(zero)
++	movl	(%rdi), %eax
++	subl	(%rsi), %eax
++	/* No ymm register was touched.  */
++	ret
++#  else
++
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	/* No ymm register was touched.  */
++	ret
++#  endif
++L(zero):
++	xorl	%eax, %eax
++	ret
++# endif
+ 
+ 	/* NB: aligning 32 here allows for the rest of the jump targets to
+ 	   be tuned for 32 byte alignment. Most important this ensures the
+@@ -239,44 +262,9 @@ L(less_vec):
+ # endif
+ 	ret
+ # ifdef USE_AS_BCMP
+-	.p2align 4,, 8
+-#  ifdef USE_AS_WMEMCMP
+-L(one_or_less):
+-	jb	L(zero)
+-	movl	(%rdi), %eax
+-	subl	(%rsi), %eax
+-	/* No ymm register was touched.  */
+-	ret
+-#  else
+ 
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-#  endif
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+ 
+-	.p2align 4
+-L(last_2x_vec):
+-	/* Check second to last VEC.  */
+-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
+-	VPCMP	$4, -(VEC_SIZE * 2)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+-	kmovd	%k1, %eax
+-	testl	%eax, %eax
+-	jnz	L(return_neq1)
+ 
+-	/* Check last VEC.  */
+-L(last_1x_vec):
+-	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
+-	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+-	kmovd	%k1, %eax
+-L(return_neq1):
+-	ret
+ # else
+ 	.p2align 4
+ L(return_vec_0):
+@@ -538,6 +526,26 @@ L(return_vec_1_end):
+ 	subl	%ecx, %eax
+ #  endif
+ 	ret
++# endif
++# ifdef USE_AS_BCMP
++	.p2align 4
++L(last_2x_vec):
++	/* Check second to last VEC.  */
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
++	VPCMP	$4, -(VEC_SIZE * 2)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
++	kmovd	%k1, %eax
++	testl	%eax, %eax
++	jnz	L(return_neq1)
++
++	/* Check last VEC.  */
++	.p2align 4
++L(last_1x_vec):
++	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
++	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
++	kmovd	%k1, %eax
++L(return_neq1):
++	ret
++
+ # endif
+ 	.p2align 4
+ L(page_cross_less_vec):
+-- 
+2.25.1
+

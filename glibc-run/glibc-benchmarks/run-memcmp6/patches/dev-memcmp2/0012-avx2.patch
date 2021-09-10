@@ -1,0 +1,208 @@
+From b9bb099098d19dec863804dc01dbeb5ea0ad8998 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 9 Sep 2021 17:37:38 -0500
+Subject: [PATCH 12/14] avx2
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 75 +++++++++-----------
+ 1 file changed, 34 insertions(+), 41 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 092a132942..fbc22e5494 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -90,14 +90,13 @@ ENTRY (MEMCMP)
+ 	cmp	$VEC_SIZE, %RDX_LP
+ 	jb	L(less_vec)
+ 
+-	/* From VEC to 2 * VEC.  No branch when size == VEC_SIZE.
+-	 */
++	/* From VEC to 2 * VEC.  No branch when size == VEC_SIZE.  */
+ 	vmovdqu	(%rsi), %ymm1
+ 	VPCMPEQ	(%rdi), %ymm1, %ymm1
+ 	vpmovmskb %ymm1, %eax
+ 	/* NB: eax must be destination register if going to
+-	   L(return_vec_[0,2]). For L(return_vec_3 destination
+-	   register must be ecx.  */
++	   L(return_vec_[0,2]). For L(return_vec_3 destination register must be
++	   ecx.  */
+ 	incl	%eax
+ # ifdef USE_AS_BCMP
+ 	jnz	L(return_neq0)
+@@ -111,8 +110,8 @@ ENTRY (MEMCMP)
+ 	vmovdqu	VEC_SIZE(%rsi), %ymm2
+ 	VPCMPEQ	VEC_SIZE(%rdi), %ymm2, %ymm2
+ 	vpmovmskb %ymm2, %eax
+-	/* If all 4 VEC where equal eax will be all 1s so incl
+-	   will overflow and set zero flag.  */
++	/* If all 4 VEC where equal eax will be all 1s so incl will overflow
++	   and set zero flag.  */
+ 	incl	%eax
+ # ifdef USE_AS_BCMP
+ 	jnz	L(return_neq0)
+@@ -146,8 +145,8 @@ ENTRY (MEMCMP)
+ 	cmpq	$(VEC_SIZE * 8), %rdx
+ 	ja	L(more_8x_vec)
+ 
+-	/* Handle remainder of size = 4 * VEC + 1 to 8 * VEC
+-	   without any branches.  */
++	/* Handle remainder of size = 4 * VEC + 1 to 8 * VEC without any
++	   branches.  */
+ 
+ # ifdef USE_AS_BCMP
+ 	addq	%rdx, %rsi
+@@ -185,14 +184,14 @@ L(return_vzeroupper):
+ # ifdef USE_AS_BCMP
+ 	.p2align 5
+ L(less_vec):
+-	/* Check if one or less CHAR. This is necessary for size =
+-	   0 but is also faster for size = CHAR_SIZE.  */
++	/* Check if one or less CHAR. This is necessary for size = 0 but is
++	   also faster for size = CHAR_SIZE.  */
+ 	cmpl	$CHAR_SIZE, %edx
+ 	jbe	L(one_or_less)
+ 
+-	/* Check if loading one VEC from either s1 or s2 could
+-	   cause a page cross. This can have false positives but is
+-	   by far the fastest method.  */
++	/* Check if loading one VEC from either s1 or s2 could cause a page
++	   cross. This can have false positives but is by far the fastest
++	   method.  */
+ 	movl	%edi, %eax
+ 	orl	%esi, %eax
+ 	andl	$(PAGE_SIZE - 1), %eax
+@@ -204,8 +203,8 @@ L(less_vec):
+ 	VPCMPEQ	(%rdi), %ymm2, %ymm2
+ 	vpmovmskb %ymm2, %eax
+ 	incl	%eax
+-	/* Result will be zero if s1 and s2 match. Otherwise first
+-	   set bit will be first mismatch.  */
++	/* Result will be zero if s1 and s2 match. Otherwise first set bit
++	   will be first mismatch.  */
+ #  ifdef USE_AS_BCMP
+ 	bzhil	%edx, %eax, %eax
+ #  else
+@@ -273,8 +272,8 @@ L(return_vec_0):
+ 	movl	(%rdi, %rax), %ecx
+ 	xorl	%edx, %edx
+ 	cmpl	(%rsi, %rax), %ecx
+-	/* NB: no partial register stall here because xorl zero
+-	   idiom above.  */
++	/* NB: no partial register stall here because xorl zero idiom above.
++	 */
+ 	setg	%dl
+ 	leal	-1(%rdx, %rdx), %eax
+ #  else
+@@ -316,12 +315,10 @@ L(return_vec_2):
+ #  endif
+ 	VZEROUPPER_RETURN
+ 
+-	/* NB: p2align 5 here to ensure 4x loop is 32 byte
+-	   aligned.  */
++	/* NB: p2align 5 here to ensure 4x loop is 32 byte aligned.  */
+ 	.p2align 5
+ L(8x_return_vec_0_1_2_3):
+-	/* Returning from L(more_8x_vec) requires restoring rsi.
+-	 */
++	/* Returning from L(more_8x_vec) requires restoring rsi.  */
+ 	addq	%rdi, %rsi
+ L(return_vec_0_1_2_3):
+ 	vpmovmskb %ymm1, %eax
+@@ -355,8 +352,8 @@ L(return_vec_3):
+ L(more_8x_vec):
+ 	/* Set end of s1 in rdx.  */
+ 	leaq	-(VEC_SIZE * 4)(%rdi, %rdx), %rdx
+-	/* rsi stores s2 - s1. This allows loop to only update one
+-	   pointer.  */
++	/* rsi stores s2 - s1. This allows loop to only update one pointer.
++	 */
+ 	subq	%rdi, %rsi
+ 	/* Align s1 pointer.  */
+ 	andq	$-VEC_SIZE, %rdi
+@@ -364,8 +361,7 @@ L(more_8x_vec):
+ 	subq	$-(VEC_SIZE * 4), %rdi
+ 	.p2align 4
+ L(loop_4x_vec):
+-	/* rsi has s2 - s1 so get correct address by adding s1 (in
+-	   rdi).  */
++	/* rsi has s2 - s1 so get correct address by adding s1 (in rdi).  */
+ 	vmovdqu	(%rsi, %rdi), %ymm1
+ 	VPCMPEQ	(%rdi), %ymm1, %ymm1
+ 
+@@ -447,9 +443,8 @@ L(return_neq1):
+ 	/* Only entry is from L(more_8x_vec).  */
+ 	.p2align 4
+ L(8x_last_2x_vec):
+-	/* Check second to last VEC. rdx store end pointer of s1
+-	   and ymm3 has already been loaded with second to last VEC
+-	   from s2.  */
++	/* Check second to last VEC. rdx store end pointer of s1 and ymm3
++	   has already been loaded with second to last VEC from s2.  */
+ 	VPCMPEQ	(VEC_SIZE * 2)(%rdx), %ymm3, %ymm3
+ 	vpmovmskb %ymm3, %eax
+ 	incl	%eax
+@@ -537,14 +532,14 @@ L(return_vec_0_end):
+ # ifndef USE_AS_BCMP
+ 	.p2align 4
+ L(less_vec):
+-	/* Check if one or less CHAR. This is necessary for size =
+-	   0 but is also faster for size = CHAR_SIZE.  */
++	/* Check if one or less CHAR. This is necessary for size = 0 but is
++	   also faster for size = CHAR_SIZE.  */
+ 	cmpl	$CHAR_SIZE, %edx
+ 	jbe	L(one_or_less)
+ 
+-	/* Check if loading one VEC from either s1 or s2 could
+-	   cause a page cross. This can have false positives but is
+-	   by far the fastest method.  */
++	/* Check if loading one VEC from either s1 or s2 could cause a page
++	   cross. This can have false positives but is by far the fastest
++	   method.  */
+ 	movl	%edi, %eax
+ 	orl	%esi, %eax
+ 	andl	$(PAGE_SIZE - 1), %eax
+@@ -556,8 +551,8 @@ L(less_vec):
+ 	VPCMPEQ	(%rdi), %ymm2, %ymm2
+ 	vpmovmskb %ymm2, %eax
+ 	incl	%eax
+-	/* Result will be zero if s1 and s2 match. Otherwise first
+-	   set bit will be first mismatch.  */
++	/* Result will be zero if s1 and s2 match. Otherwise first set bit
++	   will be first mismatch.  */
+ #  ifdef USE_AS_BCMP
+ 	bzhil	%edx, %eax, %eax
+ #  else
+@@ -601,8 +596,8 @@ L(one_or_less):
+ 
+ 	.p2align 4
+ L(page_cross_less_vec):
+-	/* if USE_AS_WMEMCMP it can only be 0, 4, 8, 12, 16, 20,
+-	   24, 28 bytes.  */
++	/* if USE_AS_WMEMCMP it can only be 0, 4, 8, 12, 16, 20, 24, 28
++	   bytes.  */
+ 	cmpl	$16, %edx
+ 	jae	L(between_16_31)
+ # ifndef USE_AS_WMEMCMP
+@@ -622,8 +617,7 @@ L(return_neq3):
+ 	ret
+ 
+ #  else
+-	/* Load as big endian with overlapping movbe to avoid
+-	   branches.  */
++	/* Load as big endian with overlapping movbe to avoid branches.  */
+ 	movbe	(%rdi), %eax
+ 	movbe	(%rsi), %ecx
+ 	shlq	$32, %rax
+@@ -718,8 +712,7 @@ L(between_2_3):
+ 	movzbl	-1(%rsi, %rdx), %esi
+ 	orl	%edi, %eax
+ 	orl	%esi, %ecx
+-	/* Subtraction is okay because the upper 8 bits are zero.
+-	 */
++	/* Subtraction is okay because the upper 8 bits are zero.  */
+ 	subl	%ecx, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
+-- 
+2.25.1
+

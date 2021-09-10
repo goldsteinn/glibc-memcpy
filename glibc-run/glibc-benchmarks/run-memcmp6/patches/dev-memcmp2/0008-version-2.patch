@@ -1,0 +1,410 @@
+From 03888c001453d7a63a4fd7f0ecacaece54836d02 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 6 Sep 2021 23:17:37 -0400
+Subject: [PATCH 08/14] version 2
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 113 +++++++++++++++----
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S |  55 +++++----
+ 2 files changed, 115 insertions(+), 53 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index da9f493ed1..94d4700f40 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -178,11 +178,42 @@ ENTRY (MEMCMP)
+ # endif
+ 	/* NB: eax must be zero to reach here.  */
+ L(return_neq0):
+-L(return_vzeroupper):
+-	ZERO_UPPER_VEC_REGISTERS_RETURN
++	VZEROUPPER_RETURN
+ 
+ # ifdef USE_AS_BCMP
+ 	.p2align 5
++L(less_vec):
++	/* Check if one or less CHAR. This is necessary for size =
++	   0 but is also faster for size = CHAR_SIZE.  */
++	cmpl	$CHAR_SIZE, %edx
++	jbe	L(one_or_less)
++
++	/* Check if loading one VEC from either s1 or s2 could
++	   cause a page cross. This can have false positives but is
++	   by far the fastest method.  */
++	movl	%edi, %eax
++	orl	%esi, %eax
++	andl	$(PAGE_SIZE - 1), %eax
++	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
++	jg	L(page_cross_less_vec)
++
++	/* No page cross possible.  */
++	vmovdqu	(%rsi), %ymm2
++	VPCMPEQ	(%rdi), %ymm2, %ymm2
++	vpmovmskb %ymm2, %eax
++	incl	%eax
++	/* Result will be zero if s1 and s2 match. Otherwise first
++	   set bit will be first mismatch.  */
++#  ifdef USE_AS_BCMP
++	bzhil	%edx, %eax, %eax
++#  else
++	bzhil	%edx, %eax, %edx
++	jnz	L(return_vec_0)
++	xorl	%eax, %eax
++#  endif
++	VZEROUPPER_RETURN
++
++	.p2align 4
+ L(last_2x_vec):
+ 	/* Check second to last VEC.  */
+ 	vmovdqu	-(VEC_SIZE * 2)(%rsi, %rdx), %ymm1
+@@ -198,10 +229,42 @@ L(last_1x_vec):
+ 	incl	%eax
+ L(return_neq2):
+ 	VZEROUPPER_RETURN
++
++L(zero):
++	xorl	%eax, %eax
++	ret
++
++#  ifdef USE_AS_WMEMCMP
++	.p2align 4,, 8
++L(one_or_less):
++	jb	L(zero)
++	movl	(%rdi), %TEST_REG
++#   ifdef USE_AS_BCMP
++	subl	(%rsi), %eax
++#   else
++	xorl	%edx, %edx
++	cmpl	(%rsi), %ecx
++	je	L(zero)
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++#   endif
++	/* No ymm register was touched.  */
++	ret
++#  else
++	.p2align 4,, 8
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	/* No ymm register was touched.  */
++	ret
++#  endif
++
+ # endif
+ 
+ # ifndef USE_AS_BCMP
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_0):
+ 	tzcntl	%eax, %eax
+ #  ifdef USE_AS_WMEMCMP
+@@ -217,9 +280,10 @@ L(return_vec_0):
+ 	movzbl	(%rdi, %rax), %eax
+ 	subl	%ecx, %eax
+ #  endif
+-	VZEROUPPER_RETURN
++L(return_vzeroupper):
++	ZERO_UPPER_VEC_REGISTERS_RETURN
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_1):
+ 	tzcntl	%eax, %eax
+ #  ifdef USE_AS_WMEMCMP
+@@ -235,7 +299,7 @@ L(return_vec_1):
+ #  endif
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_2):
+ 	tzcntl	%eax, %eax
+ #  ifdef USE_AS_WMEMCMP
+@@ -297,7 +361,7 @@ L(more_8x_vec):
+ 	andq	$-VEC_SIZE, %rdi
+ 	/* Adjust because first 4x vec where check already.  */
+ 	subq	$-(VEC_SIZE * 4), %rdi
+-	.p2align 4,, 8
++	.p2align 4
+ L(loop_4x_vec):
+ 	/* rsi has s2 - s1 so get correct address by adding s1 (in
+ 	   rdi).  */
+@@ -380,7 +444,7 @@ L(return_neq1):
+ 	VZEROUPPER_RETURN
+ # ifndef USE_AS_BCMP
+ 	/* Only entry is from L(more_8x_vec).  */
+-	.p2align 4,, 8
++	.p2align 4
+ L(8x_last_2x_vec):
+ 	/* Check second to last VEC. rdx store end pointer of s1
+ 	   and ymm3 has already been loaded with second to last VEC
+@@ -390,7 +454,7 @@ L(8x_last_2x_vec):
+ 	incl	%eax
+ 	jnz	L(8x_return_vec_2)
+ 	/* Check last VEC.  */
+-	.p2align 4,, 8
++	.p2align 4
+ L(8x_last_1x_vec):
+ 	vmovdqu	(VEC_SIZE * 3)(%rsi, %rdx), %ymm4
+ 	VPCMPEQ	(VEC_SIZE * 3)(%rdx), %ymm4, %ymm4
+@@ -399,7 +463,7 @@ L(8x_last_1x_vec):
+ 	jnz	L(8x_return_vec_3)
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(last_2x_vec):
+ 	/* Check second to last VEC.  */
+ 	vmovdqu	-(VEC_SIZE * 2)(%rsi, %rdx), %ymm1
+@@ -416,7 +480,7 @@ L(last_1x_vec):
+ 	jnz	L(return_vec_0_end)
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(8x_return_vec_2):
+ 	subq	$VEC_SIZE, %rdx
+ L(8x_return_vec_3):
+@@ -435,7 +499,7 @@ L(8x_return_vec_3):
+ #  endif
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_1_end):
+ 	tzcntl	%eax, %eax
+ 	addl	%edx, %eax
+@@ -452,7 +516,7 @@ L(return_vec_1_end):
+ #  endif
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_0_end):
+ 	tzcntl	%eax, %eax
+ 	addl	%edx, %eax
+@@ -469,8 +533,8 @@ L(return_vec_0_end):
+ #  endif
+ 	VZEROUPPER_RETURN
+ # endif
+-
+-	.p2align 4,, 8
++# ifndef USE_AS_BCMP
++	.p2align 4
+ L(less_vec):
+ 	/* Check if one or less CHAR. This is necessary for size =
+ 	   0 but is also faster for size = CHAR_SIZE.  */
+@@ -493,37 +557,36 @@ L(less_vec):
+ 	incl	%eax
+ 	/* Result will be zero if s1 and s2 match. Otherwise first
+ 	   set bit will be first mismatch.  */
+-# ifdef USE_AS_BCMP
++#  ifdef USE_AS_BCMP
+ 	bzhil	%edx, %eax, %eax
+-# else
++#  else
+ 	bzhil	%edx, %eax, %edx
+ 	jnz	L(return_vec_0)
+ 	xorl	%eax, %eax
+-# endif
++#  endif
+ 	VZEROUPPER_RETURN
+ 
+-
+ L(zero):
+ 	xorl	%eax, %eax
+ 	ret
+ 
+-# ifdef USE_AS_WMEMCMP
++#  ifdef USE_AS_WMEMCMP
+ 	.p2align 4,, 8
+ L(one_or_less):
+ 	jb	L(zero)
+ 	movl	(%rdi), %TEST_REG
+-#  ifdef USE_AS_BCMP
++#   ifdef USE_AS_BCMP
+ 	subl	(%rsi), %eax
+-#  else
++#   else
+ 	xorl	%edx, %edx
+ 	cmpl	(%rsi), %ecx
+ 	je	L(zero)
+ 	setg	%dl
+ 	leal	-1(%rdx, %rdx), %eax
+-#  endif
++#   endif
+ 	/* No ymm register was touched.  */
+ 	ret
+-# else
++#  else
+ 	.p2align 4,, 8
+ L(one_or_less):
+ 	jb	L(zero)
+@@ -532,9 +595,9 @@ L(one_or_less):
+ 	subl	%ecx, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
++#  endif
+ # endif
+ 
+-
+ 	.p2align 4
+ L(page_cross_less_vec):
+ 	/* if USE_AS_WMEMCMP it can only be 0, 4, 8, 12, 16, 20,
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index 7996c54e9a..eb8576fe04 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -232,6 +232,23 @@ L(less_vec):
+ # endif
+ 	ret
+ # ifdef USE_AS_BCMP
++	.p2align 4
++L(last_2x_vec):
++	/* Check second to last VEC.  */
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
++	VPCMP	$4, -(VEC_SIZE * 2)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
++	kmovd	%k1, %eax
++	testl	%eax, %eax
++	jnz	L(return_neq1)
++
++	/* Check last VEC.  */
++L(last_1x_vec):
++	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
++	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
++	kmovd	%k1, %eax
++L(return_neq1):
++	ret
++
+ 	.p2align 4,, 8
+ #  ifdef USE_AS_WMEMCMP
+ L(one_or_less):
+@@ -242,7 +259,6 @@ L(one_or_less):
+ 	ret
+ #  else
+ 
+-
+ L(one_or_less):
+ 	jb	L(zero)
+ 	movzbl	(%rsi), %ecx
+@@ -254,24 +270,8 @@ L(one_or_less):
+ L(zero):
+ 	xorl	%eax, %eax
+ 	ret
+-	.p2align 4,, 8
+-L(last_2x_vec):
+-	/* Check second to last VEC.  */
+-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
+-	VPCMP	$4, -(VEC_SIZE * 2)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+-	kmovd	%k1, %eax
+-	testl	%eax, %eax
+-	jnz	L(return_neq1)
+-
+-	/* Check last VEC.  */
+-L(last_1x_vec):
+-	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
+-	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+-	kmovd	%k1, %eax
+-L(return_neq1):
+-	ret
+ # else
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_0):
+ 	tzcntl	%eax, %eax
+ #  ifdef USE_AS_WMEMCMP
+@@ -305,7 +305,6 @@ L(return_vec_1):
+ #  endif
+ 	ret
+ 
+-	.p2align 4,, 8
+ L(return_vec_2):
+ 	tzcntl	%eax, %eax
+ #  ifdef USE_AS_WMEMCMP
+@@ -321,7 +320,7 @@ L(return_vec_2):
+ #  endif
+ 	ret
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(8x_return_vec_0_1_2_3):
+ 	/* Returning from L(more_8x_vec) requires restoring rsi.
+ 	 */
+@@ -369,7 +368,7 @@ L(more_8x_vec):
+ 	andq	$-VEC_SIZE, %rdi
+ 	/* Adjust because first 4x vec where check already.  */
+ 	subq	$-(VEC_SIZE * 4), %rdi
+-	.p2align 4,, 8
++	.p2align 4
+ L(loop_4x_vec):
+ 	VMOVU	(%rsi, %rdi), %YMM1
+ 	vpxorq	(%rdi), %YMM1, %YMM1
+@@ -446,7 +445,7 @@ L(return_neq2):
+ 	ret
+ # ifndef USE_AS_BCMP
+ 	/* Only entry is from L(more_8x_vec).  */
+-	.p2align 4,, 8
++	.p2align 4
+ L(8x_last_2x_vec):
+ 	VPCMP	$4, (VEC_SIZE * 2)(%rdx), %YMM3, %k1
+ 	kmovd	%k1, %eax
+@@ -461,7 +460,7 @@ L(8x_last_1x_vec):
+ 	jnz	L(8x_return_vec_3)
+ 	ret
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(last_2x_vec):
+ 	/* Check second to last VEC.  */
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
+@@ -471,7 +470,7 @@ L(last_2x_vec):
+ 	jnz	L(return_vec_1_end)
+ 
+ 	/* Check last VEC.  */
+-	.p2align 4,, 8
++	.p2align 4
+ L(last_1x_vec):
+ 	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
+ 	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+@@ -480,7 +479,7 @@ L(last_1x_vec):
+ 	jnz	L(return_vec_0_end)
+ 	ret
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(8x_return_vec_2):
+ 	subq	$VEC_SIZE, %rdx
+ L(8x_return_vec_3):
+@@ -500,7 +499,7 @@ L(8x_return_vec_3):
+ #  endif
+ 	ret
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_0_end):
+ 	tzcntl	%eax, %eax
+ 	addl	%edx, %eax
+@@ -517,7 +516,7 @@ L(return_vec_0_end):
+ #  endif
+ 	ret
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_1_end):
+ 	tzcntl	%eax, %eax
+ 	addl	%edx, %eax
+@@ -575,7 +574,7 @@ L(zero_4_7):
+ 	ret
+ 
+ 
+-	.p2align 4,, 8
++	.p2align 4
+ L(one_or_less):
+ 	jb	L(zero)
+ 	movzbl	(%rsi), %ecx
+-- 
+2.25.1
+

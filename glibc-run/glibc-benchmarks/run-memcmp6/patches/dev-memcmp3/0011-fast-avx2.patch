@@ -1,0 +1,59 @@
+From d2ba4ad04ca23c5d0a9a56ef02f79eea6cdb2cfb Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 7 Sep 2021 21:15:08 -0400
+Subject: [PATCH 11/15] fast avx2
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 6923133682..617ae9f3bf 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -53,12 +53,12 @@
+ 
+ # ifdef USE_AS_BCMP
+ #  define LAST_4X_OFFSET	(VEC_SIZE * -4)
+-#  define LAST_4X_S2	rsi, %rdx
++#  define LAST_4X_S2	rsi
+ #  define MORE_8X_OFFSET	(VEC_SIZE)
+ #  define TEST_REG	eax
+ # else
+ #  define LAST_4X_OFFSET	0
+-#  define LAST_4X_S2	rsi
++#  define LAST_4X_S2	rsi, %rdx
+ #  define MORE_8X_OFFSET	0
+ #  define TEST_REG	ecx
+ # endif
+@@ -149,10 +149,11 @@ ENTRY (MEMCMP)
+ 	/* Handle remainder of size = 4 * VEC + 1 to 8 * VEC
+ 	   without any branches.  */
+ 
+-	/* Load first two VEC from s2 before adjusting addresses.
+-	 */
+-	vmovdqu	-(VEC_SIZE * 4)(%rsi, %rdx), %ymm1
+-	vmovdqu	-(VEC_SIZE * 3)(%rsi, %rdx), %ymm2
++# ifdef USE_AS_BCMP
++	addq	%rdx, %rdi
++# endif
++	vmovdqu	-(VEC_SIZE * 4)(%LAST_4X_S2), %ymm1
++	vmovdqu	-(VEC_SIZE * 3)(%LAST_4X_S2), %ymm2
+ # ifdef USE_AS_BCMP
+ 	addq	%rdx, %rdi
+ # else
+@@ -162,9 +163,9 @@ ENTRY (MEMCMP)
+ 	VPCMPEQ	(LAST_4X_OFFSET)(%rdi), %ymm1, %ymm1
+ 	VPCMPEQ	(LAST_4X_OFFSET + VEC_SIZE)(%rdi), %ymm2, %ymm2
+ 
+-	vmovdqu	(LAST_4X_OFFSET + VEC_SIZE * 2)(%LAST_4X_S2), %ymm3
++	vmovdqu	(LAST_4X_OFFSET + VEC_SIZE * 2)(%rsi), %ymm3
+ 	VPCMPEQ	(LAST_4X_OFFSET + VEC_SIZE * 2)(%rdi), %ymm3, %ymm3
+-	vmovdqu	(LAST_4X_OFFSET + VEC_SIZE * 3)(%LAST_4X_S2), %ymm4
++	vmovdqu	(LAST_4X_OFFSET + VEC_SIZE * 3)(%rsi), %ymm4
+ 	VPCMPEQ	(LAST_4X_OFFSET + VEC_SIZE * 3)(%rdi), %ymm4, %ymm4
+ 
+ 	/* Reduce VEC0 - VEC4.  */
+-- 
+2.25.1
+
