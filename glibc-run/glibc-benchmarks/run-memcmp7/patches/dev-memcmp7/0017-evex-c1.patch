@@ -1,0 +1,95 @@
+From 83b4f75d85a89bdc9c8fb1f623237b6e51cf8d06 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 10 Sep 2021 00:22:42 -0500
+Subject: [PATCH 17/17] evex c1
+
+---
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 48 +++++++++-----------
+ 1 file changed, 22 insertions(+), 26 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index deb921a210..65ca734630 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -233,9 +233,9 @@ L(less_vec):
+ 	jnz	L(return_vec_0)
+ # endif
+ 	ret
+-# ifdef USE_AS_BCMP
+ 
+-#  ifdef USE_AS_BCMP
++# ifdef USE_AS_BCMP
++	.p2align 4
+ L(last_2x_vec):
+ 	/* Check second to last VEC.  */
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
+@@ -245,7 +245,6 @@ L(last_2x_vec):
+ 	jnz	L(return_neq1)
+ 
+ 	/* Check last VEC.  */
+-	.p2align 4
+ L(last_1x_vec):
+ 	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
+ 	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+@@ -253,8 +252,27 @@ L(last_1x_vec):
+ L(return_neq1):
+ 	ret
+ 
+-#  endif
++	.p2align 4,, 8
++#  ifdef USE_AS_WMEMCMP
++L(one_or_less):
++	jb	L(zero)
++	movl	(%rdi), %eax
++	subl	(%rsi), %eax
++	/* No ymm register was touched.  */
++	ret
++#  else
+ 
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	/* No ymm register was touched.  */
++	ret
++#  endif
++L(zero):
++	xorl	%eax, %eax
++	ret
+ 
+ # else
+ 	.p2align 4
+@@ -519,29 +537,7 @@ L(return_vec_1_end):
+ 	ret
+ # endif
+ 
+-# ifdef USE_AS_BCMP
+-	.p2align 4
+-#  ifdef USE_AS_WMEMCMP
+-L(one_or_less):
+-	jb	L(zero)
+-	movl	(%rdi), %eax
+-	subl	(%rsi), %eax
+-	/* No ymm register was touched.  */
+-	ret
+-#  else
+ 
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-#  endif
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+-# endif
+ 	.p2align 4
+ L(page_cross_less_vec):
+ 	/* if USE_AS_WMEMCMP it can only be 0, 4, 8, 12, 16, 20, 24, 28
+-- 
+2.25.1
+

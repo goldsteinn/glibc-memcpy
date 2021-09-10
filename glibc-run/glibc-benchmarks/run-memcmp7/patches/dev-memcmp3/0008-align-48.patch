@@ -1,0 +1,25 @@
+From 509e7eff9030004e180c09ed9405a98ea3247288 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 6 Sep 2021 22:11:43 -0400
+Subject: [PATCH 08/16] align 48
+
+---
+ sysdeps/x86/sysdep.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 9ccf2eee88..f639d5d30a 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -84,6 +84,8 @@ enum cf_protection_level
+   .align ALIGNARG(6);							      \
+   nop;							      \
+   .align ALIGNARG(5);							      \
++  nop;							      \
++  .align ALIGNARG(4);							      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+   _CET_ENDBR;								      \
+-- 
+2.25.1
+

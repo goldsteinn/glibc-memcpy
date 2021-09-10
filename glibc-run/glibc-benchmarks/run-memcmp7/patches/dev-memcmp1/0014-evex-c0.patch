@@ -1,0 +1,218 @@
+From 4683987a9531ba78f296cce5acb2c4453c8434b6 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 10 Sep 2021 00:21:00 -0500
+Subject: [PATCH 14/14] evex c0
+
+---
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 150 +++++++++----------
+ 1 file changed, 72 insertions(+), 78 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index 9fded3ef03..deb921a210 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -18,23 +18,20 @@
+ 
+ #if IS_IN (libc)
+ 
+-/* memcmp/wmemcmp is implemented as:
+-   1. Use ymm vector compares when possible. The only case where
+-      vector compares is not possible for when size < CHAR_PER_VEC
+-      and loading from either s1 or s2 would cause a page cross.
+-   2. For size from 2 to 7 bytes on page cross, load as big endian
+-      with movbe and bswap to avoid branches.
+-   3. Use xmm vector compare when size >= 4 bytes for memcmp or
+-      size >= 8 bytes for wmemcmp.
+-   4. Optimistically compare up to first 4 * CHAR_PER_VEC one at a
+-      to check for early mismatches. Only do this if its guranteed the
+-      work is not wasted.
+-   5. If size is 8 * VEC_SIZE or less, unroll the loop.
+-   6. Compare 4 * VEC_SIZE at a time with the aligned first memory
+-      area.
+-   7. Use 2 vector compares when size is 2 * CHAR_PER_VEC or less.
+-   8. Use 4 vector compares when size is 4 * CHAR_PER_VEC or less.
+-   9. Use 8 vector compares when size is 8 * CHAR_PER_VEC or less.  */
++	/* memcmp/wmemcmp is implemented as: 1. Use ymm vector compares when
++	   possible. The only case where vector compares is not possible for
++	   when size < CHAR_PER_VEC and loading from either s1 or s2 would
++	   cause a page cross. 2. For size from 2 to 7 bytes on page cross,
++	   load as big endian with movbe and bswap to avoid branches. 3. Use
++	   xmm vector compare when size >= 4 bytes for memcmp or size >= 8
++	   bytes for wmemcmp. 4. Optimistically compare up to first 4 *
++	   CHAR_PER_VEC one at a to check for early mismatches. Only do this if
++	   its guranteed the work is not wasted. 5. If size is 8 * VEC_SIZE or
++	   less, unroll the loop. 6. Compare 4 * VEC_SIZE at a time with the
++	   aligned first memory area. 7. Use 2 vector compares when size is 2 *
++	   CHAR_PER_VEC or less. 8. Use 4 vector compares when size is 4 *
++	   CHAR_PER_VEC or less. 9. Use 8 vector compares when size is 8 *
++	   CHAR_PER_VEC or less.  */
+ 
+ # include <sysdep.h>
+ 
+@@ -42,7 +39,7 @@
+ #  define MEMCMP	__memcmp_evex_movbe
+ # endif
+ 
+-# define VMOVU		vmovdqu64
++# define VMOVU	vmovdqu64
+ 
+ # ifdef USE_AS_WMEMCMP
+ #  define CHAR_SIZE	4
+@@ -66,27 +63,25 @@
+ 
+ # define VEC_SIZE	32
+ # define PAGE_SIZE	4096
+-# define CHAR_PER_VEC	(VEC_SIZE / CHAR_SIZE)
+-
+-# define XMM0		xmm16
+-# define XMM1		xmm17
+-# define XMM2		xmm18
+-# define YMM0		ymm16
+-# define XMM1		xmm17
+-# define XMM2		xmm18
+-# define YMM1		ymm17
+-# define YMM2		ymm18
+-# define YMM3		ymm19
+-# define YMM4		ymm20
+-# define YMM5		ymm21
+-# define YMM6		ymm22
+-
+-/* Warning!
+-           wmemcmp has to use SIGNED comparison for elements.
+-           memcmp has to use UNSIGNED comparison for elemnts.
+-*/
+-
+-	.section .text.evex,"ax",@progbits
++# define CHAR_PER_VEC	(VEC_SIZE	/	CHAR_SIZE)
++
++# define XMM0	xmm16
++# define XMM1	xmm17
++# define XMM2	xmm18
++# define YMM0	ymm16
++# define XMM1	xmm17
++# define XMM2	xmm18
++# define YMM1	ymm17
++# define YMM2	ymm18
++# define YMM3	ymm19
++# define YMM4	ymm20
++# define YMM5	ymm21
++# define YMM6	ymm22
++
++	/* Warning! wmemcmp has to use SIGNED comparison for elements.
++	   memcmp has to use UNSIGNED comparison for elemnts.  */
++
++	.section .text.evex, "ax", @progbits
+ ENTRY (MEMCMP)
+ # ifdef __ILP32__
+ 	/* Clear the upper 32 bits.  */
+@@ -208,29 +203,6 @@ ENTRY (MEMCMP)
+ L(return_neq0):
+ 	/* NB: eax must be zero to reach here.  */
+ 	ret
+-# ifdef USE_AS_BCMP
+-	.p2align 4
+-#  ifdef USE_AS_WMEMCMP
+-L(one_or_less):
+-	jb	L(zero)
+-	movl	(%rdi), %eax
+-	subl	(%rsi), %eax
+-	/* No ymm register was touched.  */
+-	ret
+-#  else
+-
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-#  endif
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+-# endif
+ 
+ 	/* NB: aligning 32 here allows for the rest of the jump targets to
+ 	   be tuned for 32 byte alignment. Most important this ensures the
+@@ -263,6 +235,25 @@ L(less_vec):
+ 	ret
+ # ifdef USE_AS_BCMP
+ 
++#  ifdef USE_AS_BCMP
++L(last_2x_vec):
++	/* Check second to last VEC.  */
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
++	VPCMP	$4, -(VEC_SIZE * 2)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
++	kmovd	%k1, %eax
++	testl	%eax, %eax
++	jnz	L(return_neq1)
++
++	/* Check last VEC.  */
++	.p2align 4
++L(last_1x_vec):
++	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
++	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
++	kmovd	%k1, %eax
++L(return_neq1):
++	ret
++
++#  endif
+ 
+ 
+ # else
+@@ -527,25 +518,29 @@ L(return_vec_1_end):
+ #  endif
+ 	ret
+ # endif
+-# ifdef USE_AS_BCMP
+-	.p2align 4
+-L(last_2x_vec):
+-	/* Check second to last VEC.  */
+-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx, CHAR_SIZE), %YMM1
+-	VPCMP	$4, -(VEC_SIZE * 2)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+-	kmovd	%k1, %eax
+-	testl	%eax, %eax
+-	jnz	L(return_neq1)
+ 
+-	/* Check last VEC.  */
++# ifdef USE_AS_BCMP
+ 	.p2align 4
+-L(last_1x_vec):
+-	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx, CHAR_SIZE), %YMM1
+-	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx, CHAR_SIZE), %YMM1, %k1
+-	kmovd	%k1, %eax
+-L(return_neq1):
++#  ifdef USE_AS_WMEMCMP
++L(one_or_less):
++	jb	L(zero)
++	movl	(%rdi), %eax
++	subl	(%rsi), %eax
++	/* No ymm register was touched.  */
+ 	ret
++#  else
+ 
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	/* No ymm register was touched.  */
++	ret
++#  endif
++L(zero):
++	xorl	%eax, %eax
++	ret
+ # endif
+ 	.p2align 4
+ L(page_cross_less_vec):
+@@ -696,6 +691,5 @@ L(between_2_3):
+ 	subl	%ecx, %eax
+ 	ret
+ # endif
+-
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+
