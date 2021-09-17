@@ -97,6 +97,7 @@ class Displayable():
             elif self.cmp_idx == -1:
                 return self.out_cmp_many()
             else:
+
                 return self.out_list_score()
         return self.out_cmp()
 
@@ -189,9 +190,7 @@ class Result():
 
 
 class JsonFile():
-    def __init__(self, file_fmt, replacement):
-        self.must_replace = False
-        self.replacement = replacement
+    def __init__(self, file_fmt):
         self.file_fmt = file_fmt
         self.key_order = []
         self.all_results = {}
@@ -260,10 +259,6 @@ class JsonFile():
     def eq_bench_func(self, other):
         scmp = self.bench_func
         ocmp = other.bench_func
-        if self.must_replace is True:
-            scmp = self.replacement[0]
-        if other.must_replace is True:
-            ocmp = other.replacement[0]
         return ocmp == scmp
 
     def set_bench_func(self, k):
@@ -317,17 +312,9 @@ class JsonFile():
 
             json_obj = self.load_file(file_path)
             if json_obj is None:
-                if self.must_replace:
-                    continue
-                json_obj = self.load_file(
-                    file_path.replace(self.replacement[0],
-                                      self.replacement[1]))
+                json_obj = self.load_file(file_path)
                 if json_obj is None:
                     continue
-                else:
-                    self.must_replace = True
-                    self.file_fmt = self.file_fmt.replace(
-                        self.replacement[0], self.replacement[1])
 
             self.get_results(json_obj)
 
@@ -386,12 +373,14 @@ class JsonFile():
             times = [self.all_results[key].get_stat(self.fmt_ifunc(impl))]
             hdr = self.all_results[key].get_hdr()
             cmp_idx = None
+            if cmp_s in self.file_fmt:
+                cmp_idx = 0
             for i in range(0, len(others)):
                 other = others[i]
                 if cmp_s in other.file_fmt:
                     assert cmp_idx is None
                     cmp_idx = i + 1
-
+                    
 
 #                print("{} -> {} [{}]".format(key, other.file_fmt, key in other.all_results))
                 assert key in other.all_results
@@ -429,7 +418,7 @@ for i in range(0, len(version_dirs)):
     all_json_files.append([])
     for cmp_file in cmp_files:
 
-        res = JsonFile(version_dirs[i] + cmp_file, ["bcmp", "memcmp"])
+        res = JsonFile(version_dirs[i] + cmp_file)
         res.parse_all_files()
         all_json_files[i].append(res)
 
