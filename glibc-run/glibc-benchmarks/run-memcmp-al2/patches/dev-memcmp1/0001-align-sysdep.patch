@@ -1,0 +1,36 @@
+From cb919755404288d368cb2ea54cee3ec70dfe3a3d Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 17 Sep 2021 01:38:12 -0500
+Subject: [PATCH 1/8] align sysdep
+
+---
+ sysdeps/x86/sysdep.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index cac1d762fb..4895179c10 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -78,15 +78,17 @@ enum cf_protection_level
+ #define ASM_SIZE_DIRECTIVE(name) .size name,.-name;
+ 
+ /* Define an entry point visible from C.  */
+-#define	ENTRY(name)							      \
++#define	ENTRY_P2ALIGN(name, alignment)					      \
+   .globl C_SYMBOL_NAME(name);						      \
+   .type C_SYMBOL_NAME(name),@function;					      \
+-  .align ALIGNARG(4);							      \
++  .align ALIGNARG(alignment);						      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+   _CET_ENDBR;								      \
+   CALL_MCOUNT
+ 
++#define ENTRY(name) ENTRY_P2ALIGN (name, 4)
++
+ #undef	END
+ #define END(name)							      \
+   cfi_endproc;								      \
+-- 
+2.25.1
+
