@@ -1,0 +1,170 @@
+From b7ac8f484abaf2a8c567ae026c85d2806ecd5f7a Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 18 Sep 2021 17:41:40 -0500
+Subject: [PATCH 10/10] run3
+
+---
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 114 ++++++++++---------
+ 1 file changed, 58 insertions(+), 56 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index b79ff19f3b..2c0c62a039 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -162,6 +162,9 @@ ENTRY_P2ALIGN (MEMCMP, 6)
+ 	jnz	L(return_vec_0_1_2_3)
+ 	/* NB: eax must be zero to reach here.  */
+ 	ret
++L(zero):
++	xorl	%eax, %eax
++	ret
+ 
+ 
+ 	.p2align 4
+@@ -185,10 +188,32 @@ L(less_vec):
+ 	VPCMP	$4, (%rdi), %YMM2, %k1
+ 	kmovd	%k1, %eax
+ 	/* Create mask in ecx for potentially in bound matches.  */
+-	bzhil	%edx, %eax, %eax
++	bzhil	%edx, %eax, %edx
+ 	jnz	L(return_vec_0)
++	xorl	%eax, %eax
++	ret
++	/* NB: L(one_or_less) fits in alignment padding between L(less_vec)
++	   and L(return_vec_0).  */
++# ifdef USE_AS_WMEMCMP
++L(one_or_less):
++	jb	L(zero)
++	movl	(%rdi), %ecx
++	xorl	%edx, %edx
++	cmpl	(%rsi), %ecx
++	je	L(zero)
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++	ret
++# else
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
+ 	ret
++# endif
+ 
++	.p2align 4,, 10
+ L(return_vec_0):
+ 	bsfl	%eax, %eax
+ # ifdef USE_AS_WMEMCMP
+@@ -206,6 +231,37 @@ L(return_vec_0):
+ # endif
+ 	ret
+ 
++	.p2align 4
++L(return_vec_1):
++	bsfl	%eax, %eax
++# ifdef USE_AS_WMEMCMP
++	movl	VEC_SIZE(%rdi, %rax, CHAR_SIZE), %ecx
++	xorl	%edx, %edx
++	cmpl	VEC_SIZE(%rsi, %rax, CHAR_SIZE), %ecx
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++# else
++	movzbl	VEC_SIZE(%rsi, %rax), %ecx
++	movzbl	VEC_SIZE(%rdi, %rax), %eax
++	subl	%ecx, %eax
++# endif
++	ret
++
++	.p2align 4,, 10
++L(return_vec_2):
++	bsfl	%eax, %eax
++# ifdef USE_AS_WMEMCMP
++	movl	(VEC_SIZE * 2)(%rdi, %rax, CHAR_SIZE), %ecx
++	xorl	%edx, %edx
++	cmpl	(VEC_SIZE * 2)(%rsi, %rax, CHAR_SIZE), %ecx
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++# else
++	movzbl	(VEC_SIZE * 2)(%rsi, %rax), %ecx
++	movzbl	(VEC_SIZE * 2)(%rdi, %rax), %eax
++	subl	%ecx, %eax
++# endif
++	ret
+ 
+ 	.p2align 4,, 8
+ L(8x_end_return_vec_0_1_2_3):
+@@ -243,63 +299,9 @@ L(return_vec_3):
+ # endif
+ 	ret
+ 
+-	/* NB: L(one_or_less) fits in alignment padding between L(less_vec)
+-	   and L(return_vec_0).  */
+-# ifdef USE_AS_WMEMCMP
+-L(one_or_less):
+-	jb	L(zero)
+-	movl	(%rdi), %ecx
+-	xorl	%edx, %edx
+-	cmpl	(%rsi), %ecx
+-	je	L(zero)
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-	ret
+-# else
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	ret
+-# endif
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+ 
+ 
+ 
+-	.p2align 4
+-L(return_vec_1):
+-	bsfl	%eax, %eax
+-# ifdef USE_AS_WMEMCMP
+-	movl	VEC_SIZE(%rdi, %rax, CHAR_SIZE), %ecx
+-	xorl	%edx, %edx
+-	cmpl	VEC_SIZE(%rsi, %rax, CHAR_SIZE), %ecx
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-# else
+-	movzbl	VEC_SIZE(%rsi, %rax), %ecx
+-	movzbl	VEC_SIZE(%rdi, %rax), %eax
+-	subl	%ecx, %eax
+-# endif
+-	ret
+-
+-	.p2align 4,, 10
+-L(return_vec_2):
+-	bsfl	%eax, %eax
+-# ifdef USE_AS_WMEMCMP
+-	movl	(VEC_SIZE * 2)(%rdi, %rax, CHAR_SIZE), %ecx
+-	xorl	%edx, %edx
+-	cmpl	(VEC_SIZE * 2)(%rsi, %rax, CHAR_SIZE), %ecx
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-# else
+-	movzbl	(VEC_SIZE * 2)(%rsi, %rax), %ecx
+-	movzbl	(VEC_SIZE * 2)(%rdi, %rax), %eax
+-	subl	%ecx, %eax
+-# endif
+-	ret
+ 
+ 
+ 
+@@ -547,6 +549,6 @@ L(between_2_3):
+ 	subl	%ecx, %eax
+ 	ret
+ # endif
+-
++	/* 4 bytes to space before next cache line.  */
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+
