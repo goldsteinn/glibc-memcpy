@@ -108,7 +108,7 @@ class Displayable():
         for i in range(0, len(self.times)):
             if i == self.cmp_idx:
                 continue
-            score = round(self.times[i] / self.times[self.cmp_idx], 3)
+            score = round(1.0 / (self.times[i] / self.times[self.cmp_idx]), 3)
             out = csv_add(out, str(score))
         return out + "\n"
 
