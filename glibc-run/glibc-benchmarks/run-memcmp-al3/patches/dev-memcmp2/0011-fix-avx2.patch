@@ -1,0 +1,25 @@
+From b466244780b809883fd43409515d4fe359eeaf45 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 18 Sep 2021 21:14:22 -0500
+Subject: [PATCH 11/11] fix avx2
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 068f59bb6a..4244f83c75 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -372,7 +372,7 @@ L(less_vec):
+ 	jnz	L(return_vec_0)
+ 	xorl	%eax, %eax
+ 	VZEROUPPER_RETURN
+-	NOP2
++
+ 	.p2align 4
+ L(last_2x_vec):
+ 	/* Check second to last VEC.  */
+-- 
+2.25.1
+

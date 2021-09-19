@@ -1,0 +1,25 @@
+From 97d0f287cc8b7ae1021b13fc789c2decf647b2d4 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 17 Sep 2021 01:51:08 -0500
+Subject: [PATCH 05/11] fix avx2
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 1fdb0ab2b7..4b95dd7138 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -68,7 +68,7 @@
+ */
+ 
+ 	.section SECTION(.text),"ax",@progbits
+-ENTRY (MEMCMP)
++ENTRY_P2ALIGN (MEMCMP, 6)
+ # ifdef USE_AS_WMEMCMP
+ 	shl	$2, %RDX_LP
+ # elif defined __ILP32__
+-- 
+2.25.1
+
