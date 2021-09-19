@@ -1,0 +1,401 @@
+From cf9a7e281965d2aae2fb0f6712f7e21e84311772 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 19 Sep 2021 15:34:29 -0500
+Subject: [PATCH 9/9] run4
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 154 +++++++++----------
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 125 +++++++--------
+ 2 files changed, 131 insertions(+), 148 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 43476b8d71..96620b2dda 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -149,25 +149,7 @@ ENTRY_P2ALIGN (MEMCMP, 6)
+ 	/* NB: eax must be zero to reach here.  */
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 10
+-L(return_vec_2):
+-	bsfl	%eax, %eax
+-# ifdef USE_AS_WMEMCMP
+-	movl	(VEC_SIZE * 2)(%rdi, %rax), %ecx
+-	xorl	%edx, %edx
+-	cmpl	(VEC_SIZE * 2)(%rsi, %rax), %ecx
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-# else
+-	movzbl	(VEC_SIZE * 2)(%rsi, %rax), %ecx
+-	movzbl	(VEC_SIZE * 2)(%rdi, %rax), %eax
+-	subl	%ecx, %eax
+-# endif
+-	VZEROUPPER_RETURN
+-
+-
+-
+-	.p2align 4,, 10
++	.p2align 4
+ L(return_vec_1):
+ 	bsfl	%eax, %eax
+ # ifdef USE_AS_WMEMCMP
+@@ -201,6 +183,25 @@ L(return_vec_0):
+ # endif
+ 	VZEROUPPER_RETURN
+ 
++
++	.p2align 4
++L(return_vec_2):
++	bsfl	%eax, %eax
++# ifdef USE_AS_WMEMCMP
++	movl	(VEC_SIZE * 2)(%rdi, %rax), %ecx
++	xorl	%edx, %edx
++	cmpl	(VEC_SIZE * 2)(%rsi, %rax), %ecx
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++# else
++	movzbl	(VEC_SIZE * 2)(%rsi, %rax), %ecx
++	movzbl	(VEC_SIZE * 2)(%rdi, %rax), %eax
++	subl	%ecx, %eax
++# endif
++	VZEROUPPER_RETURN
++
++
++
+ 	.p2align 4
+ L(8x_return_vec_0_1_2_3):
+ 	/* Returning from L(more_8x_vec) requires restoring rsi.  */
+@@ -325,25 +326,6 @@ L(8x_last_1x_vec):
+ 	VZEROUPPER_RETURN
+ 
+ 
+-	.p2align 4
+-L(8x_return_vec_2):
+-	subq	$VEC_SIZE, %rdx
+-L(8x_return_vec_3):
+-	tzcntl	%eax, %eax
+-	addq	%rdx, %rax
+-# ifdef USE_AS_WMEMCMP
+-	movl	(VEC_SIZE * 3)(%rax), %ecx
+-	xorl	%edx, %edx
+-	cmpl	(VEC_SIZE * 3)(%rsi, %rax), %ecx
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-# else
+-	movzbl	(VEC_SIZE * 3)(%rsi, %rax), %ecx
+-	movzbl	(VEC_SIZE * 3)(%rax), %eax
+-	subl	%ecx, %eax
+-# endif
+-	VZEROUPPER_RETURN
+-
+ 	.p2align 4
+ L(last_2x_vec):
+ 	/* Check second to last VEC.  */
+@@ -361,51 +343,25 @@ L(last_1x_vec):
+ 	jnz	L(return_vec_0_end)
+ 	VZEROUPPER_RETURN
+ 
+-	.p2align 4,, 13
+-# ifdef USE_AS_WMEMCMP
+-L(one_or_less):
+-	jb	L(zero)
+-	movl	(%rdi), %ecx
+-	xorl	%edx, %edx
+-	cmpl	(%rsi), %ecx
+-	je	L(zero)
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-	/* No ymm register was touched.  */
+-	ret
+-# else
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-# endif
+-
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+-
+-	.p2align 4
+-L(return_vec_0_lv):
+-	bsfl	%eax, %eax
++	.p2align 5
++L(8x_return_vec_2):
++	subq	$VEC_SIZE, %rdx
++L(8x_return_vec_3):
++	tzcntl	%eax, %eax
++	addq	%rdx, %rax
+ # ifdef USE_AS_WMEMCMP
+-	movl	(%rdi, %rax), %ecx
++	movl	(VEC_SIZE * 3)(%rax), %ecx
+ 	xorl	%edx, %edx
+-	cmpl	(%rsi, %rax), %ecx
+-	/* NB: no partial register stall here because xorl zero idiom above.
+-	 */
++	cmpl	(VEC_SIZE * 3)(%rsi, %rax), %ecx
+ 	setg	%dl
+ 	leal	-1(%rdx, %rdx), %eax
+ # else
+-	movzbl	(%rsi, %rax), %ecx
+-	movzbl	(%rdi, %rax), %eax
++	movzbl	(VEC_SIZE * 3)(%rsi, %rax), %ecx
++	movzbl	(VEC_SIZE * 3)(%rax), %eax
+ 	subl	%ecx, %eax
+ # endif
+ 	VZEROUPPER_RETURN
+-
+-	.p2align 4,, 10
++	.p2align 4
+ L(return_vec_0_end):
+ 	bsfl	%eax, %eax
+ 	addl	%edx, %eax
+@@ -422,8 +378,7 @@ L(return_vec_0_end):
+ # endif
+ 	VZEROUPPER_RETURN
+ 
+-
+-	.p2align 4,, 8
++	.p2align 4
+ L(return_vec_1_end):
+ 	bsfl	%eax, %eax
+ 	addl	%edx, %eax
+@@ -441,8 +396,51 @@ L(return_vec_1_end):
+ 	VZEROUPPER_RETURN
+ 
+ 
++    
++	.p2align 4
++L(return_vec_0_lv):
++	bsfl	%eax, %eax
++# ifdef USE_AS_WMEMCMP
++	movl	(%rdi, %rax), %ecx
++	xorl	%edx, %edx
++	cmpl	(%rsi, %rax), %ecx
++	/* NB: no partial register stall here because xorl zero idiom above.
++	 */
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++# else
++	movzbl	(%rsi, %rax), %ecx
++	movzbl	(%rdi, %rax), %eax
++	subl	%ecx, %eax
++# endif
++	VZEROUPPER_RETURN
+ 
++	.p2align 4,, 13
++# ifdef USE_AS_WMEMCMP
++L(one_or_less):
++	jb	L(zero)
++	movl	(%rdi), %ecx
++	xorl	%edx, %edx
++	cmpl	(%rsi), %ecx
++	je	L(zero)
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++	/* No ymm register was touched.  */
++	ret
++# else
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	/* No ymm register was touched.  */
++	ret
++# endif
+ 
++L(zero):
++	xorl	%eax, %eax
++	ret
++    
+ 	.p2align 4
+ L(less_vec):
+ 	/* Check if one or less CHAR. This is necessary for size = 0 but is
+@@ -470,7 +468,7 @@ L(less_vec):
+ 	jnz	L(return_vec_0_lv)
+ 	xorl	%eax, %eax
+ 	VZEROUPPER_RETURN
+-
++    
+ 	.p2align 4
+ L(page_cross_less_vec):
+ 	/* if USE_AS_WMEMCMP it can only be 0, 4, 8, 12, 16, 20, 24, 28
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index d84b5d382c..d37f567a98 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -163,7 +163,58 @@ ENTRY_P2ALIGN (MEMCMP, 6)
+ 	jnz	L(return_vec_0_1_2_3)
+ 	/* NB: eax must be zero to reach here.  */
+ 	ret
++L(zero):
++	xorl	%eax, %eax
++	ret
+ 
++	.p2align 4
++L(less_vec):
++	/* Check if one or less CHAR. This is necessary for size = 0 but is
++	   also faster for size = CHAR_SIZE.  */
++	cmpl	$1, %edx
++	jbe	L(one_or_less)
++
++	/* Check if loading one VEC from either s1 or s2 could cause a page
++	   cross. This can have false positives but is by far the fastest
++	   method.  */
++	movl	%edi, %eax
++	orl	%esi, %eax
++	andl	$(PAGE_SIZE - 1), %eax
++	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
++	jg	L(page_cross_less_vec)
++
++	/* No page cross possible.  */
++	VMOVU	(%rsi), %YMM2
++	VPCMP	$4, (%rdi), %YMM2, %k1
++	kmovd	%k1, %eax
++	/* Create mask in ecx for potentially in bound matches.  */
++	bzhil	%edx, %eax, %edx
++	jnz	L(return_vec_0)
++	xorl	%eax, %eax
++	ret
++
++  	/* NB: L(one_or_less) fits in alignment padding between L(less_vec)
++	   and L(return_vec_0).  */
++# ifdef USE_AS_WMEMCMP
++L(one_or_less):
++	jb	L(zero)
++	movl	(%rdi), %ecx
++	xorl	%edx, %edx
++	cmpl	(%rsi), %ecx
++	je	L(zero)
++	setg	%dl
++	leal	-1(%rdx, %rdx), %eax
++	ret
++# else
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	ret
++# endif
++
++  
+ 	.p2align 4
+ L(8x_end_return_vec_0_1_2_3):
+ 	movq	%rdx, %rdi
+@@ -380,30 +431,7 @@ L(return_vec_1_end):
+ 	subl	%ecx, %eax
+ # endif
+ 	ret
+-	/* NB: L(one_or_less) fits in alignment padding between L(less_vec)
+-	   and L(return_vec_0).  */
+-# ifdef USE_AS_WMEMCMP
+-L(one_or_less):
+-	jb	L(zero)
+-	movl	(%rdi), %ecx
+-	xorl	%edx, %edx
+-	cmpl	(%rsi), %ecx
+-	je	L(zero)
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-	ret
+-# else
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	ret
+-# endif
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+-
++    
+ 	.p2align 4
+ L(return_vec_0_end):
+ 	tzcntl	%eax, %eax
+@@ -421,49 +449,6 @@ L(return_vec_0_end):
+ # endif
+ 	ret
+ 
+-	.p2align 4
+-L(less_vec):
+-	/* Check if one or less CHAR. This is necessary for size = 0 but is
+-	   also faster for size = CHAR_SIZE.  */
+-	cmpl	$1, %edx
+-	jbe	L(one_or_less)
+-
+-	/* Check if loading one VEC from either s1 or s2 could cause a page
+-	   cross. This can have false positives but is by far the fastest
+-	   method.  */
+-	movl	%edi, %eax
+-	orl	%esi, %eax
+-	andl	$(PAGE_SIZE - 1), %eax
+-	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
+-	jg	L(page_cross_less_vec)
+-
+-	/* No page cross possible.  */
+-	VMOVU	(%rsi), %YMM2
+-	VPCMP	$4, (%rdi), %YMM2, %k1
+-	kmovd	%k1, %eax
+-	/* Create mask in ecx for potentially in bound matches.  */
+-	bzhil	%edx, %eax, %edx
+-	jnz	L(return_vec_0_lv)
+-	xorl	%eax, %eax
+-	ret
+-
+-	.p2align 4,, 4
+-L(return_vec_0_lv):
+-	bsfl	%eax, %eax
+-# ifdef USE_AS_WMEMCMP
+-	movl	(%rdi, %rax, CHAR_SIZE), %ecx
+-	xorl	%edx, %edx
+-	cmpl	(%rsi, %rax, CHAR_SIZE), %ecx
+-	/* NB: no partial register stall here because xorl zero idiom above.
+-	 */
+-	setg	%dl
+-	leal	-1(%rdx, %rdx), %eax
+-# else
+-	movzbl	(%rsi, %rax), %ecx
+-	movzbl	(%rdi, %rax), %eax
+-	subl	%ecx, %eax
+-# endif
+-	ret
+ 
+ 	.p2align 4
+ L(page_cross_less_vec):
+@@ -503,7 +488,7 @@ L(between_8_15):
+ 	VPCMP	$4, %xmm1, %xmm2, %k1
+ 	kmovd	%k1, %eax
+ 	testl	%eax, %eax
+-	jnz	L(return_vec_0_lv)
++	jnz	L(return_vec_0)
+ 	/* Use overlapping loads to avoid branches.  */
+ 	vmovq	-8(%rdi, %rdx, CHAR_SIZE), %xmm1
+ 	vmovq	-8(%rsi, %rdx, CHAR_SIZE), %xmm2
+@@ -522,7 +507,7 @@ L(between_16_31):
+ 	VPCMP	$4, (%rdi), %xmm2, %k1
+ 	kmovd	%k1, %eax
+ 	testl	%eax, %eax
+-	jnz	L(return_vec_0_lv)
++	jnz	L(return_vec_0)
+ 
+ 	/* Use overlapping loads to avoid branches.  */
+ 
+@@ -551,6 +536,6 @@ L(between_2_3):
+ 	subl	%ecx, %eax
+ 	ret
+ # endif
+-    
++ 
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+
