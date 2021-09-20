@@ -17,7 +17,8 @@ funcs = {
     "memcpy":
     ["memcpy{}", "memcpy-large{}", "memcpy-walk{}", "memcpy-random{}"],
     "memcmp": ["memcmp{}", "wmemcmp{}"],
-    "bcmp": ["bcmp{}"]
+    "bcmp": ["bcmp{}"],
+    "memset": ["memset{}", "memset-walk{}", "memset-large{}", "wmemset{}"]
 }
 
 root = "/home/noah/programs/opensource/glibc-dev"
@@ -82,15 +83,15 @@ class Conf():
 
 
 confs = []
-confs.append(Conf(None, "high-0"))
-confs.append(Conf(None, "high-1"))
-confs.append(Conf(None, "high-2"))
-confs.append(Conf(None, "high-3"))
-confs.append(Conf(None, "low-0"))
-confs.append(Conf(None, "low-1"))
-confs.append(Conf(None, "low-2"))
-confs.append(Conf(None, "low-3"))
-confs.append(Conf(None, "dev-glibc"))
+confs.append(Conf(None, "dev-memcmp0"))
+confs.append(Conf(None, "dev-memcmp1"))
+confs.append(Conf(None, "dev-memcmp2"))
+confs.append(Conf(None, "dev-memcmp3"))
+
+confs.append(Conf(None, "glibc-memcmp0"))
+confs.append(Conf(None, "glibc-memcmp1"))
+confs.append(Conf(None, "glibc-memcmp2"))
+confs.append(Conf(None, "glibc-memcmp3"))
 
 
 def build(conf):
@@ -122,13 +123,8 @@ def bench(conf, base, inc):
 
 
 os.system("rm -rf {};".format(result_path.format("*")))
-incr = 10
+incr = 20
 for i in range(0, 1):
     for c in confs:
         build(c)
         bench(c, incr * i, incr)
-
-
-# for k in low high; do for j in {0..3}; do r=run24; i=${k}-${j}; git checkout master; git branch -D $i; git reset --hard HEAD; git checkout -b $i; git am --abort; git am /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$i/*; done; done
-
-# for k in low high; do for j in {0..3}; do r=run24; name=${k}-${j}; i=users/goldsteinn/memcpy-${k}-movsb-v${j}; git checkout $i; git format-patch origin/HEAD..HEAD; mkdir -p /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$name; mv *.patch /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$name; cp test-patches/* /home/noah/programs/projects/memcpy/glibc-run/glibc-benchmarks/${r}/patches/$name; done; done

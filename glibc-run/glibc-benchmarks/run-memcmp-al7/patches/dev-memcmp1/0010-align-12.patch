@@ -1,0 +1,50 @@
+From d16fa3e988ac11556248f36246becc8f8abf4329 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 20 Sep 2021 00:48:45 -0500
+Subject: [PATCH 10/11] align 12
+
+---
+ sysdeps/x86/sysdep.h                         | 1 +
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 2 +-
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 2 +-
+ 3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 4895179c10..cd3b626ddd 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -81,6 +81,7 @@ enum cf_protection_level
+ #define	ENTRY_P2ALIGN(name, alignment)					      \
+   .globl C_SYMBOL_NAME(name);						      \
+   .type C_SYMBOL_NAME(name),@function;					      \
++  .align ALIGNARG(12);                                        \
+   .align ALIGNARG(alignment);						      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 96620b2dda..4b19b80555 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -555,6 +555,6 @@ L(between_2_3):
+ 	ret
+ 
+ # endif
+-
++    .p2align 12
+ END (MEMCMP)
+ #endif
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index d37f567a98..296852d2a3 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -536,6 +536,6 @@ L(between_2_3):
+ 	subl	%ecx, %eax
+ 	ret
+ # endif
+- 
++     .p2align 12
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+
