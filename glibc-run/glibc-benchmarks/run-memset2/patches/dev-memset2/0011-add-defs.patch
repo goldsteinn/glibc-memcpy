@@ -1,0 +1,79 @@
+From 247b54c9febbaa6748110e4012a4f7b1a098fe6f Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 00:12:09 -0500
+Subject: [PATCH 11/12] add defs
+
+---
+ .../multiarch/memset-vec-unaligned-erms.S     | 56 +++++++++++++++++++
+ 1 file changed, 56 insertions(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 20366f1772..84123e1c3f 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -113,6 +113,62 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned))
+ # ifdef __ILP32__
+ 	/* Clear the upper 32 bits.  */
+ 	mov	%edx, %edx
++# endif
++L(entry_from_bzero):
++	cmpq	$VEC_SIZE, %rdx
++	jb	L(less_vec)
++	cmpq	$(VEC_SIZE * 2), %rdx
++	ja	L(more_2x_vec)
++	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
++	VMOVU	%VEC(0), -VEC_SIZE(%rdi,%rdx)
++	VMOVU	%VEC(0), (%rdi)
++	VZEROUPPER_RETURN
++#if defined USE_MULTIARCH && IS_IN (libc)
++END (MEMSET_SYMBOL (__memset, unaligned))
++
++# if VEC_SIZE == 16
++ENTRY (__memset_chk_erms)
++	cmp	%RDX_LP, %RCX_LP
++	jb	HIDDEN_JUMPTARGET (__chk_fail)
++END (__memset_chk_erms)
++
++/* Only used to measure performance of REP STOSB.  */
++ENTRY (__memset_erms)
++	/* Skip zero length.  */
++	test	%RDX_LP, %RDX_LP
++	jnz	 L(stosb)
++	movq	%rdi, %rax
++	ret
++# else
++/* Provide a hidden symbol to debugger.  */
++	.hidden	MEMSET_SYMBOL (__memset, erms)
++ENTRY (MEMSET_SYMBOL (__memset, erms))
++# endif
++L(stosb):
++	mov	%RDX_LP, %RCX_LP
++	movzbl	%sil, %eax
++	mov	%RDI_LP, %RDX_LP
++	rep stosb
++	mov	%RDX_LP, %RAX_LP
++	VZEROUPPER_RETURN
++# if VEC_SIZE == 16
++END (__memset_erms)
++# else
++END (MEMSET_SYMBOL (__memset, erms))
++# endif
++
++# if defined SHARED && IS_IN (libc)
++ENTRY_CHK (MEMSET_CHK_SYMBOL (__memset_chk, unaligned_erms))
++	cmp	%RDX_LP, %RCX_LP
++	jb	HIDDEN_JUMPTARGET (__chk_fail)
++END_CHK (MEMSET_CHK_SYMBOL (__memset_chk, unaligned_erms))
++# endif
++    
++ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
++	MEMSET_VDUP_TO_VEC0_AND_SET_RETURN (%esi, %rdi)
++# ifdef __ILP32__
++	/* Clear the upper 32 bits.  */
++	mov	%edx, %edx
+ # endif
+ 	cmp	$VEC_SIZE, %RDX_LP
+ 	jb	L(less_vec)
+-- 
+2.25.1
+

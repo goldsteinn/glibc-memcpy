@@ -1,0 +1,25 @@
+From a1e4b7c24f51248fef36f42f5b9b2a90e75f6e8b Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 00:23:23 -0500
+Subject: [PATCH 10/10] const def
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 30dda38cd2..f5427a0d03 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -218,7 +218,7 @@ L(return):
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ 	.p2align 4
+ L(stosb_more_2x_vec):
+-	cmp	x86_rep_stosb_threshold(%rip), %RDX_LP
++	cmp	$2048, %RDX_LP
+ 	ja	L(stosb_close)
+ #endif
+ L(more_2x_vec):
+-- 
+2.25.1
+

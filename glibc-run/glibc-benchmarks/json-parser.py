@@ -287,9 +287,13 @@ class JsonFile():
                                                 self.fields)
             align1, self.fields = set_if_exists(result, "align1", align1,
                                                 self.fields)
+            align1, self.fields = set_if_exists(result, "alignment", align1,
+                                                self.fields)
             align2, self.fields = set_if_exists(result, "align2", align2,
                                                 self.fields)
             dgs, self.fields = set_if_exists(result, "dst > src", dgs,
+                                             self.fields)
+            dgs, self.fields = set_if_exists(result, "char", dgs,
                                              self.fields)
             wfs, self.fields = set_if_exists(result, "with-fixed-size", wfs,
                                              self.fields)

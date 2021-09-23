@@ -1,0 +1,26 @@
+From 51f85014879ce5d247d1e3f3106fd62415c416ee Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 00:16:10 -0500
+Subject: [PATCH 12/12] fix cmp
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 84123e1c3f..33b04cb841 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -190,7 +190,8 @@ L(last_2x_vec):
+ 	.p2align 4
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(stosb_more_2x_vec):
+-	cmp	x86_rep_stosb_threshold(%rip), %RDX_LP
++    //	cmp	x86_rep_stosb_threshold(%rip), %RDX_LP
++    cmp $2048, %RDX_LP
+ 	ja	L(stosb_close)
+ #endif
+ L(more_2x_vec):
+-- 
+2.25.1
+
