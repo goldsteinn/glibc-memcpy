@@ -1,0 +1,22 @@
+From ae8faea3855b48111b981d1b8d6f369aca9c8fca Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 20 Sep 2021 16:20:15 -0500
+Subject: [PATCH 4/5] full sz
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index ff196844a0..85c9cf5993 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -301,4 +301,5 @@ L(between_2_3):
+ 	movw	%cx, -2(%rax,%rdx)
+ 	movw	%cx, (%rax)
+ 	VZEROUPPER_RETURN
++    .p2align 12
+ END (MEMSET_SYMBOL (__memset, unaligned_erms))
+-- 
+2.25.1
+

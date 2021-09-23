@@ -1,0 +1,26 @@
+From 0a9c3028fa3b8719bab89143b979adad0913a1c6 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 22 Sep 2021 21:06:01 -0500
+Subject: [PATCH 6/6] inline rep throld
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 85c9cf5993..34c7408114 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -175,7 +175,8 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
+ 
+ 	.p2align 4
+ L(stosb_more_2x_vec):
+-	cmp	__x86_rep_stosb_threshold(%rip), %RDX_LP
++//	cmp	__x86_rep_stosb_threshold(%rip), %RDX_LP
++	cmp	$2048, %RDX_LP
+ 	ja	L(stosb)
+ #else
+ 	.p2align 4
+-- 
+2.25.1
+
