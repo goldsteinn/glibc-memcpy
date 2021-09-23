@@ -1,0 +1,33 @@
+From f83b4aa9938762dfddfce594c023d8321ef54e0f Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 17 Sep 2021 02:09:44 -0500
+Subject: [PATCH 05/12] fix evex page cross
+
+---
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index 5db0aa0678..e552e96047 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -524,7 +524,7 @@ L(between_16_31):
+ 	vmovdqu	-16(%rsi, %rdx, CHAR_SIZE), %xmm2
+ 	leaq	-16(%rdi, %rdx, CHAR_SIZE), %rdi
+ 	leaq	-16(%rsi, %rdx, CHAR_SIZE), %rsi
+-	VPCMP	$4, (%rdi), %XMM2, %k1
++	VPCMP	$4, (%rdi), %xmm2, %k1
+ 	kmovd	%k1, %eax
+ 	testl	%eax, %eax
+ 	jnz	L(return_vec_0)
+@@ -547,6 +547,6 @@ L(between_2_3):
+ 	subl	%ecx, %eax
+ 	ret
+ # endif
+-
++    
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+
