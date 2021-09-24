@@ -1,0 +1,86 @@
+From 3e6826701d6f25c6edb134ef14241b2204627a54 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 20:42:38 -0500
+Subject: [PATCH 13/13] tmp
+
+---
+ .../multiarch/memset-vec-unaligned-erms.S     | 30 +++++++++++--------
+ 1 file changed, 17 insertions(+), 13 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 3fb9193b31..35017cad3c 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -64,12 +64,13 @@
+ #endif
+ 
+ #define PAGE_SIZE 4096
+-#if VEC_SIZE == 64
++#ifdef USE_LESS_VEC_MASK_STORE
+ # define LOOP_4X_OFFSET	(VEC_SIZE	*	-4)
+ #else
+ # define LOOP_4X_OFFSET	(0)
+ #endif
+ 
++
+ #define SMALL_MOV_ALIGN(mov_sz,	ret_sz)	(2	*	(mov_sz)	+	(ret_sz))
+ #ifndef SECTION
+ # error SECTION is not defined!
+@@ -181,12 +182,23 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
+ 	VMOVU	%VEC(0), -VEC_SIZE(%rax, %rdx)
+ 	VZEROUPPER_RETURN
+ #endif
+-#undef LOOP_4X_OFFSET
+-#define LOOP_4X_OFFSET (VEC_SIZE * -4)
++	.p2align 4,, 10
++L(stosb_close):
++	movzbl	%sil, %eax
++	mov	%RDX_LP, %RCX_LP
++	mov	%RDI_LP, %RDX_LP
++	rep	stosb
++	mov	%RDX_LP, %RAX_LP
++	VZEROUPPER_RETURN
++
++
+ 	.p2align 4
+ L(loop_4x_vec):
+ 	leaq	(VEC_SIZE * 4 - LOOP_4X_OFFSET)(%rax), %rcx
+ 	andq	$-(VEC_SIZE * 2), %rcx
++    #if LOOP_4X_OFFSET == 0
++    addq    $-(VEC_SIZE * 4), %rdi
++    #endif
+ 	.p2align 4
+ L(loop):
+ 	VMOVA	%VEC(0), (LOOP_4X_OFFSET)(%rcx)
+@@ -203,14 +215,6 @@ L(return):
+ 	ret
+ #endif
+ 
+-	.p2align 4,, 10
+-L(stosb_close):
+-	movzbl	%sil, %eax
+-	mov	%RDX_LP, %RCX_LP
+-	mov	%RDI_LP, %RDX_LP
+-	rep	stosb
+-	mov	%RDX_LP, %RAX_LP
+-	VZEROUPPER_RETURN
+ 
+ 
+ #if defined USE_MULTIARCH && IS_IN (libc)
+@@ -226,11 +230,11 @@ L(more_2x_vec):
+ 	VMOVU	%VEC(0), (%rax)
+ 	VMOVU	%VEC(0), VEC_SIZE(%rax)
+ 	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
+-    VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
++	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
+ 	cmpq	$(VEC_SIZE * 4), %rdx
+ 	jbe	L(return)
+ 	VMOVU	%VEC(0), (VEC_SIZE * -3)(%rdi)
+-    VMOVU	%VEC(0), (VEC_SIZE * -4)(%rdi)
++	VMOVU	%VEC(0), (VEC_SIZE * -4)(%rdi)
+ 	VMOVU	%VEC(0), (VEC_SIZE * 2)(%rax)
+ 	VMOVU	%VEC(0), (VEC_SIZE * 3)(%rax)
+ 	/* Try and have this cmp/jcc on same cache line as target and
+-- 
+2.25.1
+

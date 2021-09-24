@@ -1,0 +1,111 @@
+From 36fcfe56449f943a11c59360d528803a2d3c09e5 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 19:55:29 -0500
+Subject: [PATCH 10/13] v1
+
+---
+ .../multiarch/memset-vec-unaligned-erms.S     | 80 +++++++++----------
+ 1 file changed, 38 insertions(+), 42 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 8efc488b11..09aa5cd272 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -182,48 +182,6 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
+ 	VZEROUPPER_RETURN
+ #endif
+ 
+-	.p2align 4,, 10
+-L(last_2x_vec):
+-	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
+-	VZEROUPPER_RETURN
+-
+-	.p2align 4,, 10
+-#if defined USE_MULTIARCH && IS_IN (libc)    
+-L(stosb_close):
+-	movzbl	%sil, %eax
+-	mov	%RDX_LP, %RCX_LP
+-	mov	%RDI_LP, %RDX_LP
+-	rep	stosb
+-	mov	%RDX_LP, %RAX_LP
+-	VZEROUPPER_RETURN
+-
+-	.p2align 4
+-L(stosb_more_2x_vec):
+-	cmp	$2048, %RDX_LP
+-	ja	L(stosb_close)
+-#endif
+-L(more_2x_vec):
+-	addq	%rdx, %rdi
+-	/* Stores to first 2x VEC before cmp as any path forward will
+-	   require it.  */
+-	VMOVU	%VEC(0), (%rax)
+-	VMOVU	%VEC(0), VEC_SIZE(%rax)
+-
+-	cmpq	$(VEC_SIZE * 4), %rdx
+-	jbe	L(last_2x_vec)
+-	VMOVU	%VEC(0), (VEC_SIZE * 2)(%rax)
+-	VMOVU	%VEC(0), (VEC_SIZE * 3)(%rax)
+-	/* Try and have this cmp/jcc on same cache line as target and
+-	   fallthrough.  */
+-	cmpq	$(VEC_SIZE * 8), %rdx
+-	ja	L(loop_4x_vec)
+-	VMOVU	%VEC(0), (VEC_SIZE * -4)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -3)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
+-	VZEROUPPER_RETURN
+-
+ 	.p2align 4
+ L(loop_4x_vec):
+ 	leaq	(VEC_SIZE * 4 - LOOP_4X_OFFSET)(%rax), %rcx
+@@ -251,7 +209,45 @@ L(return):
+ 	ret
+ #endif
+ 
++#if defined USE_MULTIARCH && IS_IN (libc)
+ 	.p2align 4
++L(stosb_more_2x_vec):
++	cmp	$2048, %RDX_LP
++	ja	L(stosb_close)
++#endif
++L(more_2x_vec):
++	addq	%rdx, %rdi
++	/* Stores to first 2x VEC before cmp as any path forward will
++	   require it.  */
++	VMOVU	%VEC(0), (%rax)
++	VMOVU	%VEC(0), VEC_SIZE(%rax)
++	cmpq	$(VEC_SIZE * 4), %rdx
++	jbe	L(last_2x_vec)
++	VMOVU	%VEC(0), (VEC_SIZE * 2)(%rax)
++	VMOVU	%VEC(0), (VEC_SIZE * 3)(%rax)
++	/* Try and have this cmp/jcc on same cache line as target and
++	   fallthrough.  */
++	cmpq	$(VEC_SIZE * 8), %rdx
++	ja	L(loop_4x_vec)
++	VMOVU	%VEC(0), (VEC_SIZE * -4)(%rdi)
++	VMOVU	%VEC(0), (VEC_SIZE * -3)(%rdi)
++	.p2align 4,, 10
++L(last_2x_vec):    
++	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
++	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
++	VZEROUPPER_RETURN
++
++
++	.p2align 4,, 10
++L(stosb_close):
++	movzbl	%sil, %eax
++	mov	%RDX_LP, %RCX_LP
++	mov	%RDI_LP, %RDX_LP
++	rep	stosb
++	mov	%RDX_LP, %RAX_LP
++	VZEROUPPER_RETURN
++
++	.p2align 4,, 10
+ L(less_vec):
+ 	/* Less than 1 VEC.  */
+ #if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
+-- 
+2.25.1
+

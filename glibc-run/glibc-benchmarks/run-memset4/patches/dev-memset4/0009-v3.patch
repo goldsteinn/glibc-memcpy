@@ -1,0 +1,30 @@
+From 59e849bb729052a547f4789d37226a332600e86f Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 00:01:22 -0500
+Subject: [PATCH 09/12] v3
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index f2a10e21d6..8efc488b11 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -64,7 +64,12 @@
+ #endif
+ 
+ #define PAGE_SIZE 4096
+-#define LOOP_4X_OFFSET	(VEC_SIZE	*	-4)
++#if VEC_SIZE == 64
++# define LOOP_4X_OFFSET	(VEC_SIZE	*	-4)
++#else
++# define LOOP_4X_OFFSET	(0)
++#endif
++
+ #define SMALL_MOV_ALIGN(mov_sz,	ret_sz)	(2	*	(mov_sz)	+	(ret_sz))
+ #ifndef SECTION
+ # error SECTION is not defined!
+-- 
+2.25.1
+

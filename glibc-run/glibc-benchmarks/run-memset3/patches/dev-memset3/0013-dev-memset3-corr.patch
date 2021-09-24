@@ -1,0 +1,42 @@
+From 6ceec10379c27eb5f9ba61da9730919282b9ee28 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 10:46:29 -0500
+Subject: [PATCH 13/13] dev-memset3 - corr
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index fdb24a51f7..73914bebd2 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -117,6 +117,7 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned))
+ L(entry_from_bzero):
+ 	cmpq	$VEC_SIZE, %rdx
+ 	jb	L(less_vec)
++    addq    %rdx, %rdi
+ 	cmpq	$(VEC_SIZE * 2), %rdx
+ 	ja	L(more_2x_vec)
+ 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
+@@ -163,7 +164,7 @@ ENTRY_CHK (MEMSET_CHK_SYMBOL (__memset_chk, unaligned_erms))
+ 	jb	HIDDEN_JUMPTARGET (__chk_fail)
+ END_CHK (MEMSET_CHK_SYMBOL (__memset_chk, unaligned_erms))
+ # endif
+-    
++
+ ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
+ 	MEMSET_VDUP_TO_VEC0_AND_SET_RETURN (%esi, %rdi)
+ # ifdef __ILP32__
+@@ -192,7 +193,7 @@ L(last_2x_vec):
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(stosb_more_2x_vec):
+ 	// cmp     x86_rep_stosb_threshold(%rip), %RDX_LP
+-	cmp	$4096, %RDX_LP
++	cmp	$2048, %RDX_LP
+ 	ja	L(stosb_close)
+ #endif
+ L(more_2x_vec):
+-- 
+2.25.1
+

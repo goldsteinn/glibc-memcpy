@@ -1,0 +1,80 @@
+From 1bcc9fec5363ee07f60c90785b0aa29db74316c0 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 23 Sep 2021 10:47:24 -0500
+Subject: [PATCH 14/14] lv
+
+---
+ .../x86_64/multiarch/memset-vec-unaligned-erms.S   | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 73914bebd2..92e72361f7 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -115,9 +115,9 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned))
+ 	mov	%edx, %edx
+ # endif
+ L(entry_from_bzero):
++    addq    %rdx, %rdi
+ 	cmpq	$VEC_SIZE, %rdx
+ 	jb	L(less_vec)
+-    addq    %rdx, %rdi
+ 	cmpq	$(VEC_SIZE * 2), %rdx
+ 	ja	L(more_2x_vec)
+ 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
+@@ -171,9 +171,9 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
+ 	/* Clear the upper 32 bits.  */
+ 	mov	%edx, %edx
+ # endif
++    addq	%rdx, %rdi
+ 	cmp	$VEC_SIZE, %RDX_LP
+ 	jb	L(less_vec)
+-	addq	%rdx, %rdi
+ 	cmp	$(VEC_SIZE * 2), %RDX_LP
+ 	ja	L(stosb_more_2x_vec)
+ 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.
+@@ -298,7 +298,7 @@ L(cross_page):
+ 	/* From 32 to 63.  No branch when size == 32.  */
+ L(between_32_63):
+ 	VMOVU	%YMM0, (%rax)
+-	VMOVU	%YMM0, -32(%rax, %rdx)
++	VMOVU	%YMM0, -32(%rdi)
+ 	VZEROUPPER_RETURN
+ #endif
+ #if VEC_SIZE > 16
+@@ -306,28 +306,28 @@ L(between_32_63):
+ L(between_16_31):
+ 	/* From 16 to 31.  No branch when size == 16.  */
+ 	VMOVU_XMM %XMM0, (%rax)
+-	VMOVU_XMM %XMM0, -16(%rax, %rdx)
++	VMOVU_XMM %XMM0, -16(%rdi)
+ 	VZEROUPPER_RETURN
+ #endif
+ 	.p2align 4,, SMALL_MOV_ALIGN(3, RET_SIZE)
+ L(between_8_15):
+ 	/* From 8 to 15.  No branch when size == 8.  */
+ 	movq	%rdi, (%rax)
+-	movq	%rdi, -8(%rax, %rdx)
++	movq	%rdi, -8(%rdi)
+ 	VZEROUPPER_RETURN
+ 
+ 	.p2align 4,, SMALL_MOV_ALIGN(2, RET_SIZE)
+ L(between_4_7):
+ 	/* From 4 to 7.  No branch when size == 4.  */
+ 	movl	%edi, (%rax)
+-	movl	%edi, -4(%rax, %rdx)
++	movl	%edi, -4(%rdi)
+ 	VZEROUPPER_RETURN
+ 
+ 	.p2align 4,, SMALL_MOV_ALIGN(3, RET_SIZE)
+ L(between_2_3):
+ 	/* From 2 to 3.  No branch when size == 2.  */
+ 	movw	%di, (%rax)
+-	movb	%dil, -1(%rax, %rdx)
++	movb	%dil, -1(%rdi)
+ 	VZEROUPPER_RETURN
+     .p2align 12
+ END (MEMSET_SYMBOL (__memset, unaligned_erms))
+-- 
+2.25.1
+

@@ -1,0 +1,24 @@
+From 9cb602eeab7e9ab85ea27f9383c6de6d173f30c9 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 20 Sep 2021 00:45:37 -0500
+Subject: [PATCH 03/10] align 12
+
+---
+ sysdeps/x86/sysdep.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 01de8bb6de..a76c28c4b3 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -81,6 +81,7 @@ enum cf_protection_level
+ #define	ENTRY(name)							      \
+   .globl C_SYMBOL_NAME(name);						      \
+   .type C_SYMBOL_NAME(name),@function;					      \
++  .align ALIGNARG(12);                                         \
+   .align ALIGNARG(6);							      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+-- 
+2.25.1
+

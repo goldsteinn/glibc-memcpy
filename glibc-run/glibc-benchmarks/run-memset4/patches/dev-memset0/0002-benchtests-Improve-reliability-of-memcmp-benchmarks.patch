@@ -1,0 +1,64 @@
+From dd1a6050d6cfd0948ce36fd97cc077c543302a56 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 18 Sep 2021 16:13:34 -0500
+Subject: [PATCH 02/11] benchtests: Improve reliability of memcmp benchmarks
+
+No bug. Remove reallocation of bufs between implementation tests. Move
+initialization outside of foreach implementation test loop. Increase
+iteration count.
+
+Generally before this commit was seeing a great deal of variability
+between runs. The goal of this commit is to make the results more
+reliable.
+
+Benchtests build and bench-memcmp succeeding.
+---
+ benchtests/bench-memcmp.c | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/benchtests/bench-memcmp.c b/benchtests/bench-memcmp.c
+index 744c7ec5ba..0d6a93bf29 100644
+--- a/benchtests/bench-memcmp.c
++++ b/benchtests/bench-memcmp.c
+@@ -63,7 +63,7 @@ static void
+ do_one_test (json_ctx_t *json_ctx, impl_t *impl, const CHAR *s1,
+ 	     const CHAR *s2, size_t len, int exp_result)
+ {
+-  size_t i, iters = INNER_LOOP_ITERS8;
++  size_t i, iters = INNER_LOOP_ITERS_LARGE;
+   timing_t start, stop, cur;
+ 
+   TIMING_NOW (start);
+@@ -103,20 +103,19 @@ do_test (json_ctx_t *json_ctx, size_t align1, size_t align2, size_t len,
+   json_attr_uint (json_ctx, "result", (double) exp_result);
+   json_array_begin (json_ctx, "timings");
+ 
+-  FOR_EACH_IMPL (impl, 0)
+-    {
+-      s1 = (CHAR *) (buf1 + align1);
+-      s2 = (CHAR *) (buf2 + align2);
++  s1 = (CHAR *)(buf1 + align1);
++  s2 = (CHAR *)(buf2 + align2);
+ 
+-      for (i = 0; i < len; i++)
+-	s1[i] = s2[i] = 1 + (23 << ((CHARBYTES - 1) * 8)) * i % MAX_CHAR;
++  for (i = 0; i < len; i++)
++    s1[i] = s2[i] = 1 + (23 << ((CHARBYTES - 1) * 8)) * i % MAX_CHAR;
+ 
+-      s1[len] = align1;
+-      s2[len] = align2;
+-      s2[len - 1] -= exp_result;
++  s1[len] = align1;
++  s2[len] = align2;
++  s2[len - 1] -= exp_result;
+ 
++  FOR_EACH_IMPL (impl, 0)
++    {
+       do_one_test (json_ctx, impl, s1, s2, len, exp_result);
+-      alloc_bufs ();
+     }
+ 
+   json_array_end (json_ctx);
+-- 
+2.25.1
+
