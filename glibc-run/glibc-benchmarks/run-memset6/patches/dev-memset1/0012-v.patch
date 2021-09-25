@@ -1,0 +1,134 @@
+From a2a453ff60477ea74e591933a9e5125d5bf332dc Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 24 Sep 2021 12:28:31 -0500
+Subject: [PATCH 12/15] v
+
+---
+ .../multiarch/memset-vec-unaligned-erms.S     | 74 ++++++++++++++-----
+ 1 file changed, 54 insertions(+), 20 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 70b38af7e1..535089f04d 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -181,11 +181,22 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
+ 	VMOVU	%VEC(0), -VEC_SIZE(%rax, %rdx)
+ 	VZEROUPPER_RETURN
+ #endif
++#ifdef USE_LESS_VEC_MASK_STORE
+ 	.p2align 4,, 10
+-L(last_2x_vec):    
++L(stosb_close):
++	movzbl	%sil, %eax
++	mov	%RDX_LP, %RCX_LP
++	mov	%RDI_LP, %RDX_LP
++	rep	stosb
++	mov	%RDX_LP, %RAX_LP
++	VZEROUPPER_RETURN
++#else
++	.p2align 4,, 10
++L(last_2x_vec):
+ 	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
+ 	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
+-    VZEROUPPER_RETURN
++	VZEROUPPER_RETURN
++#endif
+ 
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ 	.p2align 4
+@@ -194,35 +205,58 @@ L(stosb_more_2x_vec):
+ 	ja	L(stosb_close)
+ #endif
+ L(more_2x_vec):
+-	addq	%rdx, %rdi
++#ifdef USE_LESS_VEC_MASK_STORE
++	leaq	-(VEC_SIZE * 4 + LOOP_4X_OFFSET)(%rdi, %rdx), %rcx
++#endif
+ 	/* Stores to first 2x VEC before cmp as any path forward will
+ 	   require it.  */
+ 	VMOVU	%VEC(0), (%rax)
+ 	VMOVU	%VEC(0), VEC_SIZE(%rax)
++#ifndef USE_LESS_VEC_MASK_STORE
++	addq	%rdx, %rdi
++#endif
+ 	cmpq	$(VEC_SIZE * 4), %rdx
+ 	jbe	L(last_2x_vec)
+ 	VMOVU	%VEC(0), (VEC_SIZE * 2)(%rax)
+ 	VMOVU	%VEC(0), (VEC_SIZE * 3)(%rax)
+ 	/* Try and have this cmp/jcc on same cache line as target and
+-	fallthrough.  */
+-    leaq	(VEC_SIZE * 8)(%rax), %rcx
++	   fallthrough.  */
++#ifdef USE_LESS_VEC_MASK_STORE
++# if LOOP_4X_OFFSET == 0
++	subq	$-(VEC_SIZE * 4), %rdi
++# endif
+ 	cmpq	%rdi, %rcx
+-	jae	L(last_4x_vec)
+-    andq    $(VEC_SIZE * -2), %rcx
++# define LOOP_VEC	rdi
++# define END_VEC	rcx
++#else
++	addq	$-(VEC_SIZE * 4), %rdi
++	cmpq	$(VEC_SIZE * 8), %rdx
++# define LOOP_VEC	rdx
++# define END_VEC	rdi
++#endif
++	jbe	L(last_4x_vec)
++#ifndef USE_LESS_VEC_MASK_STORE
++	leaq	(VEC_SIZE * 4)(%rax), %LOOP_VEC
++#endif
++	andq	$(VEC_SIZE * -2), %LOOP_VEC
+ 	.p2align 4
+ L(loop):
+-	VMOVA	%VEC(0), (VEC_SIZE * -4)(%rcx)
+-	VMOVA	%VEC(0), (VEC_SIZE * -3)(%rcx)
+-	VMOVA	%VEC(0), (VEC_SIZE * -2)(%rcx)
+-	VMOVA	%VEC(0), (VEC_SIZE * -1)(%rcx)
+-	subq	$-(VEC_SIZE * 4), %rcx
+-	cmpq	%rdi, %rcx
++	VMOVA	%VEC(0), (VEC_SIZE * 0 + LOOP_4X_OFFSET)(%LOOP_VEC)
++	VMOVA	%VEC(0), (VEC_SIZE * 1 + LOOP_4X_OFFSET)(%LOOP_VEC)
++	VMOVA	%VEC(0), (VEC_SIZE * 2 + LOOP_4X_OFFSET)(%LOOP_VEC)
++	VMOVA	%VEC(0), (VEC_SIZE * 3 + LOOP_4X_OFFSET)(%LOOP_VEC)
++	subq	$-(VEC_SIZE * 4), %LOOP_VEC
++	cmpq	%END_VEC, %LOOP_VEC
+ 	jb	L(loop)
+-L(last_4x_vec):    
+-	VMOVU	%VEC(0), (VEC_SIZE * -4)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -3)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
++	.p2align 4,, MOV_SIZE
++L(last_4x_vec):
++	VMOVU	%VEC(0), (VEC_SIZE * 0 + LOOP_4X_OFFSET)(%END_VEC)
++	VMOVU	%VEC(0), (VEC_SIZE * 1 + LOOP_4X_OFFSET)(%END_VEC)
++#ifdef USE_LESS_VEC_MASK_STORE
++L(last_2x_vec):
++#endif
++	VMOVU	%VEC(0), (VEC_SIZE * 2 + LOOP_4X_OFFSET)(%END_VEC)
++	VMOVU	%VEC(0), (VEC_SIZE * 3 + LOOP_4X_OFFSET)(%END_VEC)
+ L(return):
+ #if VEC_SIZE > 16
+ 	ZERO_UPPER_VEC_REGISTERS_RETURN
+@@ -230,8 +264,7 @@ L(return):
+ 	ret
+ #endif
+ 
+-
+-
++#ifndef USE_LESS_VEC_MASK_STORE
+ 	.p2align 4,, 10
+ L(stosb_close):
+ 	movzbl	%sil, %eax
+@@ -240,6 +273,7 @@ L(stosb_close):
+ 	rep	stosb
+ 	mov	%RDX_LP, %RAX_LP
+ 	VZEROUPPER_RETURN
++#endif
+ 
+ 	.p2align 4,, 10
+ L(less_vec):
+-- 
+2.25.1
+

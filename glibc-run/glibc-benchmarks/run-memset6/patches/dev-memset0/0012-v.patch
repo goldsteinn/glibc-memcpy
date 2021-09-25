@@ -1,0 +1,47 @@
+From 7bdc51169e5a1671d144c3a5ee5b4aabd84256d5 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 24 Sep 2021 12:27:47 -0500
+Subject: [PATCH 12/14] v
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 71e532bb86..8fa65bddc1 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -182,12 +182,6 @@ ENTRY (MEMSET_SYMBOL (__memset, unaligned_erms))
+ 	VZEROUPPER_RETURN
+ #endif
+ 
+-	.p2align 4,, 10
+-L(last_2x_vec):
+-	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
+-	VZEROUPPER_RETURN
+-
+ 	.p2align 4
+ L(loop_4x_vec):
+ 	leaq	(VEC_SIZE * 4 - LOOP_4X_OFFSET)(%rax), %rcx
+@@ -216,7 +210,7 @@ L(return):
+ #endif
+ 
+ #if defined USE_MULTIARCH && IS_IN (libc)
+-	.p2align 4,, 10
++	.p2align 4
+ L(stosb_more_2x_vec):
+ 	cmp	$2048, %RDX_LP
+ 	ja	L(stosb_close)
+@@ -237,6 +231,8 @@ L(more_2x_vec):
+ 	ja	L(loop_4x_vec)
+ 	VMOVU	%VEC(0), (VEC_SIZE * -4)(%rdi)
+ 	VMOVU	%VEC(0), (VEC_SIZE * -3)(%rdi)
++	.p2align 4,, SMALL_MOV_ALIGN(MOV_SIZE, 0)
++L(last_2x_vec):
+ 	VMOVU	%VEC(0), (VEC_SIZE * -2)(%rdi)
+ 	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi)
+ 	VZEROUPPER_RETURN
+-- 
+2.25.1
+

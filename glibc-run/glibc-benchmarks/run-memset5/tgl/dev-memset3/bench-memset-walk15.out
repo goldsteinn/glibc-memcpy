@@ -1,0 +1,26 @@
+{
+ "timing_type": "hp_timing",
+ "functions": {
+  "memset": {
+   "bench-variant": "walk",
+   "ifuncs": ["generic_memset", "__memset_sse2_unaligned", "__memset_sse2_unaligned_erms", "__memset_erms", "__memset_avx2_unaligned", "__memset_avx2_unaligned_erms", "__memset_evex_unaligned", "__memset_evex_unaligned_erms", "__memset_avx512_unaligned_erms", "__memset_avx512_unaligned", "__memset_avx512_no_vzeroupper"],
+   "results": [
+    {
+     "length": 128,
+     "char": 65,
+     "timings": [10.0496, 4.33293, 4.28331, 20.4014, 3.7295, 3.89403, 3.59504, 3.59366, 3.38393, 3.11226, 4.30027]
+    },
+    {
+     "length": 129,
+     "char": 65,
+     "timings": [8.979, 7.64054, 7.82892, 21.5978, 5.65126, 5.57712, 5.62608, 5.62683, 4.6505, 4.37791, 4.83407]
+    },
+    {
+     "length": 256,
+     "char": 65,
+     "timings": [14.9828, 8.1156, 7.87978, 22.8847, 5.12228, 5.12356, 3.86636, 4.48503, 4.83568, 4.52319, 5.89633]
+    },
+    {
+     "length": 257,
+     "char": 65,
+     "timings": [14.8865, 8.88517, 8.78878, 27.4591, 7.50643, 7.2023, 7.20242, 7.20242Didn't expect signal from child: got `Segmentation fault'

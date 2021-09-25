@@ -1,0 +1,25 @@
+From 0bb6c86b7e6b801e654858ded0034308c6bc24ba Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 22 Sep 2021 21:06:59 -0500
+Subject: [PATCH 08/15] inline rep th
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 8f89e91392..f2a10e21d6 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -195,7 +195,7 @@ L(stosb_close):
+ 
+ 	.p2align 4
+ L(stosb_more_2x_vec):
+-	cmp	__x86_rep_stosb_threshold(%rip), %RDX_LP
++	cmp	$2048, %RDX_LP
+ 	ja	L(stosb_close)
+ #endif
+ L(more_2x_vec):
+-- 
+2.25.1
+

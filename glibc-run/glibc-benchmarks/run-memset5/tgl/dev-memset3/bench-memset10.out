@@ -1,0 +1,66 @@
+{
+ "timing_type": "hp_timing",
+ "functions": {
+  "memset": {
+   "bench-variant": "default",
+   "ifuncs": ["generic_memset", "__memset_sse2_unaligned", "__memset_sse2_unaligned_erms", "__memset_erms", "__memset_avx2_unaligned", "__memset_avx2_unaligned_erms", "__memset_evex_unaligned", "__memset_evex_unaligned_erms", "__memset_avx512_unaligned_erms", "__memset_avx512_unaligned", "__memset_avx512_no_vzeroupper"],
+   "results": [
+    {
+     "length": 1,
+     "alignment": 0,
+     "char": -65,
+     "timings": [4.47632, 5.40979, 4.33972, 22.3882, 5.05762, 4.29932, 3.65161, 3.64014, 7.89282, 3.6543, 7.15881]
+    },
+    {
+     "length": 2,
+     "alignment": 0,
+     "char": -65,
+     "timings": [4.95056, 4.27075, 4.2561, 23.0153, 4.26794, 4.26514, 3.62451, 3.61414, 3.61743, 3.61426, 4.93848]
+    },
+    {
+     "length": 4,
+     "alignment": 0,
+     "char": -65,
+     "timings": [10.2872, 4.26331, 4.26221, 22.339, 4.2677, 4.27832, 3.52588, 3.54089, 3.52429, 3.53003, 4.16675]
+    },
+    {
+     "length": 8,
+     "alignment": 0,
+     "char": -65,
+     "timings": [6.70618, 4.16846, 4.15515, 21.8154, 4.16016, 4.15808, 3.55603, 3.53943, 3.5354, 3.52295, 3.5293]
+    },
+    {
+     "length": 16,
+     "alignment": 0,
+     "char": -65,
+     "timings": [6.98364, 2.85706, 2.86145, 21.8224, 4.81482, 4.81909, 3.52576, 3.53748, 3.52136, 3.53516, 6.12292]
+    },
+    {
+     "length": 32,
+     "alignment": 0,
+     "char": -65,
+     "timings": [9.40198, 8.08118, 8.0752, 23.3618, 2.9491, 2.9325, 2.92163, 2.92871, 3.61487, 3.61047, 4.94421]
+    },
+    {
+     "length": 64,
+     "alignment": 0,
+     "char": -65,
+     "timings": [7.62244, 8.28088, 8.27722, 22.3333, 3.60059, 2.94763, 2.927, 2.94434, 2.9176, 2.92786, 4.93066]
+    },
+    {
+     "length": 128,
+     "alignment": 0,
+     "char": -65,
+     "timings": [8.95972, 8.27148, 8.27258, 22.3369, 4.26917, 4.27393, 4.27368, 4.27759, 2.92664, 2.93079, 4.27637]
+    },
+    {
+     "length": 256,
+     "alignment": 0,
+     "char": -65,
+     "timings": [14.1989, 8.28125, 8.28467, 22.3358, 4.27087, 4.94165, 4.26843, 4.27832, 4.9353, 4.93506, 6.2821]
+    },
+    {
+     "length": 512,
+     "alignment": 0,
+     "char": -65,
+     "timings": [25.7823, 12.1095, 12.0731, 30.3679, 6.31213, 6.95386, 6.27612, 6.29248Didn't expect signal from child: got `Segmentation fault'

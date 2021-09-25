@@ -1,0 +1,50 @@
+From 919c03597c211d059d748741e58f7994078db521 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 20 Sep 2021 00:47:33 -0500
+Subject: [PATCH 4/7] align 12
+
+---
+ sysdeps/x86/sysdep.h                         | 1 +
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 2 +-
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 2 +-
+ 3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 9ccf2eee88..84046bb70e 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -81,6 +81,7 @@ enum cf_protection_level
+ #define	ENTRY(name)							      \
+   .globl C_SYMBOL_NAME(name);						      \
+   .type C_SYMBOL_NAME(name),@function;					      \
++  .align ALIGNARG(12);                                         \
+   .align ALIGNARG(6);							      \
+   nop;							      \
+   .align ALIGNARG(5);							      \
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 2621ec907a..5a908555bd 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -539,6 +539,6 @@ L(zero_4_7):
+ 	/* No ymm register was touched.  */
+ 	ret
+ # endif
+-
++    .p2align 12
+ END (MEMCMP)
+ #endif
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index 654dc7ac8c..0b7157a2a9 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -541,6 +541,6 @@ L(between_4_7):
+ L(zero_4_7):
+ 	ret
+ # endif
+-
++    .p2align 12
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+
