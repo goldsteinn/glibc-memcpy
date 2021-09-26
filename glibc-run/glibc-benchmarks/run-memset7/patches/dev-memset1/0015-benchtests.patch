@@ -1,0 +1,34 @@
+From 85ffad83fa88a54478976259948e5f2bde29773b Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 24 Sep 2021 18:09:47 -0500
+Subject: [PATCH 15/16] benchtests
+
+---
+ benchtests/bench-memset.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/benchtests/bench-memset.c b/benchtests/bench-memset.c
+index d6619b4836..4284cb1724 100644
+--- a/benchtests/bench-memset.c
++++ b/benchtests/bench-memset.c
+@@ -43,7 +43,7 @@ static void
+ do_one_test (json_ctx_t *json_ctx, impl_t *impl, CHAR *s,
+ 	     int c __attribute ((unused)), size_t n)
+ {
+-  size_t i, iters = INNER_LOOP_ITERS;
++  size_t i, iters = INNER_LOOP_ITERS_LARGE;
+   timing_t start, stop, cur;
+ 
+   TIMING_NOW (start);
+@@ -118,7 +118,7 @@ test_main (void)
+ 	  if (i & (i - 1))
+ 	    do_test (&json_ctx, 0, c, i);
+ 	}
+-      for (i = 32; i < 512; i+=32)
++      for (i = 32; i < 1024; i+=32)
+ 	{
+ 	  do_test (&json_ctx, 0, c, i);
+ 	  do_test (&json_ctx, i, c, i);
+-- 
+2.25.1
+

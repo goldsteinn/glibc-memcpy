@@ -1,0 +1,107 @@
+From 2ad58c98ef0b5b6297009d521cb4d868d392c6cd Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 25 Sep 2021 19:13:43 -0500
+Subject: [PATCH 16/16] tmp
+
+---
+ .../multiarch/memset-avx2-unaligned-erms.S    |  4 +--
+ .../multiarch/memset-vec-unaligned-erms.S     | 28 +++++++++----------
+ 2 files changed, 15 insertions(+), 17 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S
+index e9233c13ca..5ab9c7192c 100644
+--- a/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S
+@@ -1,14 +1,14 @@
+ #if IS_IN (libc)
+ # define VEC_SIZE	32
+ # define MOV_SIZE     4
+-# define MOV_XMM_SIZE 3
++# define MOV_XMM_SIZE 4
+ # define RET_SIZE     4
+ 
+ # define VEC(i)		ymm##i
+ 
+ # define VMOVU     vmovdqu
+ # define VMOVA     vmovdqa
+-# define VMOVU_XMM movups
++# define VMOVU_XMM VMOVU
+ 
+ # define MEMSET_VDUP_TO_VEC0_AND_SET_RETURN(d, r) \
+   vmovd d, %xmm0; \
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index fd0056af45..85953dd64a 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -265,7 +265,14 @@ L(stosb_close):
+ 	rep	stosb
+ 	mov	%RDX_LP, %RAX_LP
+ 	VZEROUPPER_RETURN
+-
++#if VEC_SIZE == 32
++	.p2align 4,, SMALL_MOV_ALIGN(3, RET_SIZE)
++L(between_8_15):
++	/* From 8 to 15.  No branch when size == 8.  */
++	movq	%rdi, (%rax)
++	movq	%rdi, -8(%rax, %rdx)
++	VZEROUPPER_RETURN
++#endif
+ 
+ 
+ 	.p2align 4,, 10
+@@ -293,14 +300,6 @@ L(cross_page):
+ 1:
+ 	VZEROUPPER_RETURN
+ 
+-#if VEC_SIZE == 32
+-	.p2align 4,, SMALL_MOV_ALIGN(MOV_XMM_SIZE, RET_SIZE)
+-L(between_16_31):
+-	/* From 16 to 31.  No branch when size == 16.  */
+-	VMOVU_XMM %XMM0, (%rax)
+-	VMOVU_XMM %XMM0, -16(%rax, %rdx)
+-	VZEROUPPER_RETURN
+-#endif
+ 
+ #ifdef USE_LESS_VEC_MASK_STORE
+ 	.p2align 4,, 10
+@@ -333,10 +332,6 @@ L(less_vec):
+ 
+ 
+ 
+-
+-
+-
+-
+ #if VEC_SIZE > 32
+ 	.p2align 4,, SMALL_MOV_ALIGN(MOV_SIZE, RET_SIZE)
+ 	/* From 32 to 63.  No branch when size == 32.  */
+@@ -344,7 +339,8 @@ L(between_32_63):
+ 	VMOVU	%YMM0, (%rax)
+ 	VMOVU	%YMM0, -32(%rax, %rdx)
+ 	VZEROUPPER_RETURN
+-
++#endif
++#if VEC_SIZE > 16
+ 	.p2align 4,, SMALL_MOV_ALIGN(MOV_XMM_SIZE, RET_SIZE)
+ L(between_16_31):
+ 	/* From 16 to 31.  No branch when size == 16.  */
+@@ -353,13 +349,15 @@ L(between_16_31):
+ 	VZEROUPPER_RETURN
+ #endif
+ 
++#if VEC_SIZE != 32
+ 	.p2align 4,, SMALL_MOV_ALIGN(3, RET_SIZE)
+ L(between_8_15):
+ 	/* From 8 to 15.  No branch when size == 8.  */
+ 	movq	%rdi, (%rax)
+ 	movq	%rdi, -8(%rax, %rdx)
+ 	VZEROUPPER_RETURN
+-
++#endif
++    
+ 	.p2align 4,, SMALL_MOV_ALIGN(2, RET_SIZE)
+ L(between_4_7):
+ 	/* From 4 to 7.  No branch when size == 4.  */
+-- 
+2.25.1
+

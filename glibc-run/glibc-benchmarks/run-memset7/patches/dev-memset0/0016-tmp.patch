@@ -1,0 +1,27 @@
+From d18bfbf27e652a48864088dd0a717aed77c0d1af Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 25 Sep 2021 19:15:08 -0500
+Subject: [PATCH 16/16] tmp
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 2c05f83be2..1c52b94226 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -296,8 +296,9 @@ L(return):
+ #else
+ 	ret
+ #endif
++
++    .p2align 4,, 10
+ #ifndef USE_LESS_VEC_MASK_STORE
+-	.p2align 4,, 10
+ L(stosb_close):
+ 	movzbl	%sil, %eax
+ 	mov	%RDX_LP, %RCX_LP
+-- 
+2.25.1
+

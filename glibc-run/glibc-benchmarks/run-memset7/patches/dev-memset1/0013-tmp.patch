@@ -1,0 +1,25 @@
+From 4dc429eb12d0f95f6ce8adb663dba2ab7cb97715 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 24 Sep 2021 16:43:58 -0500
+Subject: [PATCH 13/16] tmp
+
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 535089f04d..4502561fb0 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -65,7 +65,7 @@
+ 
+ #define PAGE_SIZE 4096
+ #if VEC_SIZE == 64
+-# define LOOP_4X_OFFSET	(VEC_SIZE	*	-4)
++# define LOOP_4X_OFFSET	(VEC_SIZE	*	4)
+ #else
+ # define LOOP_4X_OFFSET	(0)
+ #endif
+-- 
+2.25.1
+

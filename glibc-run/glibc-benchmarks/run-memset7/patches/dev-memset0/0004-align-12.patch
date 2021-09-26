@@ -1,0 +1,37 @@
+From 39bfd88d64d7b4edea4603c87209b5925c188aa4 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 20 Sep 2021 00:47:13 -0500
+Subject: [PATCH 04/16] align 12
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 2 +-
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 2621ec907a..5a908555bd 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -539,6 +539,6 @@ L(zero_4_7):
+ 	/* No ymm register was touched.  */
+ 	ret
+ # endif
+-
++    .p2align 12
+ END (MEMCMP)
+ #endif
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index 654dc7ac8c..0b7157a2a9 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -541,6 +541,6 @@ L(between_4_7):
+ L(zero_4_7):
+ 	ret
+ # endif
+-
++    .p2align 12
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+
