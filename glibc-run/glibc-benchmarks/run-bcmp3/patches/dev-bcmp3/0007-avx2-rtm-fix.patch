@@ -1,0 +1,24 @@
+From ea9532a5bf961aebc1baa10a6018f4841c142721 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Sep 2021 13:12:22 -0500
+Subject: [PATCH 7/9] avx2 rtm fix
+
+---
+ sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S b/sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S
+index d742257e4e..28976daff0 100644
+--- a/sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S
++++ b/sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S
+@@ -1,5 +1,5 @@
+-#ifndef MEMCMP
+-# define MEMCMP __bcmp_avx2_rtm
++#ifndef BCMP
++# define BCMP __bcmp_avx2_rtm
+ #endif
+ 
+ #define ZERO_UPPER_VEC_REGISTERS_RETURN \
+-- 
+2.25.1
+

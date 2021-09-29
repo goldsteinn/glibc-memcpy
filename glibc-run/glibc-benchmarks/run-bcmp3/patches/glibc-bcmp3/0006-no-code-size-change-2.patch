@@ -1,0 +1,24 @@
+From 4325830a9f3a36e01d1a7e2d8095b6c7f891213f Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Sep 2021 13:00:05 -0500
+Subject: [PATCH 6/6] no code size change 2
+
+---
+ sysdeps/x86/sysdep.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index f639d5d30a..56dc4fd3b7 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -81,6 +81,7 @@ enum cf_protection_level
+ #define	ENTRY(name)							      \
+   .globl C_SYMBOL_NAME(name);						      \
+   .type C_SYMBOL_NAME(name),@function;					      \
++  .align ALIGNARG(12);							      \
+   .align ALIGNARG(6);							      \
+   nop;							      \
+   .align ALIGNARG(5);							      \
+-- 
+2.25.1
+
