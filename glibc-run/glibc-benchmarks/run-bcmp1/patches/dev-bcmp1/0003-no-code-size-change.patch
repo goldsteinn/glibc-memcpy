@@ -1,0 +1,35 @@
+From 2977361d2adf3a7da680cba398ea9a7326cab684 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Sep 2021 12:58:23 -0500
+Subject: [PATCH 03/10] no code size change
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 1 +
+ sysdeps/x86_64/multiarch/memcmp-evex-movbe.S | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 2621ec907a..231d69c9a8 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -540,5 +540,6 @@ L(zero_4_7):
+ 	ret
+ # endif
+ 
++    .p2align 12
+ END (MEMCMP)
+ #endif
+diff --git a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+index 654dc7ac8c..06cecda5a3 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-evex-movbe.S
+@@ -542,5 +542,6 @@ L(zero_4_7):
+ 	ret
+ # endif
+ 
++    .p2align 12
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+

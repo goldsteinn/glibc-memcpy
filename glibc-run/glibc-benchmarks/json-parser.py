@@ -199,6 +199,8 @@ class JsonFile():
 
     def name(self, impl):
         global score_cmp
+        if score_cmp is None:
+            return impl
         ret = ""
         if score_cmp not in self.file_fmt:
             ret = "New"

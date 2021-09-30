@@ -1,0 +1,126 @@
+From cdf1bf95c9e88f0459f63621d4f296752e830361 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Sep 2021 22:02:04 -0500
+Subject: [PATCH 11/12] tmp
+
+---
+ sysdeps/x86_64/multiarch/bcmp-evex.S | 89 ++++++++++++++--------------
+ 1 file changed, 46 insertions(+), 43 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/bcmp-evex.S b/sysdeps/x86_64/multiarch/bcmp-evex.S
+index 3e064361ed..715eb28b11 100644
+--- a/sysdeps/x86_64/multiarch/bcmp-evex.S
++++ b/sysdeps/x86_64/multiarch/bcmp-evex.S
+@@ -136,6 +136,51 @@ L(last_1x_vec):
+ 	kmovd	%k1, %eax
+ 	ret
+ 
++
++	/* NB: p2align 5 here will ensure the L(loop_4x_vec) is also 32
++	   byte aligned.  */
++	.p2align 5
++L(less_vec):
++	/* Check if one or less char. This is necessary for size = 0 but
++	   is also faster for size = 1.  */
++	cmpl	$1, %edx
++	jbe	L(one_or_less)
++
++	/* Check if loading one VEC from either s1 or s2 could cause a
++	   page cross. This can have false positives but is by far the
++	   fastest method.  */
++	movl	%edi, %eax
++	orl	%esi, %eax
++	andl	$(PAGE_SIZE - 1), %eax
++	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
++	jg	L(page_cross_less_vec)
++
++	/* No page cross possible.  */
++	VMOVU	(%rsi), %YMM2
++	VPCMP	$4, (%rdi), %YMM2, %k1
++	kmovd	%k1, %eax
++	/* Result will be zero if s1 and s2 match. Otherwise first set
++	   bit will be first mismatch.  */
++	bzhil	%edx, %eax, %eax
++	ret
++
++	/* Relatively cold but placing close to L(less_vec) for 2 byte
++	   jump encoding.  */
++	.p2align 4
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	/* No ymm register was touched.  */
++	ret
++	/* Within the same 16 byte block is L(one_or_less).  */
++L(zero):
++	xorl	%eax, %eax
++	ret
++
++
++    
+ 	.p2align 4
+ L(last_2x_vec):
+ 	VMOVU	-(VEC_SIZE * 0)(%rsi, %rdx), %YMM1
+@@ -213,49 +258,6 @@ L(return_neq2):
+ 	ret
+ 
+ 
+-	/* NB: p2align 5 here will ensure the L(loop_4x_vec) is also 32
+-	   byte aligned.  */
+-	.p2align 5
+-L(less_vec):
+-	/* Check if one or less char. This is necessary for size = 0 but
+-	   is also faster for size = 1.  */
+-	cmpl	$1, %edx
+-	jbe	L(one_or_less)
+-
+-	/* Check if loading one VEC from either s1 or s2 could cause a
+-	   page cross. This can have false positives but is by far the
+-	   fastest method.  */
+-	movl	%edi, %eax
+-	orl	%esi, %eax
+-	andl	$(PAGE_SIZE - 1), %eax
+-	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
+-	jg	L(page_cross_less_vec)
+-
+-	/* No page cross possible.  */
+-	VMOVU	(%rsi), %YMM2
+-	VPCMP	$4, (%rdi), %YMM2, %k1
+-	kmovd	%k1, %eax
+-	/* Result will be zero if s1 and s2 match. Otherwise first set
+-	   bit will be first mismatch.  */
+-	bzhil	%edx, %eax, %eax
+-	ret
+-
+-	/* Relatively cold but placing close to L(less_vec) for 2 byte
+-	   jump encoding.  */
+-	.p2align 4
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-	/* Within the same 16 byte block is L(one_or_less).  */
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+-
+-
+ 
+ 
+ 
+@@ -321,6 +323,7 @@ L(between_2_3):
+ 	ret
+ 
+ 
++
+     .p2align 12
+ END (BCMP)
+ #endif
+-- 
+2.25.1
+

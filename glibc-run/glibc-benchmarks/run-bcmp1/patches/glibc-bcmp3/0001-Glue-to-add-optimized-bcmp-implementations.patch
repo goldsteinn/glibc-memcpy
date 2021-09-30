@@ -1,0 +1,553 @@
+From 3e31956342e4ef663d93c72dc97957148fdc1757 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sun, 5 Sep 2021 22:12:09 -0400
+Subject: [PATCH 1/7] Glue to add optimized bcmp implementations
+
+---
+ benchtests/Makefile                        |  2 +-
+ benchtests/bench-bcmp.c                    | 20 ++++++++
+ benchtests/bench-memcmp.c                  |  4 +-
+ string/Makefile                            |  4 +-
+ string/test-bcmp.c                         | 21 +++++++++
+ string/test-memcmp.c                       | 27 +++++++----
+ sysdeps/x86_64/memcmp.S                    |  2 -
+ sysdeps/x86_64/multiarch/Makefile          |  3 ++
+ sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S   | 12 +++++
+ sysdeps/x86_64/multiarch/bcmp-avx2.S       | 23 ++++++++++
+ sysdeps/x86_64/multiarch/bcmp-evex.S       | 23 ++++++++++
+ sysdeps/x86_64/multiarch/bcmp-sse2.S       | 23 ++++++++++
+ sysdeps/x86_64/multiarch/bcmp-sse4.S       | 23 ++++++++++
+ sysdeps/x86_64/multiarch/bcmp.c            | 35 ++++++++++++++
+ sysdeps/x86_64/multiarch/ifunc-bcmp.h      | 53 ++++++++++++++++++++++
+ sysdeps/x86_64/multiarch/ifunc-impl-list.c | 23 ++++++++++
+ sysdeps/x86_64/multiarch/memcmp-sse2.S     |  4 +-
+ sysdeps/x86_64/multiarch/memcmp.c          |  2 -
+ 18 files changed, 286 insertions(+), 18 deletions(-)
+ create mode 100644 benchtests/bench-bcmp.c
+ create mode 100644 string/test-bcmp.c
+ create mode 100644 sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S
+ create mode 100644 sysdeps/x86_64/multiarch/bcmp-avx2.S
+ create mode 100644 sysdeps/x86_64/multiarch/bcmp-evex.S
+ create mode 100644 sysdeps/x86_64/multiarch/bcmp-sse2.S
+ create mode 100644 sysdeps/x86_64/multiarch/bcmp-sse4.S
+ create mode 100644 sysdeps/x86_64/multiarch/bcmp.c
+ create mode 100644 sysdeps/x86_64/multiarch/ifunc-bcmp.h
+
+diff --git a/benchtests/Makefile b/benchtests/Makefile
+index 1530939a8c..5fc495eb57 100644
+--- a/benchtests/Makefile
++++ b/benchtests/Makefile
+@@ -47,7 +47,7 @@ bench := $(foreach B,$(filter bench-%,${BENCHSET}), ${${B}})
+ endif
+ 
+ # String function benchmarks.
+-string-benchset := memccpy memchr memcmp memcpy memmem memmove \
++string-benchset := bcmp memccpy memchr memcmp memcpy memmem memmove \
+ 		   mempcpy memset rawmemchr stpcpy stpncpy strcasecmp strcasestr \
+ 		   strcat strchr strchrnul strcmp strcpy strcspn strlen \
+ 		   strncasecmp strncat strncmp strncpy strnlen strpbrk strrchr \
+diff --git a/benchtests/bench-bcmp.c b/benchtests/bench-bcmp.c
+new file mode 100644
+index 0000000000..1023639787
+--- /dev/null
++++ b/benchtests/bench-bcmp.c
+@@ -0,0 +1,20 @@
++/* Measure bcmp functions.
++   Copyright (C) 2015-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#define TEST_BCMP 1
++#include "bench-memcmp.c"
+diff --git a/benchtests/bench-memcmp.c b/benchtests/bench-memcmp.c
+index 744c7ec5ba..4d5f8fb766 100644
+--- a/benchtests/bench-memcmp.c
++++ b/benchtests/bench-memcmp.c
+@@ -17,7 +17,9 @@
+    <https://www.gnu.org/licenses/>.  */
+ 
+ #define TEST_MAIN
+-#ifdef WIDE
++#ifdef TEST_BCMP
++# define TEST_NAME "bcmp"
++#elif defined WIDE
+ # define TEST_NAME "wmemcmp"
+ #else
+ # define TEST_NAME "memcmp"
+diff --git a/string/Makefile b/string/Makefile
+index f0fce2a0b8..f1f67ee157 100644
+--- a/string/Makefile
++++ b/string/Makefile
+@@ -35,7 +35,7 @@ routines	:= strcat strchr strcmp strcoll strcpy strcspn		\
+ 		   strncat strncmp strncpy				\
+ 		   strrchr strpbrk strsignal strspn strstr strtok	\
+ 		   strtok_r strxfrm memchr memcmp memmove memset	\
+-		   mempcpy bcopy bzero ffs ffsll stpcpy stpncpy		\
++		   mempcpy bcmp bcopy bzero ffs ffsll stpcpy stpncpy		\
+ 		   strcasecmp strncase strcasecmp_l strncase_l		\
+ 		   memccpy memcpy wordcopy strsep strcasestr		\
+ 		   swab strfry memfrob memmem rawmemchr strchrnul	\
+@@ -52,7 +52,7 @@ strop-tests	:= memchr memcmp memcpy memmove mempcpy memset memccpy	\
+ 		   stpcpy stpncpy strcat strchr strcmp strcpy strcspn	\
+ 		   strlen strncmp strncpy strpbrk strrchr strspn memmem	\
+ 		   strstr strcasestr strnlen strcasecmp strncasecmp	\
+-		   strncat rawmemchr strchrnul bcopy bzero memrchr	\
++		   strncat rawmemchr strchrnul bcmp bcopy bzero memrchr	\
+ 		   explicit_bzero
+ tests		:= tester inl-tester noinl-tester testcopy test-ffs	\
+ 		   tst-strlen stratcliff tst-svc tst-inlcall		\
+diff --git a/string/test-bcmp.c b/string/test-bcmp.c
+new file mode 100644
+index 0000000000..6d19a4a87c
+--- /dev/null
++++ b/string/test-bcmp.c
+@@ -0,0 +1,21 @@
++/* Test and measure bcmp functions.
++   Copyright (C) 2012-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#define BAD_RESULT(result, expec) ((!(result)) != (!(expec)))
++#define TEST_BCMP 1
++#include "test-memcmp.c"
+diff --git a/string/test-memcmp.c b/string/test-memcmp.c
+index 6ddbc05d2f..c630e6799d 100644
+--- a/string/test-memcmp.c
++++ b/string/test-memcmp.c
+@@ -17,11 +17,14 @@
+    <https://www.gnu.org/licenses/>.  */
+ 
+ #define TEST_MAIN
+-#ifdef WIDE
++#ifdef TEST_BCMP
++# define TEST_NAME "bcmp"
++#elif defined WIDE
+ # define TEST_NAME "wmemcmp"
+ #else
+ # define TEST_NAME "memcmp"
+ #endif
++
+ #include "test-string.h"
+ #ifdef WIDE
+ # include <inttypes.h>
+@@ -35,6 +38,7 @@
+ # define CHARBYTES 4
+ # define CHAR__MIN WCHAR_MIN
+ # define CHAR__MAX WCHAR_MAX
++
+ int
+ simple_wmemcmp (const wchar_t *s1, const wchar_t *s2, size_t n)
+ {
+@@ -48,8 +52,11 @@ simple_wmemcmp (const wchar_t *s1, const wchar_t *s2, size_t n)
+ }
+ #else
+ # include <limits.h>
+-
+-# define MEMCMP memcmp
++# ifdef TEST_BCMP
++#  define MEMCMP bcmp
++# else
++#  define MEMCMP memcmp
++# endif
+ # define MEMCPY memcpy
+ # define SIMPLE_MEMCMP simple_memcmp
+ # define CHAR char
+@@ -69,6 +76,12 @@ simple_memcmp (const char *s1, const char *s2, size_t n)
+ }
+ #endif
+ 
++# ifndef BAD_RESULT
++#  define BAD_RESULT(result, expec)                                     \
++    (((result) == 0 && (expec)) || ((result) < 0 && (expec) >= 0) ||    \
++     ((result) > 0 && (expec) <= 0))
++#  endif
++
+ typedef int (*proto_t) (const CHAR *, const CHAR *, size_t);
+ 
+ IMPL (SIMPLE_MEMCMP, 0)
+@@ -79,9 +92,7 @@ check_result (impl_t *impl, const CHAR *s1, const CHAR *s2, size_t len,
+ 	      int exp_result)
+ {
+   int result = CALL (impl, s1, s2, len);
+-  if ((exp_result == 0 && result != 0)
+-      || (exp_result < 0 && result >= 0)
+-      || (exp_result > 0 && result <= 0))
++  if (BAD_RESULT(result, exp_result))
+     {
+       error (0, 0, "Wrong result in function %s %d %d", impl->name,
+ 	     result, exp_result);
+@@ -186,9 +197,7 @@ do_random_tests (void)
+ 	{
+ 	  r = CALL (impl, (CHAR *) p1 + align1, (const CHAR *) p2 + align2,
+ 		    len);
+-	  if ((r == 0 && result)
+-	      || (r < 0 && result >= 0)
+-	      || (r > 0 && result <= 0))
++	  if (BAD_RESULT(r, result))
+ 	    {
+ 	      error (0, 0, "Iteration %zd - wrong result in function %s (%zd, %zd, %zd, %zd) %ld != %d, p1 %p p2 %p",
+ 		     n, impl->name, align1 * CHARBYTES & 63,  align2 * CHARBYTES & 63, len, pos, r, result, p1, p2);
+diff --git a/sysdeps/x86_64/memcmp.S b/sysdeps/x86_64/memcmp.S
+index 870e15c5a0..dfd0269db2 100644
+--- a/sysdeps/x86_64/memcmp.S
++++ b/sysdeps/x86_64/memcmp.S
+@@ -356,6 +356,4 @@ L(ATR32res):
+ 	.p2align 4,, 4
+ END(memcmp)
+ 
+-#undef bcmp
+-weak_alias (memcmp, bcmp)
+ libc_hidden_builtin_def (memcmp)
+diff --git a/sysdeps/x86_64/multiarch/Makefile b/sysdeps/x86_64/multiarch/Makefile
+index 26be40959c..9dd0d8c3ff 100644
+--- a/sysdeps/x86_64/multiarch/Makefile
++++ b/sysdeps/x86_64/multiarch/Makefile
+@@ -1,6 +1,7 @@
+ ifeq ($(subdir),string)
+ 
+ sysdep_routines += strncat-c stpncpy-c strncpy-c \
++		   bcmp-sse2 bcmp-sse4 bcmp-avx2 \
+ 		   strcmp-sse2 strcmp-sse2-unaligned strcmp-ssse3  \
+ 		   strcmp-sse4_2 strcmp-avx2 \
+ 		   strncmp-sse2 strncmp-ssse3 strncmp-sse4_2 strncmp-avx2 \
+@@ -40,6 +41,7 @@ sysdep_routines += strncat-c stpncpy-c strncpy-c \
+ 		   memset-sse2-unaligned-erms \
+ 		   memset-avx2-unaligned-erms \
+ 		   memset-avx512-unaligned-erms \
++		   bcmp-avx2-rtm \
+ 		   memchr-avx2-rtm \
+ 		   memcmp-avx2-movbe-rtm \
+ 		   memmove-avx-unaligned-erms-rtm \
+@@ -59,6 +61,7 @@ sysdep_routines += strncat-c stpncpy-c strncpy-c \
+ 		   strncpy-avx2-rtm \
+ 		   strnlen-avx2-rtm \
+ 		   strrchr-avx2-rtm \
++		   bcmp-evex \
+ 		   memchr-evex \
+ 		   memcmp-evex-movbe \
+ 		   memmove-evex-unaligned-erms \
+diff --git a/sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S b/sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S
+new file mode 100644
+index 0000000000..d742257e4e
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/bcmp-avx2-rtm.S
+@@ -0,0 +1,12 @@
++#ifndef MEMCMP
++# define MEMCMP __bcmp_avx2_rtm
++#endif
++
++#define ZERO_UPPER_VEC_REGISTERS_RETURN \
++  ZERO_UPPER_VEC_REGISTERS_RETURN_XTEST
++
++#define VZEROUPPER_RETURN jmp	 L(return_vzeroupper)
++
++#define SECTION(p) p##.avx.rtm
++
++#include "bcmp-avx2.S"
+diff --git a/sysdeps/x86_64/multiarch/bcmp-avx2.S b/sysdeps/x86_64/multiarch/bcmp-avx2.S
+new file mode 100644
+index 0000000000..d7f449f677
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/bcmp-avx2.S
+@@ -0,0 +1,23 @@
++/* bcmp optimized with AVX2.
++   Copyright (C) 2017-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++# ifndef MEMCMP
++#  define MEMCMP	__bcmp_avx2
++# endif
++# define USE_AS_BCMP	1
++#include "memcmp-avx2-movbe.S"
+diff --git a/sysdeps/x86_64/multiarch/bcmp-evex.S b/sysdeps/x86_64/multiarch/bcmp-evex.S
+new file mode 100644
+index 0000000000..ce30342210
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/bcmp-evex.S
+@@ -0,0 +1,23 @@
++/* bcmp optimized with EVEX
++   Copyright (C) 2017-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++# ifndef MEMCMP
++#  define MEMCMP	__bcmp_evex
++# endif
++# define USE_AS_BCMP	1
++#include "memcmp-evex-movbe.S"
+diff --git a/sysdeps/x86_64/multiarch/bcmp-sse2.S b/sysdeps/x86_64/multiarch/bcmp-sse2.S
+new file mode 100644
+index 0000000000..b18d570386
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/bcmp-sse2.S
+@@ -0,0 +1,23 @@
++/* bcmp optimized with SSE2
++   Copyright (C) 2017-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++# ifndef memcmp
++#  define memcmp	__bcmp_sse2
++# endif
++# define USE_AS_BCMP	1
++#include "memcmp-sse2.S"
+diff --git a/sysdeps/x86_64/multiarch/bcmp-sse4.S b/sysdeps/x86_64/multiarch/bcmp-sse4.S
+new file mode 100644
+index 0000000000..ed9804053f
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/bcmp-sse4.S
+@@ -0,0 +1,23 @@
++/* bcmp optimized with SSE4.1
++   Copyright (C) 2017-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++# ifndef MEMCMP
++#  define MEMCMP	__bcmp_sse4_1
++# endif
++# define USE_AS_BCMP	1
++#include "memcmp-sse4.S"
+diff --git a/sysdeps/x86_64/multiarch/bcmp.c b/sysdeps/x86_64/multiarch/bcmp.c
+new file mode 100644
+index 0000000000..6e26b73ecc
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/bcmp.c
+@@ -0,0 +1,35 @@
++/* Multiple versions of bcmp.
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2017-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++/* Define multiple versions only for the definition in libc.  */
++#if IS_IN (libc)
++# define bcmp __redirect_bcmp
++# include <string.h>
++# undef bcmp
++
++# define SYMBOL_NAME bcmp
++# include "ifunc-bcmp.h"
++
++libc_ifunc_redirected (__redirect_bcmp, bcmp, IFUNC_SELECTOR ());
++
++# ifdef SHARED
++__hidden_ver1 (bcmp, __GI_bcmp, __redirect_bcmp)
++  __attribute__ ((visibility ("hidden"))) __attribute_copy__ (bcmp);
++# endif
++#endif
+diff --git a/sysdeps/x86_64/multiarch/ifunc-bcmp.h b/sysdeps/x86_64/multiarch/ifunc-bcmp.h
+new file mode 100644
+index 0000000000..b0dacd8526
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/ifunc-bcmp.h
+@@ -0,0 +1,53 @@
++/* Common definition for bcmp ifunc selections.
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2017-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++# include <init-arch.h>
++
++extern __typeof (REDIRECT_NAME) OPTIMIZE (sse2) attribute_hidden;
++extern __typeof (REDIRECT_NAME) OPTIMIZE (sse4_1) attribute_hidden;
++extern __typeof (REDIRECT_NAME) OPTIMIZE (avx2) attribute_hidden;
++extern __typeof (REDIRECT_NAME) OPTIMIZE (avx2_rtm) attribute_hidden;
++extern __typeof (REDIRECT_NAME) OPTIMIZE (evex) attribute_hidden;
++
++static inline void *
++IFUNC_SELECTOR (void)
++{
++  const struct cpu_features* cpu_features = __get_cpu_features ();
++
++  if (CPU_FEATURE_USABLE_P (cpu_features, AVX2)
++      && CPU_FEATURE_USABLE_P (cpu_features, BMI2)
++      && CPU_FEATURE_USABLE_P (cpu_features, MOVBE)
++      && CPU_FEATURES_ARCH_P (cpu_features, AVX_Fast_Unaligned_Load))
++    {
++      if (CPU_FEATURE_USABLE_P (cpu_features, AVX512VL)
++	  && CPU_FEATURE_USABLE_P (cpu_features, AVX512BW))
++	return OPTIMIZE (evex);
++
++      if (CPU_FEATURE_USABLE_P (cpu_features, RTM))
++	return OPTIMIZE (avx2_rtm);
++
++      if (!CPU_FEATURES_ARCH_P (cpu_features, Prefer_No_VZEROUPPER))
++	return OPTIMIZE (avx2);
++    }
++
++  if (CPU_FEATURE_USABLE_P (cpu_features, SSE4_1))
++    return OPTIMIZE (sse4_1);
++
++  return OPTIMIZE (sse2);
++}
+diff --git a/sysdeps/x86_64/multiarch/ifunc-impl-list.c b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+index 39ab10613b..dd0c393c7d 100644
+--- a/sysdeps/x86_64/multiarch/ifunc-impl-list.c
++++ b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+@@ -38,6 +38,29 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+ 
+   size_t i = 0;
+ 
++  /* Support sysdeps/x86_64/multiarch/bcmp.c.  */
++  IFUNC_IMPL (i, name, bcmp,
++	      IFUNC_IMPL_ADD (array, i, bcmp,
++			      (CPU_FEATURE_USABLE (AVX2)
++                   && CPU_FEATURE_USABLE (MOVBE)
++			       && CPU_FEATURE_USABLE (BMI2)),
++			      __bcmp_avx2)
++	      IFUNC_IMPL_ADD (array, i, bcmp,
++			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)
++                   && CPU_FEATURE_USABLE (MOVBE)
++			       && CPU_FEATURE_USABLE (RTM)),
++			      __bcmp_avx2_rtm)
++	      IFUNC_IMPL_ADD (array, i, bcmp,
++			      (CPU_FEATURE_USABLE (AVX512VL)
++			       && CPU_FEATURE_USABLE (AVX512BW)
++                   && CPU_FEATURE_USABLE (MOVBE)
++			       && CPU_FEATURE_USABLE (BMI2)),
++			      __bcmp_evex)
++	      IFUNC_IMPL_ADD (array, i, bcmp, CPU_FEATURE_USABLE (SSE4_1),
++			      __bcmp_sse4_1)
++	      IFUNC_IMPL_ADD (array, i, bcmp, 1, __bcmp_sse2))
++
+   /* Support sysdeps/x86_64/multiarch/memchr.c.  */
+   IFUNC_IMPL (i, name, memchr,
+ 	      IFUNC_IMPL_ADD (array, i, memchr,
+diff --git a/sysdeps/x86_64/multiarch/memcmp-sse2.S b/sysdeps/x86_64/multiarch/memcmp-sse2.S
+index b135fa2d40..2a4867ad18 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-sse2.S
++++ b/sysdeps/x86_64/multiarch/memcmp-sse2.S
+@@ -17,7 +17,9 @@
+    <https://www.gnu.org/licenses/>.  */
+ 
+ #if IS_IN (libc)
+-# define memcmp __memcmp_sse2
++# ifndef memcmp
++#  define memcmp __memcmp_sse2
++# endif
+ 
+ # ifdef SHARED
+ #  undef libc_hidden_builtin_def
+diff --git a/sysdeps/x86_64/multiarch/memcmp.c b/sysdeps/x86_64/multiarch/memcmp.c
+index fe725f3563..1760e045df 100644
+--- a/sysdeps/x86_64/multiarch/memcmp.c
++++ b/sysdeps/x86_64/multiarch/memcmp.c
+@@ -27,8 +27,6 @@
+ # include "ifunc-memcmp.h"
+ 
+ libc_ifunc_redirected (__redirect_memcmp, memcmp, IFUNC_SELECTOR ());
+-# undef bcmp
+-weak_alias (memcmp, bcmp)
+ 
+ # ifdef SHARED
+ __hidden_ver1 (memcmp, __GI_memcmp, __redirect_memcmp)
+-- 
+2.25.1
+

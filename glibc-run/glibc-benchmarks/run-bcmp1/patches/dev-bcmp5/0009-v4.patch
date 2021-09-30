@@ -1,0 +1,547 @@
+From 8cd9e5c3db0c961b891a6c2c31d9efbde3d8d002 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Sep 2021 13:37:03 -0500
+Subject: [PATCH 09/12] v4
+
+---
+ sysdeps/x86_64/multiarch/bcmp-avx2.S | 215 ++++++++++++++-------------
+ sysdeps/x86_64/multiarch/bcmp-evex.S | 115 +++++++-------
+ 2 files changed, 167 insertions(+), 163 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/bcmp-avx2.S b/sysdeps/x86_64/multiarch/bcmp-avx2.S
+index 280f2546fe..0bd4103256 100644
+--- a/sysdeps/x86_64/multiarch/bcmp-avx2.S
++++ b/sysdeps/x86_64/multiarch/bcmp-avx2.S
+@@ -67,6 +67,7 @@ ENTRY (BCMP)
+ 	vpmovmskb %ymm1, %eax
+ 	incl	%eax
+ 	jnz	L(return_neq0)
++
+ 	cmpq	$(VEC_SIZE * 2), %rdx
+ 	jbe	L(last_1x_vec)
+ 
+@@ -74,11 +75,11 @@ ENTRY (BCMP)
+ 	vmovdqu	VEC_SIZE(%rsi), %ymm2
+ 	VPCMPEQ	VEC_SIZE(%rdi), %ymm2, %ymm2
+ 	vpmovmskb %ymm2, %eax
+-	/* If all 4 VEC where equal eax will be all 1s so incl will overflow
+-	   and set zero flag.  */
++	/* If all 4 VEC where equal eax will be all 1s so incl will
++	   overflow and set zero flag.  */
+ 	incl	%eax
+ 	jnz	L(return_neq0)
+-
++    leaq    (%rdi, %rdx), %rcx
+ 	/* Less than 4 * VEC.  */
+ 	cmpq	$(VEC_SIZE * 4), %rdx
+ 	jbe	L(last_2x_vec)
+@@ -104,20 +105,18 @@ ENTRY (BCMP)
+ 	   branches.  */
+ 
+ 	/* Adjust rsi and rdi to avoid indexed address mode. This end up
+-	   saving a 16 bytes of code, prevents unlamination, and bottlenecks in
+-	   the AGU.  */
+-	addq	%rdx, %rsi
+-	vmovdqu	-(VEC_SIZE * 4)(%rsi), %ymm1
+-	vmovdqu	-(VEC_SIZE * 3)(%rsi), %ymm2
+-	addq	%rdx, %rdi
++	   saving a 16 bytes of code, prevents unlamination, and
++	   bottlenecks in the AGU.  */
++	vmovdqu	-(VEC_SIZE * 4)(%rsi, %rdx), %ymm1
++	vmovdqu	-(VEC_SIZE * 3)(%rsi, %rdx), %ymm2
+ 
+-	VPCMPEQ	-(VEC_SIZE * 4)(%rdi), %ymm1, %ymm1
+-	VPCMPEQ	-(VEC_SIZE * 3)(%rdi), %ymm2, %ymm2
++	VPCMPEQ	-(VEC_SIZE * 4)(%rcx), %ymm1, %ymm1
++	VPCMPEQ	-(VEC_SIZE * 3)(%rcx), %ymm2, %ymm2
+ 
+-	vmovdqu	-(VEC_SIZE * 2)(%rsi), %ymm3
+-	VPCMPEQ	-(VEC_SIZE * 2)(%rdi), %ymm3, %ymm3
+-	vmovdqu	-VEC_SIZE(%rsi), %ymm4
+-	VPCMPEQ	-VEC_SIZE(%rdi), %ymm4, %ymm4
++	vmovdqu	-(VEC_SIZE * 2)(%rsi, %rdx), %ymm3
++	VPCMPEQ	-(VEC_SIZE * 2)(%rcx), %ymm3, %ymm3
++	vmovdqu	-VEC_SIZE(%rsi, %rdx), %ymm4
++	VPCMPEQ	-VEC_SIZE(%rcx), %ymm4, %ymm4
+ 
+ 	/* Reduce VEC0 - VEC4.  */
+ 	vpand	%ymm1, %ymm2, %ymm2
+@@ -129,63 +128,13 @@ L(return_neq0):
+ L(return_vzeroupper):
+ 	ZERO_UPPER_VEC_REGISTERS_RETURN
+ 
+-	/* NB: p2align 5 here will ensure the L(loop_4x_vec) is also 32 byte
+-	   aligned.  */
+-	.p2align 5
+-L(less_vec):
+-	/* Check if one or less char. This is necessary for size = 0 but is
+-	   also faster for size = 1.  */
+-	cmpl	$1, %edx
+-	jbe	L(one_or_less)
+-
+-	/* Check if loading one VEC from either s1 or s2 could cause a page
+-	   cross. This can have false positives but is by far the fastest
+-	   method.  */
+-	movl	%edi, %eax
+-	orl	%esi, %eax
+-	andl	$(PAGE_SIZE - 1), %eax
+-	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
+-	jg	L(page_cross_less_vec)
+-
+-	/* No page cross possible.  */
+-	vmovdqu	(%rsi), %ymm2
+-	VPCMPEQ	(%rdi), %ymm2, %ymm2
+-	vpmovmskb %ymm2, %eax
+-	incl	%eax
+-	/* Result will be zero if s1 and s2 match. Otherwise first set bit
+-	   will be first mismatch.  */
+-	bzhil	%edx, %eax, %eax
+-	VZEROUPPER_RETURN
+-
+-	/* Relatively cold but placing close to L(less_vec) for 2 byte jump
+-	   encoding.  */
+-	.p2align 4
+-L(one_or_less):
+-	jb	L(zero)
+-	movzbl	(%rsi), %ecx
+-	movzbl	(%rdi), %eax
+-	subl	%ecx, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-	/* Within the same 16 byte block is L(one_or_less).  */
+-L(zero):
+-	xorl	%eax, %eax
+-	ret
+-
+-	.p2align 4
+-L(last_1x_vec):
+-	vmovdqu	-(VEC_SIZE * 1)(%rsi, %rdx), %ymm1
+-	VPCMPEQ	-(VEC_SIZE * 1)(%rdi, %rdx), %ymm1, %ymm1
+-	vpmovmskb %ymm1, %eax
+-	incl	%eax
+-	VZEROUPPER_RETURN
+ 
+ 	.p2align 4
+ L(last_2x_vec):
+ 	vmovdqu	-(VEC_SIZE * 2)(%rsi, %rdx), %ymm1
+-	VPCMPEQ	-(VEC_SIZE * 2)(%rdi, %rdx), %ymm1, %ymm1
++	VPCMPEQ	-(VEC_SIZE * 2)(%rcx), %ymm1, %ymm1
+ 	vmovdqu	-(VEC_SIZE * 1)(%rsi, %rdx), %ymm2
+-	VPCMPEQ	-(VEC_SIZE * 1)(%rdi, %rdx), %ymm2, %ymm2
++	VPCMPEQ	-(VEC_SIZE * 1)(%rcx), %ymm2, %ymm2
+ 	vpand	%ymm1, %ymm2, %ymm2
+ 	vpmovmskb %ymm2, %eax
+ 	incl	%eax
+@@ -194,9 +143,9 @@ L(last_2x_vec):
+ 	.p2align 4
+ L(more_8x_vec):
+ 	/* Set end of s1 in rdx.  */
+-	leaq	-(VEC_SIZE * 4)(%rdi, %rdx), %rdx
+-	/* rsi stores s2 - s1. This allows loop to only update one pointer.
+-	 */
++    addq    $-(VEC_SIZE * 4), %rcx
++	/* rsi stores s2 - s1. This allows loop to only update one
++	   pointer.  */
+ 	subq	%rdi, %rsi
+ 	/* Align s1 pointer.  */
+ 	andq	$-VEC_SIZE, %rdi
+@@ -204,7 +153,8 @@ L(more_8x_vec):
+ 	subq	$-(VEC_SIZE * 4), %rdi
+ 	.p2align 4
+ L(loop_4x_vec):
+-	/* rsi has s2 - s1 so get correct address by adding s1 (in rdi).  */
++	/* rsi has s2 - s1 so get correct address by adding s1 (in rdi).
++	 */
+ 	vmovdqu	(%rsi, %rdi), %ymm1
+ 	VPCMPEQ	(%rdi), %ymm1, %ymm1
+ 
+@@ -225,26 +175,26 @@ L(loop_4x_vec):
+ 	jnz	L(return_neq1)
+ 	subq	$-(VEC_SIZE * 4), %rdi
+ 	/* Check if s1 pointer at end.  */
+-	cmpq	%rdx, %rdi
++	cmpq	%rcx, %rdi
+ 	jb	L(loop_4x_vec)
+ 
+-	vmovdqu	(VEC_SIZE * 3)(%rsi, %rdx), %ymm4
+-	VPCMPEQ	(VEC_SIZE * 3)(%rdx), %ymm4, %ymm4
+-	subq	%rdx, %rdi
++	vmovdqu	(VEC_SIZE * 3)(%rsi, %rcx), %ymm4
++	VPCMPEQ	(VEC_SIZE * 3)(%rcx), %ymm4, %ymm4
++	subq	%rcx, %rdi
+ 	/* rdi has 4 * VEC_SIZE - remaining length.  */
+ 	cmpl	$(VEC_SIZE * 3), %edi
+ 	jae	L(8x_last_1x_vec)
+ 	/* Load regardless of branch.  */
+-	vmovdqu	(VEC_SIZE * 2)(%rsi, %rdx), %ymm3
+-	VPCMPEQ	(VEC_SIZE * 2)(%rdx), %ymm3, %ymm3
++	vmovdqu	(VEC_SIZE * 2)(%rsi, %rcx), %ymm3
++	VPCMPEQ	(VEC_SIZE * 2)(%rcx), %ymm3, %ymm3
+ 	cmpl	$(VEC_SIZE * 2), %edi
+ 	jae	L(8x_last_2x_vec)
+ 	/* Check last 4 VEC.  */
+-	vmovdqu	VEC_SIZE(%rsi, %rdx), %ymm1
+-	VPCMPEQ	VEC_SIZE(%rdx), %ymm1, %ymm1
++	vmovdqu	VEC_SIZE(%rsi, %rcx), %ymm1
++	VPCMPEQ	VEC_SIZE(%rcx), %ymm1, %ymm1
+ 
+-	vmovdqu	(%rsi, %rdx), %ymm2
+-	VPCMPEQ	(%rdx), %ymm2, %ymm2
++	vmovdqu	(%rsi, %rcx), %ymm2
++	VPCMPEQ	(%rcx), %ymm2, %ymm2
+ 
+ 	vpand	%ymm3, %ymm4, %ymm4
+ 	vpand	%ymm1, %ymm2, %ymm3
+@@ -257,6 +207,58 @@ L(8x_last_1x_vec):
+ L(return_neq1):
+ 	VZEROUPPER_RETURN
+ 
++	.p2align 4
++L(last_1x_vec):
++	vmovdqu	-(VEC_SIZE * 1)(%rsi, %rdx), %ymm1
++	VPCMPEQ	-(VEC_SIZE * 1)(%rdi, %rdx), %ymm1, %ymm1
++	vpmovmskb %ymm1, %eax
++	incl	%eax
++	VZEROUPPER_RETURN
++
++	/* NB: p2align 5 here will ensure the L(loop_4x_vec) is also 32
++	   byte aligned.  */
++	.p2align 5
++L(less_vec):
++	/* Check if one or less char. This is necessary for size = 0 but
++	   is also faster for size = 1.  */
++	cmpl	$1, %edx
++	jbe	L(one_or_less)
++
++	/* Check if loading one VEC from either s1 or s2 could cause a
++	   page cross. This can have false positives but is by far the
++	   fastest method.  */
++	movl	%edi, %eax
++	orl	%esi, %eax
++	andl	$(PAGE_SIZE - 1), %eax
++	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
++	jg	L(page_cross_less_vec)
++
++	/* No page cross possible.  */
++	vmovdqu	(%rsi), %ymm2
++	VPCMPEQ	(%rdi), %ymm2, %ymm2
++	vpmovmskb %ymm2, %eax
++	incl	%eax
++	/* Result will be zero if s1 and s2 match. Otherwise first set
++	   bit will be first mismatch.  */
++	bzhil	%edx, %eax, %eax
++	VZEROUPPER_RETURN
++
++	/* Relatively cold but placing close to L(less_vec) for 2 byte
++	   jump encoding.  */
++	.p2align 4
++L(one_or_less):
++	jb	L(zero)
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
++	subl	%ecx, %eax
++	/* No ymm register was touched.  */
++	ret
++	/* Within the same 16 byte block is L(one_or_less).  */
++L(zero):
++	xorl	%eax, %eax
++	ret
++
++
+ 	/* Relatively cold case as page cross are unexpected.  */
+ 	.p2align 4
+ L(page_cross_less_vec):
+@@ -268,51 +270,52 @@ L(page_cross_less_vec):
+ 	jb	L(between_2_3)
+ 	/* From 4 to 8 bytes.  No branch when size == 4.  */
+ 	movl	(%rdi), %eax
+-	movl	(%rsi), %ecx
+-	subl	%ecx, %eax
++	subl	(%rsi), %eax
+ 	movl	-4(%rdi, %rdx), %ecx
+-	movl	-4(%rsi, %rdx), %esi
+-	subl	%esi, %ecx
++	movl	-4(%rsi, %rdx), %edi
++	subl	%edi, %ecx
+ 	orl	%ecx, %eax
+ 	ret
++	.p2align 4,, 8
++L(between_16_31):
++	/* From 16 to 31 bytes.  No branch when size == 16.  */
++
++	/* Safe to use xmm[0, 15] as no vzeroupper is needed so RTM safe.
++	 */
++	movups	(%rsi), %xmm1
++	vpcmpeqb (%rdi), %xmm1, %xmm1
++	movups	-16(%rsi, %rdx), %xmm2
++	vpcmpeqb -16(%rdi, %rdx), %xmm2, %xmm2
++	vpand	%xmm1, %xmm2, %xmm2
++	vpmovmskb %xmm2, %eax
++	subl	$0xffff, %eax
++	/* No ymm register was touched.  */
++	ret
+ 
+ 	.p2align 4,, 8
+ L(between_9_15):
++	/* Safe to use xmm[0, 15] as no vzeroupper is needed so RTM safe.
++	 */
+ 	vmovq	(%rdi), %xmm1
+ 	vmovq	(%rsi), %xmm2
+-	VPCMPEQ	%xmm1, %xmm2, %xmm3
++	vpcmpeqb %xmm1, %xmm2, %xmm3
+ 	vmovq	-8(%rdi, %rdx), %xmm1
+ 	vmovq	-8(%rsi, %rdx), %xmm2
+-	VPCMPEQ	%xmm1, %xmm2, %xmm2
++	vpcmpeqb %xmm1, %xmm2, %xmm2
+ 	vpand	%xmm2, %xmm3, %xmm3
+ 	vpmovmskb %xmm3, %eax
+ 	subl	$0xffff, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
+-
+-	.p2align 4,, 8
+-L(between_16_31):
+-	/* From 16 to 31 bytes.  No branch when size == 16.  */
+-	vmovdqu	(%rsi), %xmm1
+-	VPCMPEQ	(%rdi), %xmm1, %xmm1
+-	vmovdqu	-16(%rsi, %rdx), %xmm2
+-	VPCMPEQ	-16(%rdi, %rdx), %xmm2, %xmm2
+-	vpand	%xmm1, %xmm2, %xmm2
+-	vpmovmskb %xmm2, %eax
+-	subl	$0xffff, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-
+-	.p2align 4,, 8
++    
+ L(between_2_3):
+ 	/* From 2 to 3 bytes.  No branch when size == 2.  */
+ 	movzwl	(%rdi), %eax
+ 	movzwl	(%rsi), %ecx
+ 	subl	%ecx, %eax
+-	movzbl	-1(%rdi, %rdx), %edi
+-	movzbl	-1(%rsi, %rdx), %esi
+-	subl	%edi, %esi
+-	orl	%esi, %eax
++	movzbl	-1(%rdi, %rdx), %ecx
++	subb	-1(%rsi, %rdx), %cl
++	orl	%ecx, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
+ 
+diff --git a/sysdeps/x86_64/multiarch/bcmp-evex.S b/sysdeps/x86_64/multiarch/bcmp-evex.S
+index 00bd7c0447..adf99bc44a 100644
+--- a/sysdeps/x86_64/multiarch/bcmp-evex.S
++++ b/sysdeps/x86_64/multiarch/bcmp-evex.S
+@@ -72,6 +72,7 @@ ENTRY (BCMP)
+ 	testl	%eax, %eax
+ 	jnz	L(return_neq0)
+ 
++    leaq    (%rdi, %rdx), %rcx
+ 	cmpq	$(VEC_SIZE * 2), %rdx
+ 	jbe	L(last_1x_vec)
+ 
+@@ -108,25 +109,24 @@ ENTRY (BCMP)
+ 
+ 	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %YMM1
+ 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %YMM2
+-	addq	%rdx, %rdi
+ 
+-	/* Wait to load from s1 until addressed adjust due to unlamination.
+-	 */
++	/* Wait to load from s1 until addressed adjust due to
++	   unlamination.  */
+ 
+-	/* vpxor will be all 0s if s1 and s2 are equal. Otherwise it will
+-	   have some 1s.  */
+-	vpxorq	-(VEC_SIZE * 4)(%rdi), %YMM1, %YMM1
+-	vpxorq	-(VEC_SIZE * 3)(%rdi), %YMM2, %YMM2
++	/* vpxor will be all 0s if s1 and s2 are equal. Otherwise it
++	   will have some 1s.  */
++	vpxorq	-(VEC_SIZE * 4)(%rcx), %YMM1, %YMM1
++	vpternlogd $0xde, -(VEC_SIZE * 3)(%rcx), %YMM1, %YMM2
+ 
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %YMM3
+-	vpxorq	-(VEC_SIZE * 2)(%rdi), %YMM3, %YMM3
++	vpxorq	-(VEC_SIZE * 2)(%rcx), %YMM3, %YMM3
+ 	/* Or together YMM1, YMM2, and YMM3 into YMM3.  */
+-	vpternlogd $0xfe, %YMM1, %YMM2, %YMM3
+-
+ 	VMOVU	-(VEC_SIZE)(%rsi, %rdx), %YMM4
+-	/* Ternary logic to xor (VEC_SIZE * 3)(%rdi) with YMM4 while oring
+-	   with YMM3. Result is stored in YMM4.  */
+-	vpternlogd $0xde, -(VEC_SIZE)(%rdi), %YMM3, %YMM4
++	vpxorq	-(VEC_SIZE)(%rcx), %YMM4, %YMM4
++
++
++	vpternlogd $0xfe, %YMM2, %YMM3, %YMM4
++
+ 	/* Compare YMM4 with 0. If any 1s s1 and s2 don't match.  */
+ 	VPTEST	%YMM4, %YMM4, %k1
+ 	kmovd	%k1, %eax
+@@ -136,7 +136,7 @@ L(return_neq0):
+ 	/* Fits in padding needed to .p2align 5 L(less_vec).  */
+ L(last_1x_vec):
+ 	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx), %YMM1
+-	VPCMP	$4, -(VEC_SIZE * 1)(%rdi, %rdx), %YMM1, %k1
++	VPCMP	$4, -(VEC_SIZE * 1)(%rcx), %YMM1, %k1
+ 	kmovd	%k1, %eax
+ 	ret
+ 
+@@ -185,9 +185,9 @@ L(zero):
+ 	.p2align 4
+ L(last_2x_vec):
+ 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %YMM1
+-	vpxorq	-(VEC_SIZE * 2)(%rdi, %rdx), %YMM1, %YMM1
++	vpxorq	-(VEC_SIZE * 2)(%rcx), %YMM1, %YMM1
+ 	VMOVU	-(VEC_SIZE * 1)(%rsi, %rdx), %YMM2
+-	vpternlogd $0xde, -(VEC_SIZE * 1)(%rdi, %rdx), %YMM1, %YMM2
++	vpternlogd $0xde, -(VEC_SIZE * 1)(%rcx), %YMM1, %YMM2
+ 	VPTEST	%YMM2, %YMM2, %k1
+ 	kmovd	%k1, %eax
+ 	ret
+@@ -195,7 +195,7 @@ L(last_2x_vec):
+ 	.p2align 4
+ L(more_8x_vec):
+ 	/* Set end of s1 in rdx.  */
+-	leaq	-(VEC_SIZE * 4)(%rdi, %rdx), %rdx
++    addq    $-(VEC_SIZE * 4), %rcx
+ 	/* rsi stores s2 - s1. This allows loop to only update one pointer.
+ 	 */
+ 	subq	%rdi, %rsi
+@@ -209,41 +209,45 @@ L(loop_4x_vec):
+ 	vpxorq	(%rdi), %YMM1, %YMM1
+ 
+ 	VMOVU	VEC_SIZE(%rsi, %rdi), %YMM2
+-	vpxorq	VEC_SIZE(%rdi), %YMM2, %YMM2
++	vpternlogd $0xde, (VEC_SIZE)(%rdi), %YMM1, %YMM2
++
+ 
+ 	VMOVU	(VEC_SIZE * 2)(%rsi, %rdi), %YMM3
+ 	vpxorq	(VEC_SIZE * 2)(%rdi), %YMM3, %YMM3
+-	vpternlogd $0xfe, %YMM1, %YMM2, %YMM3
++
+ 
+ 	VMOVU	(VEC_SIZE * 3)(%rsi, %rdi), %YMM4
+-	vpternlogd $0xde, (VEC_SIZE * 3)(%rdi), %YMM3, %YMM4
++	vpxorq	(VEC_SIZE * 3)(%rdi), %YMM4, %YMM4
++
++	vpternlogd $0xfe, %YMM2, %YMM3, %YMM4
++    
+ 	VPTEST	%YMM4, %YMM4, %k1
+ 	kmovd	%k1, %eax
+ 	testl	%eax, %eax
+ 	jnz	L(return_neq2)
+ 	subq	$-(VEC_SIZE * 4), %rdi
+-	cmpq	%rdx, %rdi
++	cmpq	%rcx, %rdi
+ 	jb	L(loop_4x_vec)
+ 
+-	subq	%rdx, %rdi
+-	VMOVU	(VEC_SIZE * 3)(%rsi, %rdx), %YMM4
+-	vpxorq	(VEC_SIZE * 3)(%rdx), %YMM4, %YMM4
++	subq	%rcx, %rdi
++	VMOVU	(VEC_SIZE * 3)(%rsi, %rcx), %YMM4
++	vpxorq	(VEC_SIZE * 3)(%rcx), %YMM4, %YMM4
+ 	/* rdi has 4 * VEC_SIZE - remaining length.  */
+ 	cmpl	$(VEC_SIZE * 3), %edi
+ 	jae	L(8x_last_1x_vec)
+ 	/* Load regardless of branch.  */
+-	VMOVU	(VEC_SIZE * 2)(%rsi, %rdx), %YMM3
+-	/* Ternary logic to xor (VEC_SIZE * 2)(%rdx) with YMM3 while oring
++	VMOVU	(VEC_SIZE * 2)(%rsi, %rcx), %YMM3
++	/* Ternary logic to xor (VEC_SIZE * 2)(%rcx) with YMM3 while oring
+ 	   with YMM4. Result is stored in YMM4.  */
+-	vpternlogd $0xf6, (VEC_SIZE * 2)(%rdx), %YMM3, %YMM4
++	vpternlogd $0xf6, (VEC_SIZE * 2)(%rcx), %YMM3, %YMM4
+ 	cmpl	$(VEC_SIZE * 2), %edi
+ 	jae	L(8x_last_2x_vec)
+ 
+-	VMOVU	VEC_SIZE(%rsi, %rdx), %YMM2
+-	vpxorq	VEC_SIZE(%rdx), %YMM2, %YMM2
++	VMOVU	VEC_SIZE(%rsi, %rcx), %YMM2
++	vpxorq	VEC_SIZE(%rcx), %YMM2, %YMM2
+ 
+-	VMOVU	(%rsi, %rdx), %YMM1
+-	vpxorq	(%rdx), %YMM1, %YMM1
++	VMOVU	(%rsi, %rcx), %YMM1
++	vpxorq	(%rcx), %YMM1, %YMM1
+ 
+ 	vpternlogd $0xfe, %YMM1, %YMM2, %YMM4
+ L(8x_last_1x_vec):
+@@ -264,13 +268,27 @@ L(page_cross_less_vec):
+ 	jb	L(between_2_3)
+ 	/* From 4 to 8 bytes.  No branch when size == 4.  */
+ 	movl	(%rdi), %eax
+-	movl	(%rsi), %ecx
+-	subl	%ecx, %eax
++	subl	(%rsi), %eax
+ 	movl	-4(%rdi, %rdx), %ecx
+-	movl	-4(%rsi, %rdx), %esi
+-	subl	%esi, %ecx
++	movl	-4(%rsi, %rdx), %edi
++	subl	%edi, %ecx
+ 	orl	%ecx, %eax
+ 	ret
++	.p2align 4,, 8
++L(between_16_31):
++	/* From 16 to 31 bytes.  No branch when size == 16.  */
++
++	/* Safe to use xmm[0, 15] as no vzeroupper is needed so RTM safe.
++	 */
++	movups	(%rsi), %xmm1
++	vpcmpeqb (%rdi), %xmm1, %xmm1
++	movups	-16(%rsi, %rdx), %xmm2
++	vpcmpeqb -16(%rdi, %rdx), %xmm2, %xmm2
++	vpand	%xmm1, %xmm2, %xmm2
++	vpmovmskb %xmm2, %eax
++	subl	$0xffff, %eax
++	/* No ymm register was touched.  */
++	ret
+ 
+ 	.p2align 4,, 8
+ L(between_9_15):
+@@ -287,35 +305,18 @@ L(between_9_15):
+ 	subl	$0xffff, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
+-
+-	.p2align 4,, 8
+-L(between_16_31):
+-	/* From 16 to 31 bytes.  No branch when size == 16.  */
+-
+-	/* Safe to use xmm[0, 15] as no vzeroupper is needed so RTM safe.
+-	 */
+-	vmovdqu	(%rsi), %xmm1
+-	vpcmpeqb (%rdi), %xmm1, %xmm1
+-	vmovdqu	-16(%rsi, %rdx), %xmm2
+-	vpcmpeqb -16(%rdi, %rdx), %xmm2, %xmm2
+-	vpand	%xmm1, %xmm2, %xmm2
+-	vpmovmskb %xmm2, %eax
+-	subl	$0xffff, %eax
+-	/* No ymm register was touched.  */
+-	ret
+-
+-	.p2align 4,, 8
++    
+ L(between_2_3):
+ 	/* From 2 to 3 bytes.  No branch when size == 2.  */
+ 	movzwl	(%rdi), %eax
+ 	movzwl	(%rsi), %ecx
+ 	subl	%ecx, %eax
+-	movzbl	-1(%rdi, %rdx), %edi
+-	movzbl	-1(%rsi, %rdx), %esi
+-	subl	%edi, %esi
+-	orl	%esi, %eax
++	movzbl	-1(%rdi, %rdx), %ecx
++	subb	-1(%rsi, %rdx), %cl
++	orl	%ecx, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
++    
+ 
+     .p2align 12
+ END (BCMP)
+-- 
+2.25.1
+
