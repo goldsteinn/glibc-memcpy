@@ -44,8 +44,10 @@ def get_key(length, align1, align2, dgs, wfs, sz):
 
 
 def get_stat(times):
-    #return statistics.geometric_mean(times)
-    return statistics.median(times)
+    times_ = sorted(times)
+    #return min(times)
+    return statistics.geometric_mean(times_[4:16])
+    #return statistics.median(times)
 
 
 def csv_add(s, field):
