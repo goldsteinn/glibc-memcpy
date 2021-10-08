@@ -1,0 +1,25 @@
+From 50f92c686c50efc62324bf3795192bb6a6fda65a Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 7 Oct 2021 19:38:54 -0500
+Subject: [PATCH 11/11] tmp
+
+---
+ sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+index 863a7affdd..a8c18ef00c 100644
+--- a/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
++++ b/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S
+@@ -530,7 +530,7 @@ L(between_2_3):
+ 	subl	%ecx, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
+-
++#endif
+     .p2align 12
+ END (MEMCMP)
+ #endif
+-- 
+2.25.1
+

@@ -44,9 +44,8 @@ def get_key(length, align1, align2, dgs, wfs, sz):
 
 
 def get_stat(times):
-    times_ = sorted(times)
     #return min(times)
-    return statistics.geometric_mean(times_[4:16])
+    return statistics.geometric_mean(times)
     #return statistics.median(times)
 
 
@@ -297,8 +296,7 @@ class JsonFile():
                                                 self.fields)
             dgs, self.fields = set_if_exists(result, "dst > src", dgs,
                                              self.fields)
-            dgs, self.fields = set_if_exists(result, "char", dgs,
-                                             self.fields)
+            dgs, self.fields = set_if_exists(result, "char", dgs, self.fields)
             wfs, self.fields = set_if_exists(result, "with-fixed-size", wfs,
                                              self.fields)
             sz, self.fields = set_if_exists(result, "overlap", sz, self.fields)
@@ -388,7 +386,7 @@ class JsonFile():
                 if cmp_s in other.file_fmt:
                     assert cmp_idx is None
                     cmp_idx = i + 1
-                    
+
 
 #                print("{} -> {} [{}]".format(key, other.file_fmt, key in other.all_results))
                 assert key in other.all_results

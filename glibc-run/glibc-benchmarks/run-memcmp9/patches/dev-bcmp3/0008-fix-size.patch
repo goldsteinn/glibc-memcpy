@@ -1,0 +1,37 @@
+From 1a914d6cf2092db9db8e05a7aefc3acee26b39b3 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Sep 2021 13:28:00 -0500
+Subject: [PATCH 08/11] fix size
+
+---
+ sysdeps/x86_64/multiarch/bcmp-avx2.S | 2 ++
+ sysdeps/x86_64/multiarch/bcmp-evex.S | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/sysdeps/x86_64/multiarch/bcmp-avx2.S b/sysdeps/x86_64/multiarch/bcmp-avx2.S
+index 4d52b6a554..280f2546fe 100644
+--- a/sysdeps/x86_64/multiarch/bcmp-avx2.S
++++ b/sysdeps/x86_64/multiarch/bcmp-avx2.S
+@@ -315,5 +315,7 @@ L(between_2_3):
+ 	orl	%esi, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
++
++    .p2align 12
+ END (BCMP)
+ #endif
+diff --git a/sysdeps/x86_64/multiarch/bcmp-evex.S b/sysdeps/x86_64/multiarch/bcmp-evex.S
+index 219f2e41c5..00bd7c0447 100644
+--- a/sysdeps/x86_64/multiarch/bcmp-evex.S
++++ b/sysdeps/x86_64/multiarch/bcmp-evex.S
+@@ -316,5 +316,7 @@ L(between_2_3):
+ 	orl	%esi, %eax
+ 	/* No ymm register was touched.  */
+ 	ret
++
++    .p2align 12
+ END (BCMP)
+ #endif
+-- 
+2.25.1
+

@@ -1,0 +1,50 @@
+{
+ "timing_type": "hp_timing",
+ "functions": {
+  "bcmp": {
+   "bench-variant": "default",
+   "ifuncs": ["memcmp", "simple_memcmp", "__bcmp_avx2", "__bcmp_evex", "__bcmp_sse4_1", "__bcmp_sse2"],
+   "results": [
+    {
+     "length": 1,
+     "align1": 1,
+     "align2": 1,
+     "result": 0,
+     "timings": [3.97791, 3.9342, 3.92388, 3.92487, 3.2962, 3.30004]
+    },
+    {
+     "length": 1,
+     "align1": 1,
+     "align2": 1,
+     "result": 1,
+     "timings": [3.92102, 4.58928, 3.9213, 3.92139, 3.26819, 3.26823]
+    },
+    {
+     "length": 1,
+     "align1": 1,
+     "align2": 1,
+     "result": 18446744073709551615,
+     "timings": [3.92096, 4.57443, 3.92129, 3.92122, 3.56802, 3.42756]
+    },
+    {
+     "length": 2,
+     "align1": 2,
+     "align2": 2,
+     "result": 0,
+     "timings": [4.11255, 7.1333, 3.98543, 5.3029, 5.43964, 6.1328]
+    },
+    {
+     "length": 2,
+     "align1": 2,
+     "align2": 2,
+     "result": 1,
+     "timings": [4.7992, 6.87407, 5.48561, 5.44383, 4.91966, 5.91701]
+    },
+    {
+     "length": 2,
+     "align1": 2,
+     "align2": 2,
+     "result": 18446744073709551615,
+     "timings": [4.79825, 8.27322, 8.42971Timed out: killed the child process
+Termination time: 2021-10-04T20:18:06.122816214
+Last write to standard output: 2021-10-04T20:18:06.118828053
