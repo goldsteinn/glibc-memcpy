@@ -1,0 +1,26 @@
+From 9527685d8ea81cc622ec3e55f31e101423ed91de Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 11 Oct 2021 20:28:35 -0500
+Subject: [PATCH 4/8] v0
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 155d4c6cd3..9c03a25393 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -76,6 +76,9 @@
+ # endif
+ #endif
+ 
++#define ALIGN_MOVSB (VEC_SIZE > 16)
++#define MOVSB_ALIGN_TO 64
++    
+ #ifndef PAGE_SIZE
+ # define PAGE_SIZE 4096
+ #endif
+-- 
+2.25.1
+

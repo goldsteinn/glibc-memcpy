@@ -1,7 +1,7 @@
 #ifndef _ASM_COMMON_H_
 #define _ASM_COMMON_H_
 #define IS_IN(x) 1
-#define L(name) .L##name
+#define L(name) L##name
 
 #ifndef ALIGN_BASE
 #define ALIGN_BASE 512

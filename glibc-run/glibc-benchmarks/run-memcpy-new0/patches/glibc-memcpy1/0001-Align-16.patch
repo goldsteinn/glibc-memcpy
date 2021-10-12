@@ -1,0 +1,37 @@
+From 893ce990647143d40b60bbacd66ba8486a0952fa Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 11 Oct 2021 20:15:39 -0500
+Subject: [PATCH 1/5] Align 16
+
+---
+ sysdeps/x86/sysdep.h | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 937180c1bd..4774f9d728 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -87,8 +87,18 @@ enum cf_protection_level
+   _CET_ENDBR;								      \
+   CALL_MCOUNT
+ 
+-/* Common entry 16 byte aligns.  */
+-#define ENTRY(name) ENTRY_P2ALIGN (name, 4)
++/* Define an entry point visible from C.  */
++#define	ENTRY(name)					      \
++  .globl C_SYMBOL_NAME(name);						      \
++  .type C_SYMBOL_NAME(name),@function;					      \
++  .align ALIGNARG(12);                                 \
++  .align ALIGNARG(6);						      \
++  nop;						      \
++  .align ALIGNARG(4);						      \
++  C_LABEL(name)								      \
++  cfi_startproc;							      \
++  _CET_ENDBR;								      \
++  CALL_MCOUNT
+ 
+ #undef	END
+ #define END(name)							      \
+-- 
+2.25.1
+

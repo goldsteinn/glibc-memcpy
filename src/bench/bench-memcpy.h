@@ -49,7 +49,7 @@ run_rand_bench(const bench_conf_t * restrict confs,
             bench_char_t * dst = mem + conf.al_dst;
             bench_char_t * src = mem + conf.al_src;
             uint32_t       sz  = conf.sz;
-#if 1
+#if 0
             if (rand() & 4) {
                 memset(dst, i, sz);
             }

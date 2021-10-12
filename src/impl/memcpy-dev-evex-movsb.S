@@ -5,4 +5,5 @@
 	// #define USE_WITH_FRMS
 #include "evex-vecs.h"
 
-#include "core/memcpy-dev.S"
+    // 0, 1, 3, 4
+#include "core/memcpy-dev-v3.S"

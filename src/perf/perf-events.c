@@ -9,7 +9,7 @@ const perf_ev_t perf_events_in_use[] = {
     UNHALTED_REFERENCE_CYCLES,
 #endif
 #if PERF_EVENTS
-    MISPREDICTED_BRANCH_RETIRED,
+    IDQ_DSB_UOPS,
 #if 0
     MEM_LOAD_RETIRED_L1_HIT,
     MEM_LOAD_RETIRED_L1_MISS,

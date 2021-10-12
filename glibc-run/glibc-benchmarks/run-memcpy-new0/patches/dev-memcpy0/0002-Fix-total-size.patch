@@ -1,0 +1,24 @@
+From a81e6d65a666ebff7af7051c332cdc99cb6944ef Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 11 Oct 2021 20:17:40 -0500
+Subject: [PATCH 2/7] Fix total size
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index abde8438d4..09a8db24aa 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -765,6 +765,7 @@ L(large_memcpy_4x_end):
+ 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ #endif
++    .p2align 12
+ END (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
+ 
+ #if IS_IN (libc)
+-- 
+2.25.1
+
