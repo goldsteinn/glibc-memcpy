@@ -1,0 +1,57 @@
+From 0e002c342581af715ba0545e264b7dcc881610d6 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 20:18:41 -0500
+Subject: [PATCH 11/11] tmp
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 20 ++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 3b76abba71..b70bf80400 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -338,15 +338,6 @@ L(between_16_31):
+ 	movups	%xmm1, -16(%rdi, %rdx)
+ 	ret
+ #endif
+-	.p2align 4,, 8
+-L(between_8_15):
+-	/* From 8 to 15.  No branch when size == 8.  */
+-	movq	-8(%rsi, %rdx), %rcx
+-	movq	(%rsi), %rsi
+-	movq	%rcx, -8(%rdi, %rdx)
+-	movq	%rsi, (%rdi)
+-L(copy_0):
+-	ret
+ 
+ 	.p2align 4,, 8
+ L(less_vec):
+@@ -374,6 +365,7 @@ L(less_vec):
+ 	movw	%si, -2(%rdi, %rdx)
+ L(copy_1):
+ 	movb	%cl, (%rdi)
++L(copy_0):
+ 	ret
+ 
+ #if VEC_SIZE > 32
+@@ -387,6 +379,16 @@ L(between_32_63):
+ 	VZEROUPPER_RETURN
+ #endif
+ 
++	.p2align 4,, 10
++L(between_8_15):
++	/* From 8 to 15.  No branch when size == 8.  */
++	movq	-8(%rsi, %rdx), %rcx
++	movq	(%rsi), %rsi
++	movq	%rcx, -8(%rdi, %rdx)
++	movq	%rsi, (%rdi)
++	ret
++
++
+ 	.p2align 4,, 12
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+-- 
+2.25.1
+

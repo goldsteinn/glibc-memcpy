@@ -6,4 +6,4 @@
 #include "evex-vecs.h"
 
     // 0, 1, 3, 4
-#include "core/memcpy-dev-v3.S"
+#include "core/memcpy-dev-v1.S"

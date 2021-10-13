@@ -1,0 +1,152 @@
+From 4fcf091b375483557d46311dd9d769a5f01ed55d Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 20:09:32 -0500
+Subject: [PATCH 09/12] tmp
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 45 ++++++++++---------
+ 1 file changed, 23 insertions(+), 22 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 9c03a25393..11db7f6904 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -319,7 +319,6 @@ L(return):
+ # endif
+ #endif
+ 
+-
+ 	.p2align 4,, 8
+ L(between_4_7):
+ 	/* From 4 to 7.  No branch when size == 4.  */
+@@ -376,6 +375,7 @@ L(less_vec):
+ L(copy_1):
+ 	movb	%cl, (%rdi)
+ 	ret
++
+ #if VEC_SIZE > 32
+ 	.p2align 4,, 10
+ L(between_32_63):
+@@ -387,12 +387,10 @@ L(between_32_63):
+ 	VZEROUPPER_RETURN
+ #endif
+ 
+-
+-
+ 	.p2align 4,, 12
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+-	cmp     __x86_rep_movsb_threshold(%rip), %RDX_LP
++	cmp	$MOVSB_THRESHOLD, %RDX_LP
+ 	ja	L(movsb)
+ #endif
+ L(more_2x_vec):
+@@ -494,7 +492,8 @@ L(more_8x_vec):
+ 	/* Check if non-temporal move candidate.  */
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+ 	/* Check non-temporal store threshold.  */
+-    cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
++	// cmp     x86_shared_non_temporal_threshold(%rip), %RDX_LP
++	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
+ 	ja	L(large_memcpy_2x)
+ #endif
+ 	/* To reach this point there cannot be overlap and dst > src. So
+@@ -502,8 +501,8 @@ L(more_8x_vec):
+ 	   requires forward copy. Otherwise decide between backward/forward
+ 	   copy depending on address aliasing.  */
+ 
+-	/* Entry if rdx is greater than __x86_rep_movsb_stop_threshold but
+-	   less than __x86_shared_non_temporal_threshold.  */
++	/* Entry if rdx is greater than x86_rep_movsb_stop_threshold but
++	   less than x86_shared_non_temporal_threshold.  */
+ L(more_8x_vec_check):
+ 	/* rcx contains dst - src. Add back length (rdx).  */
+ 	leaq	(%rcx, %rdx), %r8
+@@ -520,7 +519,7 @@ L(more_8x_vec_check):
+ 	addl	%r8d, %ecx
+ 	jz	L(more_8x_vec_backward)
+ 
+-	/* if rdx is greater than __x86_shared_non_temporal_threshold but
++	/* if rdx is greater than x86_shared_non_temporal_threshold but
+ 	   there is overlap, or from short distance movsb.  */
+ L(more_8x_vec_forward):
+ 	/* Load first and last 4 * VEC to support overlapping addresses.
+@@ -630,14 +629,15 @@ L(movsb):
+ 	/* Save dest for storing aligning VECs later.  */
+ 	movq	%rdi, %r8
+ # endif
+-	/* If above __x86_rep_movsb_stop_threshold most likely is
++	/* If above x86_rep_movsb_stop_threshold most likely is
+ 	   candidate for NT moves aswell.  */
+-	cmp	__x86_rep_movsb_stop_threshold(%rip), %RDX_LP
++	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
+ 	jae	L(large_memcpy_2x_check)
+ # if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
+ 	/* Only avoid short movsb if CPU has FSRM.  */
+-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+-	jz	L(skip_short_movsb_check)
++	PAD_TO_10;
++	cmp	$ASDRB, %rdx
++	jb	L(skip_short_movsb_check)
+ #  if AVOID_SHORT_DISTANCE_REP_MOVSB
+ 	/* Avoid "rep movsb" if RCX, the distance between source and
+ 	   destination, is N*4GB + [1..63] with N >= 0.  */
+@@ -694,7 +694,7 @@ L(skip_short_movsb_check):
+ 	.p2align 4,, 10
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+ L(large_memcpy_2x_check):
+-	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
++	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
+ 	jb	L(more_8x_vec_check)
+ L(large_memcpy_2x):
+ 	/* To reach this point it is impossible for dst > src and
+@@ -708,21 +708,21 @@ L(large_memcpy_2x):
+ 	/* Cache align destination. First store the first 64 bytes then
+ 	   adjust alignments.  */
+ 	VMOVU	(%rsi), %VEC(8)
+-#if VEC_SIZE < 64
++# if VEC_SIZE < 64
+ 	VMOVU	VEC_SIZE(%rsi), %VEC(9)
+-#if VEC_SIZE < 32
++#  if VEC_SIZE < 32
+ 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(10)
+ 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(11)
+-#endif
+-#endif
++#  endif
++# endif
+ 	VMOVU	%VEC(8), (%rdi)
+-#if VEC_SIZE < 64
++# if VEC_SIZE < 64
+ 	VMOVU	%VEC(9), VEC_SIZE(%rdi)
+-#if VEC_SIZE < 32
++#  if VEC_SIZE < 32
+ 	VMOVU	%VEC(10), (VEC_SIZE * 2)(%rdi)
+ 	VMOVU	%VEC(11), (VEC_SIZE * 3)(%rdi)
+-#endif
+-#endif
++#  endif
++# endif
+ 	/* Adjust source, destination, and size.  */
+ 	movq	%rdi, %r8
+ 	andq	$63, %r8
+@@ -743,7 +743,7 @@ L(large_memcpy_2x):
+ 
+ 	movq	%rdx, %r10
+ 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
+-	cmp	__x86_shared_non_temporal_threshold(%rip), %r10
++	cmp	x86_shared_non_temporal_threshold(%rip), %r10
+ 	jae	L(large_memcpy_4x)
+ 
+ 	/* edx will store remainder size for copying tail.  */
+@@ -885,6 +885,7 @@ L(large_memcpy_4x_end):
+ 	VMOVU	%VEC(2), -(VEC_SIZE * 2)(%rdi, %rdx)
+ 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
++#endif
+ #endif
+     .p2align 12
+ END (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
+-- 
+2.25.1
+

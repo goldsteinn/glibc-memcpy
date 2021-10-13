@@ -121,7 +121,8 @@
 #endif
 #if 1
 	.section SECTION(.text), "ax", @progbits
-ENTRY(MEMCPY)
+    ENTRY(MEMCPY)
+    NOP16
 	movq	%rdi, %rax
 L(start_erms):
 # ifdef __ILP32__

@@ -107,7 +107,6 @@ run_fixed_bench(bench_conf_t            conf,
         LIGHT_SERIALIZE();
         for (uint32_t i = inner_trials; i; --i) {
             DO_NOT_OPTIMIZE_OUT(NAME(dst, src, sz));
-            LIGHT_SERIALIZE();
         }
         LIGHT_SERIALIZE();
         uint64_t end = get_cycles();

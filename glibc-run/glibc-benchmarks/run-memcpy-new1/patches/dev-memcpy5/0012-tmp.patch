@@ -1,0 +1,56 @@
+From 18f22bd609626d46c673d726a223a11e0f1d21e9 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 20:20:02 -0500
+Subject: [PATCH 12/14] tmp
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 23 ++++++++++---------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index b70bf80400..dfbf0425a0 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -389,6 +389,17 @@ L(between_8_15):
+ 	ret
+ 
+ 
++	.p2align 4,, 10
++L(last_4x_vec):
++	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
++	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
++	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
++	VMOVU	%VEC(0), (%rdi)
++	VMOVU	%VEC(1), VEC_SIZE(%rdi)
++	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
++	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
++	VZEROUPPER_RETURN
++
+ 	.p2align 4,, 12
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+@@ -420,20 +431,10 @@ L(more_2x_vec):
+ 	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
+ 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+ 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+-	VZEROUPPER_RETURN
+-
+-	.p2align 4,, 6
+-L(last_4x_vec):
+-	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+-	VMOVU	%VEC(0), (%rdi)
+-	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+-	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
+-	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+ L(nop_backward):
+ 	VZEROUPPER_RETURN
+ 
++
+ 	.p2align 4
+ L(more_8x_vec_backward_check_nop):
+ 	testq	%rcx, %rcx
+-- 
+2.25.1
+

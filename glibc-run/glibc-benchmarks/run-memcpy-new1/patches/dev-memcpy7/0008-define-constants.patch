@@ -1,0 +1,97 @@
+From 9c1333b90d235e8d384cf2908cf7c4986f516f59 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 19:58:22 -0500
+Subject: [PATCH 08/14] define constants
+
+---
+ sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms-rtm.S | 6 ++++++
+ sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms.S     | 5 ++++-
+ sysdeps/x86_64/multiarch/memmove-avx512-unaligned-erms.S  | 5 ++++-
+ sysdeps/x86_64/multiarch/memmove-evex-unaligned-erms.S    | 5 ++++-
+ sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S    | 5 ++++-
+ 5 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms-rtm.S b/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms-rtm.S
+index 1ec1962e86..2ffee62150 100644
+--- a/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms-rtm.S
++++ b/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms-rtm.S
+@@ -5,6 +5,12 @@
+ # define VMOVU		vmovdqu
+ # define VMOVA		vmovdqa
+ 
++# define MOVSB_THRESHOLD 4096
++# define LARGE_MEMCPY_THRESHOLD 1048576
++# define ASDRB 1048576
++
++#define PAD_TO_10     .byte 0x0f, 0x1f, 0x00;
++    
+ # define ZERO_UPPER_VEC_REGISTERS_RETURN \
+   ZERO_UPPER_VEC_REGISTERS_RETURN_XTEST
+ 
+diff --git a/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms.S
+index e195e93f15..5bd55560be 100644
+--- a/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-avx-unaligned-erms.S
+@@ -4,7 +4,10 @@
+ # define VMOVNT		vmovntdq
+ # define VMOVU		vmovdqu
+ # define VMOVA		vmovdqa
+-
++# define MOVSB_THRESHOLD 4096
++# define LARGE_MEMCPY_THRESHOLD 1048576
++# define ASDRB 1048576
++#define PAD_TO_10     .byte 0x0f, 0x1f, 0x00;
+ # define SECTION(p)		p##.avx
+ # define MEMMOVE_SYMBOL(p,s)	p##_avx_##s
+ 
+diff --git a/sysdeps/x86_64/multiarch/memmove-avx512-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-avx512-unaligned-erms.S
+index 848848ab39..1ac64ed783 100644
+--- a/sysdeps/x86_64/multiarch/memmove-avx512-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-avx512-unaligned-erms.S
+@@ -25,7 +25,10 @@
+ # define VMOVU		vmovdqu64
+ # define VMOVA		vmovdqa64
+ # define VZEROUPPER
+-
++# define MOVSB_THRESHOLD 2112
++# define LARGE_MEMCPY_THRESHOLD 1048576
++# define ASDRB 1
++#define PAD_TO_10     .byte 0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;    
+ # define SECTION(p)		p##.evex512
+ # define MEMMOVE_SYMBOL(p,s)	p##_avx512_##s
+ 
+diff --git a/sysdeps/x86_64/multiarch/memmove-evex-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-evex-unaligned-erms.S
+index 0cbce8f944..bab2b3e18e 100644
+--- a/sysdeps/x86_64/multiarch/memmove-evex-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-evex-unaligned-erms.S
+@@ -25,7 +25,10 @@
+ # define VMOVU		vmovdqu64
+ # define VMOVA		vmovdqa64
+ # define VZEROUPPER
+-
++# define MOVSB_THRESHOLD 2112
++# define LARGE_MEMCPY_THRESHOLD 1048576
++# define ASDRB 1
++#define PAD_TO_10     .byte 0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00;    
+ # define SECTION(p)		p##.evex
+ # define MEMMOVE_SYMBOL(p,s)	p##_evex_##s
+ 
+diff --git a/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S
+index d10121db57..6c226acb0d 100644
+--- a/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-sse2-unaligned-erms.S
+@@ -21,7 +21,10 @@
+ #else
+ weak_alias (__mempcpy, mempcpy)
+ #endif
+-
++# define MOVSB_THRESHOLD 4096
++# define LARGE_MEMCPY_THRESHOLD 1048576
++# define ASDRB 1048576
++#define PAD_TO_10     .byte 0x0f, 0x1f, 0x00;
+ #include <sysdeps/x86_64/memmove.S>
+ 
+ #if defined SHARED && IS_IN (libc)
+-- 
+2.25.1
+

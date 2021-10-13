@@ -1,0 +1,24 @@
+From 20eaf67eb1ce5ed7c4fddf675eaee8c402b61a33 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 20:29:05 -0500
+Subject: [PATCH 15/15] tmp
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 9b4ea84e48..9880c57c1c 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -464,6 +464,7 @@ L(more_8x_vec_check):
+ 	xorq	%rcx, %r8
+ 	/* Isolate just sign bit of r8.  */
+ 	shrq	$63, %r8
++    decl    %ecx
+ 	/* Get 4k difference dst - src.  */
+ 	andl	$(PAGE_SIZE - 256), %ecx
+ 	/* If r8 is non-zero must do foward for correctness. Otherwise
+-- 
+2.25.1
+

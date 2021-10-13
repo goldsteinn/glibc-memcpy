@@ -1,0 +1,25 @@
+From b77e44546e541aefa9e6a03f0d629e280b54692c Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 11:59:43 -0500
+Subject: [PATCH 6/6] fixed
+
+---
+ sysdeps/x86/sysdep.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 545ada93db..2057d73abc 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -96,7 +96,7 @@ enum cf_protection_level
+   nop;                                              \
+   .align ALIGNARG(5);						      \
+   nop;                                              \
+-  .align ALIGNARG(4);						      \  
++  .align ALIGNARG(4);						      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+   _CET_ENDBR;								      \
+-- 
+2.25.1
+

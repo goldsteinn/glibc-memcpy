@@ -1,0 +1,33 @@
+From 32c92a67aae0a5089ba658d8b5ce7c76a29117fa Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 20:10:28 -0500
+Subject: [PATCH 10/10] tmp
+
+---
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 11db7f6904..3b76abba71 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -743,7 +743,7 @@ L(large_memcpy_2x):
+ 
+ 	movq	%rdx, %r10
+ 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
+-	cmp	x86_shared_non_temporal_threshold(%rip), %r10
++	cmp	$LARGE_MEMCPY_THRESHOLD, %r10
+ 	jae	L(large_memcpy_4x)
+ 
+ 	/* edx will store remainder size for copying tail.  */
+@@ -885,7 +885,6 @@ L(large_memcpy_4x_end):
+ 	VMOVU	%VEC(2), -(VEC_SIZE * 2)(%rdi, %rdx)
+ 	VMOVU	%VEC(3), -VEC_SIZE(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+-#endif
+ #endif
+     .p2align 12
+ END (MEMMOVE_SYMBOL (__memmove, unaligned_erms))
+-- 
+2.25.1
+

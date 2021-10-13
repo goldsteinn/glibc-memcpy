@@ -1,0 +1,75 @@
+From 23b4d277fd2782841161e08239ac4cfad71c3b98 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 19:58:08 -0500
+Subject: [PATCH 6/7] Remove RIP offsets for benchmarking
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S     | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 09a8db24aa..ea8d354479 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -314,7 +314,7 @@ L(return):
+ #endif
+ 
+ L(movsb):
+-	cmp     __x86_rep_movsb_stop_threshold(%rip), %RDX_LP
++	cmp     $LARGE_MEMCPY_THRESHOLD, %RDX_LP
+ 	jae	L(more_8x_vec)
+ 	cmpq	%rsi, %rdi
+ 	jb	1f
+@@ -325,16 +325,18 @@ L(movsb):
+ 	/* Avoid slow backward REP MOVSB.  */
+ 	jb	L(more_8x_vec_backward)
+ # if AVOID_SHORT_DISTANCE_REP_MOVSB
+-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+-	jz	3f
++    PAD_TO_10;
++    cmp $ASDRB, %rdx
++	jb	3f
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+ 	jmp	2f
+ # endif
+ 1:
+ # if AVOID_SHORT_DISTANCE_REP_MOVSB
+-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
+-	jz	3f
++    PAD_TO_10;
++    cmp $ASDRB, %rdx
++    jb  3f
+ 	movq	%rsi, %rcx
+ 	subq	%rdi, %rcx
+ 2:
+@@ -416,7 +418,7 @@ L(between_2_3):
+ 
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+-	cmp	__x86_rep_movsb_threshold(%rip), %RDX_LP
++	cmp	$MOVSB_THRESHOLD, %RDX_LP
+ 	ja	L(movsb)
+ #endif
+ L(more_2x_vec):
+@@ -460,7 +462,7 @@ L(more_8x_vec):
+ 	/* Check if non-temporal move candidate.  */
+ #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
+ 	/* Check non-temporal store threshold.  */
+-	cmp __x86_shared_non_temporal_threshold(%rip), %RDX_LP
++	cmp $LARGE_MEMCPY_THRESHOLD, %RDX_LP
+ 	ja	L(large_memcpy_2x)
+ #endif
+ 	/* Entry if rdx is greater than non-temporal threshold but there
+@@ -622,7 +624,7 @@ L(large_memcpy_2x):
+ 
+ 	movq	%rdx, %r10
+ 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
+-	cmp	__x86_shared_non_temporal_threshold(%rip), %r10
++	cmp	$LARGE_MEMCPY_THRESHOLD, %r10
+ 	jae	L(large_memcpy_4x)
+ 
+ 	/* edx will store remainder size for copying tail.  */
+-- 
+2.25.1
+
