@@ -178,36 +178,8 @@ L(return):
 # endif
 #endif
 
-	.p2align 4,, 8
-L(between_4_7):
-	/* From 4 to 7.  No branch when size == 4.  */
-	movl	-4(%rsi, %rdx), %ecx
-	movl	(%rsi), %esi
-	movl	%ecx, -4(%rdi, %rdx)
-	movl	%esi, (%rdi)
-	ret
 
-#if VEC_SIZE > 16
-	/* From 16 to 31.  No branch when size == 16.  */
-	.p2align 4,, 8
-L(between_16_31):
-	movups	(%rsi), %xmm0
-	movups	-16(%rsi, %rdx), %xmm1
-	movups	%xmm0, (%rdi)
-	movups	%xmm1, -16(%rdi, %rdx)
-	ret
-#endif
-	.p2align 4,, 8
-L(between_8_15):
-	/* From 8 to 15.  No branch when size == 8.  */
-	movq	-8(%rsi, %rdx), %rcx
-	movq	(%rsi), %rsi
-	movq	%rcx, -8(%rdi, %rdx)
-	movq	%rsi, (%rdi)
-L(copy_0):
-	ret
-
-	.p2align 4,, 8
+	.p2align 4
 L(less_vec):
 	/* Less than 1 VEC.  */
 #if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
@@ -233,7 +205,39 @@ L(less_vec):
 	movw	%si, -2(%rdi, %rdx)
 L(copy_1):
 	movb	%cl, (%rdi)
+L(copy_0):
 	ret
+
+
+#if VEC_SIZE > 16
+	/* From 16 to 31.  No branch when size == 16.  */
+	.p2align 4,, 8
+L(between_16_31):
+	movups	(%rsi), %xmm0
+	movups	-16(%rsi, %rdx), %xmm1
+	movups	%xmm0, (%rdi)
+	movups	%xmm1, -16(%rdi, %rdx)
+	ret
+#endif
+
+	.p2align 4,, 10
+L(between_4_7):
+	/* From 4 to 7.  No branch when size == 4.  */
+	movl	-4(%rsi, %rdx), %ecx
+	movl	(%rsi), %esi
+	movl	%ecx, -4(%rdi, %rdx)
+	movl	%esi, (%rdi)
+	ret
+
+	.p2align 4,, 10
+L(between_8_15):
+	/* From 8 to 15.  No branch when size == 8.  */
+	movq	-8(%rsi, %rdx), %rcx
+	movq	(%rsi), %rsi
+	movq	%rcx, -8(%rdi, %rdx)
+	movq	%rsi, (%rdi)
+	ret
+
 
 #if VEC_SIZE > 32
 	.p2align 4,, 10
@@ -245,8 +249,19 @@ L(between_32_63):
 	VMOVU	%YMM1, -32(%rdi, %rdx)
 	VZEROUPPER_RETURN
 #endif
+	.p2align 4,, 4
+L(last_4x_vec):
+	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
+	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+	VZEROUPPER_RETURN
 
 
+    
 	.p2align 4,, 12
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
@@ -280,16 +295,6 @@ L(more_2x_vec):
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
-	.p2align 4,, 4
-L(last_4x_vec):
-	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
-	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
-	VMOVU	%VEC(0), (%rdi)
-	VMOVU	%VEC(1), VEC_SIZE(%rdi)
-	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
-	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
-	VZEROUPPER_RETURN
 
 	.p2align 4,, 4
 L(more_8x_vec):

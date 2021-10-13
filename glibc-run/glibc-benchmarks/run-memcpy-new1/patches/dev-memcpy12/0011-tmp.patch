@@ -1,0 +1,95 @@
+From 7d773d87b07579f384e3c760da3c91ea6c630031 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 20:15:52 -0500
+Subject: [PATCH 11/13] tmp
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 63 ++++++++++---------
+ 1 file changed, 33 insertions(+), 30 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 3b76abba71..82075c0893 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -319,36 +319,7 @@ L(return):
+ # endif
+ #endif
+ 
+-	.p2align 4,, 8
+-L(between_4_7):
+-	/* From 4 to 7.  No branch when size == 4.  */
+-	movl	-4(%rsi, %rdx), %ecx
+-	movl	(%rsi), %esi
+-	movl	%ecx, -4(%rdi, %rdx)
+-	movl	%esi, (%rdi)
+-	ret
+-
+-#if VEC_SIZE > 16
+-	/* From 16 to 31.  No branch when size == 16.  */
+-	.p2align 4,, 8
+-L(between_16_31):
+-	movups	(%rsi), %xmm0
+-	movups	-16(%rsi, %rdx), %xmm1
+-	movups	%xmm0, (%rdi)
+-	movups	%xmm1, -16(%rdi, %rdx)
+-	ret
+-#endif
+-	.p2align 4,, 8
+-L(between_8_15):
+-	/* From 8 to 15.  No branch when size == 8.  */
+-	movq	-8(%rsi, %rdx), %rcx
+-	movq	(%rsi), %rsi
+-	movq	%rcx, -8(%rdi, %rdx)
+-	movq	%rsi, (%rdi)
+-L(copy_0):
+-	ret
+-
+-	.p2align 4,, 8
++	.p2align 4
+ L(less_vec):
+ 	/* Less than 1 VEC.  */
+ #if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
+@@ -374,8 +345,40 @@ L(less_vec):
+ 	movw	%si, -2(%rdi, %rdx)
+ L(copy_1):
+ 	movb	%cl, (%rdi)
++L(copy_0):
+ 	ret
+ 
++
++#if VEC_SIZE > 16
++	/* From 16 to 31.  No branch when size == 16.  */
++	.p2align 4,, 8
++L(between_16_31):
++	movups	(%rsi), %xmm0
++	movups	-16(%rsi, %rdx), %xmm1
++	movups	%xmm0, (%rdi)
++	movups	%xmm1, -16(%rdi, %rdx)
++	ret
++#endif
++
++	.p2align 4,, 10
++L(between_4_7):
++	/* From 4 to 7.  No branch when size == 4.  */
++	movl	-4(%rsi, %rdx), %ecx
++	movl	(%rsi), %esi
++	movl	%ecx, -4(%rdi, %rdx)
++	movl	%esi, (%rdi)
++	ret
++
++	.p2align 4,, 10
++L(between_8_15):
++	/* From 8 to 15.  No branch when size == 8.  */
++	movq	-8(%rsi, %rdx), %rcx
++	movq	(%rsi), %rsi
++	movq	%rcx, -8(%rdi, %rdx)
++	movq	%rsi, (%rdi)
++	ret
++
++
+ #if VEC_SIZE > 32
+ 	.p2align 4,, 10
+ L(between_32_63):
+-- 
+2.25.1
+

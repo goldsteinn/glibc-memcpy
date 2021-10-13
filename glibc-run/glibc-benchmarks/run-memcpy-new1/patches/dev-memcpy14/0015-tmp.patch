@@ -1,0 +1,113 @@
+From 4c371d67de93aeddc9900452fe7f06205479887b Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 12 Oct 2021 20:57:57 -0500
+Subject: [PATCH 15/16] tmp
+
+---
+ .../multiarch/memmove-vec-unaligned-erms.S    | 53 ++++++++++---------
+ 1 file changed, 28 insertions(+), 25 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 9b4ea84e48..f033e21da0 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -318,7 +318,7 @@ L(return):
+ # endif
+ #endif
+ 
+-	.p2align 4,, 8
++	.p2align 4,, 10
+ L(between_4_7):
+ 	/* From 4 to 7.  No branch when size == 4.  */
+ 	movl	-4(%rsi, %rdx), %ecx
+@@ -327,27 +327,7 @@ L(between_4_7):
+ 	movl	%esi, (%rdi)
+ 	ret
+ 
+-#if VEC_SIZE > 16
+-	/* From 16 to 31.  No branch when size == 16.  */
+-	.p2align 4,, 8
+-L(between_16_31):
+-	movups	(%rsi), %xmm0
+-	movups	-16(%rsi, %rdx), %xmm1
+-	movups	%xmm0, (%rdi)
+-	movups	%xmm1, -16(%rdi, %rdx)
+-	ret
+-#endif
+-	.p2align 4,, 8
+-L(between_8_15):
+-	/* From 8 to 15.  No branch when size == 8.  */
+-	movq	-8(%rsi, %rdx), %rcx
+-	movq	(%rsi), %rsi
+-	movq	%rcx, -8(%rdi, %rdx)
+-	movq	%rsi, (%rdi)
+-L(copy_0):
+-	ret
+-
+-	.p2align 4,, 8
++	.p2align 4,,10
+ L(less_vec):
+ 	/* Less than 1 VEC.  */
+ #if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
+@@ -373,8 +353,32 @@ L(less_vec):
+ 	movw	%si, -2(%rdi, %rdx)
+ L(copy_1):
+ 	movb	%cl, (%rdi)
++L(copy_0):
++	ret
++
++
++#if VEC_SIZE > 16
++	/* From 16 to 31.  No branch when size == 16.  */
++	.p2align 4,, 8
++L(between_16_31):
++	movups	(%rsi), %xmm0
++	movups	-16(%rsi, %rdx), %xmm1
++	movups	%xmm0, (%rdi)
++	movups	%xmm1, -16(%rdi, %rdx)
++	ret
++#endif
++
++
++	.p2align 4,, 10
++L(between_8_15):
++	/* From 8 to 15.  No branch when size == 8.  */
++	movq	-8(%rsi, %rdx), %rcx
++	movq	(%rsi), %rsi
++	movq	%rcx, -8(%rdi, %rdx)
++	movq	%rsi, (%rdi)
+ 	ret
+ 
++
+ #if VEC_SIZE > 32
+ 	.p2align 4,, 10
+ L(between_32_63):
+@@ -387,7 +391,6 @@ L(between_32_63):
+ #endif
+ 
+ 
+-
+ 	.p2align 4,, 10
+ L(last_4x_vec):
+ 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+@@ -399,6 +402,7 @@ L(last_4x_vec):
+ 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+ 
++
+ 	.p2align 4,, 12
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ L(movsb_more_2x_vec):
+@@ -430,8 +434,7 @@ L(more_2x_vec):
+ 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
+ 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
+ 	VZEROUPPER_RETURN
+-
+-
++    
+ 	.p2align 4,, 12
+ L(more_8x_vec):
+ 	movq	%rdi, %rcx
+-- 
+2.25.1
+
