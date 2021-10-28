@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx2-vecs.h"
 #endif
 
 	// Tigerlake
@@ -160,14 +160,15 @@ L(start_erms):
 # endif
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
-	VMOVU	(%rsi), %VEC(0)
+
 	cmp	$(VEC_SIZE * 2), %RDX_LP
 	ja	L(movsb_more_2x_vec)
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.
 	 */
+	VMOVU	(%rsi), %VEC(4)
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(1)
-	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(4), (%rdi)
 	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
 L(return):
 # if VEC_SIZE > 16
@@ -178,28 +179,17 @@ L(return):
 #endif
 
 
+#if MOVSB_THRESHOLD != 4096
 	.p2align 4,, 8
 L(between_4_7):
 	/* From 4 to 7.  No branch when size == 4.  */
-	movl	-4(%rsi, %rdx), %ecx
-	movl	(%rsi), %esi
-	movl	%ecx, -4(%rdi, %rdx)
-	movl	%esi, (%rdi)
-	ret
-
-#if VEC_SIZE > 16
-	/* From 16 to 31.  No branch when size == 16.  */
-	.p2align 4,, 10
-L(between_16_31):
-	movups	-16(%rsi, %rdx), %xmm1
-	movups	(%rsi), %xmm0
-	movups	%xmm1, -16(%rdi, %rdx)
-	movups	%xmm0, (%rdi)
+	movl	(%rsi), %ecx
+	movl	(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, (%rdi, %rdx)
 	ret
 #endif
-
-
-	.p2align 4,, 10
+	.p2align 4
 L(less_vec):
 	/* Less than 1 VEC.  */
 #if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
@@ -215,6 +205,7 @@ L(less_vec):
 #endif
 	cmpl	$8, %edx
 	jae	L(between_8_15)
+#if MOVSB_THRESHOLD == 4096
 	cmpl	$4, %edx
 	jae	L(between_4_7)
 	cmpl	$1, %edx
@@ -225,8 +216,53 @@ L(less_vec):
 	movw	%si, -2(%rdi, %rdx)
 L(copy_1):
 	movb	%cl, (%rdi)
+#else
+	subq	$4, %rdx
+	jae	L(between_4_7)
+	cmpl	$-3, %edx
+	jl	L(copy_0)
+	movb	(%rsi), %cl
+	je	L(copy_1)
+	movzwl	2(%rsi, %rdx), %esi
+	movw	%si, 2(%rdi, %rdx)
+L(copy_1):
+	movb	%cl, (%rdi)
+#endif
 L(copy_0):
 	ret
+
+#if MOVSB_THRESHOLD == 4096
+	.p2align 4,, 8
+L(between_4_7):
+	/* From 4 to 7.  No branch when size == 4.  */
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
+	ret
+#endif
+
+#if VEC_SIZE > 16
+	/* From 16 to 31.  No branch when size == 16.  */
+	.p2align 4,, 8
+L(between_16_31):
+	vmovdqu	(%rsi), %xmm0
+	vmovdqu	-16(%rsi, %rdx), %xmm1
+	vmovdqu	%xmm0, (%rdi)
+	vmovdqu	%xmm1, -16(%rdi, %rdx)
+	ret
+#endif
+
+	.p2align 4,, 10
+L(between_8_15):
+	/* From 8 to 15.  No branch when size == 8.  */
+	movq	(%rsi), %rcx
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rcx, (%rdi)
+	movq	%rsi, -8(%rdi, %rdx)
+	ret
+
+
 #if VEC_SIZE > 32
 	.p2align 4,, 10
 L(between_32_63):
@@ -238,71 +274,26 @@ L(between_32_63):
 	VZEROUPPER_RETURN
 #endif
 
-	.p2align 4,, 10
-L(between_8_15):
-	/* From 8 to 15.  No branch when size == 8.  */
-	movq	-8(%rsi, %rdx), %rcx
-	movq	(%rsi), %rsi
-	movq	%rcx, -8(%rdi, %rdx)
-	movq	%rsi, (%rdi)
-	ret
-
-	.p2align 4,, 10
-#if defined USE_MULTIARCH && IS_IN (libc)
-L(movsb):
-	movq	%rdi, %rcx
-	subq	%rsi, %rcx
-	/* Go to backwards temporal copy if overlap no matter what as
-	   backward REP MOVSB is slow and we don't want to use NT stores if
-	   there is overlap.  */
-	cmpq	%rdx, %rcx
-	/* L(more_8x_vec_backward_check_nop) checks for src == dst.  */
-	jb	L(more_8x_vec_backward_check_nop)
-	/* If above x86_rep_movsb_stop_threshold most likely is
-	   candidate for NT moves aswell.  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
-	jae	L(large_memcpy_2x_check)
-# if AVOID_SHORT_DISTANCE_REP_MOVSB
-	/* Only avoid short movsb if CPU has FSRM.  */
-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
-	jz	L(skip_short_movsb_check)
-#  if AVOID_SHORT_DISTANCE_REP_MOVSB
-	/* Avoid "rep movsb" if RCX, the distance between source and
-	   destination, is N*4GB + [1..63] with N >= 0.  */
-
-	/* ecx contains dst - src. Early check for backward copy
-	   conditions means only case of slow movsb with src = dst + [0,
-	   63] is ecx in [-63, 0]. Use unsigned comparison with -64 check
-	   for that case.  */
-	cmpl	$-64, %ecx
-	ja	L(more_8x_vec_forward)
-#  endif
-# endif
-	/* !ALIGN_MOVSB.  */
-L(skip_short_movsb_check):
-	mov	%RDX_LP, %RCX_LP
-	rep	movsb
-	ret
-#endif
-	.p2align 4
+	.p2align 4,, 4
 L(last_4x_vec):
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
-	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(4), (%rdi)
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
 	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
+
 	.p2align 4,, 12
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
-	// cmp     x86_rep_movsb_threshold(%rip), %RDX_LP
-	cmp	$2048, %RDX_LP
+	cmp	$MOVSB_THRESHOLD, %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
+	VMOVU	(%rsi), %VEC(4)
 	/* More than 2 * VEC and there may be overlap between
 	   destination and source.  */
 	cmpq	$(VEC_SIZE * 8), %rdx
@@ -314,22 +305,22 @@ L(more_2x_vec):
 	/* Copy from 4 * VEC + 1 to 8 * VEC, inclusively.  */
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
-	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(4)
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(0)
 	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(5)
 	VMOVU	-(VEC_SIZE * 3)(%rsi, %rdx), %VEC(6)
 	VMOVU	-(VEC_SIZE * 4)(%rsi, %rdx), %VEC(7)
-	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(4), (%rdi)
 	VMOVU	%VEC(1), VEC_SIZE(%rdi)
 	VMOVU	%VEC(2), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(3), (VEC_SIZE * 3)(%rdi)
-	VMOVU	%VEC(4), -VEC_SIZE(%rdi, %rdx)
+	VMOVU	%VEC(0), -VEC_SIZE(%rdi, %rdx)
 	VMOVU	%VEC(5), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
 
-	.p2align 4
+	.p2align 4,, 4
 L(more_8x_vec):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
@@ -343,7 +334,7 @@ L(more_8x_vec):
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	/* Check non-temporal store threshold.  */
 	// cmp     x86_shared_non_temporal_threshold(%rip), %RDX_LP
-	cmp	$1000000, %RDX_LP
+	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
 	ja	L(large_memcpy_2x)
 #endif
 	/* To reach this point there cannot be overlap and dst > src. So
@@ -387,27 +378,28 @@ L(more_8x_vec_forward):
 
 	/* Subtract dst from src. Add back after dst aligned.  */
 	subq	%rcx, %rsi
-	incq	%rdi
+
 	/* Restore src adjusted with new value for aligned dst.  */
 	// leaq    1(%rdi, %rsi), %rsi
 	/* Finish aligning dst.  */
+	incq	%rdi
 	addq	%rdi, %rsi
 	/* Store end of buffer minus tail in rdx.  */
 	leaq	(VEC_SIZE * -4)(%rcx, %rdx), %rdx
 
 	/* Dont use multi-byte nop to align.  */
-	.p2align 4,, 10
+	.p2align 4,, 11
 L(loop_4x_vec_forward):
 	/* Copy 4 * VEC a time forward.  */
-	VMOVU	(%rsi), %VEC(1)
-	VMOVU	VEC_SIZE(%rsi), %VEC(2)
-	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(3)
-	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(4)
+	VMOVU	(%rsi), %VEC(0)
+	VMOVU	VEC_SIZE(%rsi), %VEC(1)
+	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
+	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(3)
 	subq	$-(VEC_SIZE * 4), %rsi
-	VMOVA	%VEC(1), (%rdi)
-	VMOVA	%VEC(2), VEC_SIZE(%rdi)
-	VMOVA	%VEC(3), (VEC_SIZE * 2)(%rdi)
-	VMOVA	%VEC(4), (VEC_SIZE * 3)(%rdi)
+	VMOVA	%VEC(0), (%rdi)
+	VMOVA	%VEC(1), VEC_SIZE(%rdi)
+	VMOVA	%VEC(2), (VEC_SIZE * 2)(%rdi)
+	VMOVA	%VEC(3), (VEC_SIZE * 3)(%rdi)
 	subq	$-(VEC_SIZE * 4), %rdi
 	cmpq	%rdi, %rdx
 	ja	L(loop_4x_vec_forward)
@@ -417,14 +409,13 @@ L(loop_4x_vec_forward):
 	VMOVU	%VEC(7), VEC_SIZE(%rdx)
 	VMOVU	%VEC(8), (%rdx)
 	/* Store the first VEC.  */
-	VMOVU	%VEC(0), (%rcx)
+	VMOVU	%VEC(4), (%rcx)
 	/* Keep L(nop_backward) target close to jmp for 2-byte encoding.
 	 */
 L(nop_backward):
 	VZEROUPPER_RETURN
 
-
-	.p2align 4,, 10
+	.p2align 4,, 8
 L(more_8x_vec_backward_check_nop):
 	testq	%rcx, %rcx
 	jz	L(nop_backward)
@@ -448,20 +439,20 @@ L(more_8x_vec_backward):
 	.p2align 4,, 11
 L(loop_4x_vec_backward):
 	/* Copy 4 * VEC a time backward.  */
-	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(1)
-	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(2)
-	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(3)
-	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(4)
+	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(0)
+	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(1)
+	VMOVU	(VEC_SIZE * 1)(%rsi), %VEC(2)
+	VMOVU	(VEC_SIZE * 0)(%rsi), %VEC(3)
 	addq	$(VEC_SIZE * -4), %rsi
-	VMOVA	%VEC(1), (VEC_SIZE * 3)(%rcx)
-	VMOVA	%VEC(2), (VEC_SIZE * 2)(%rcx)
-	VMOVA	%VEC(3), (VEC_SIZE * 1)(%rcx)
-	VMOVA	%VEC(4), (VEC_SIZE * 0)(%rcx)
+	VMOVA	%VEC(0), (VEC_SIZE * 3)(%rcx)
+	VMOVA	%VEC(1), (VEC_SIZE * 2)(%rcx)
+	VMOVA	%VEC(2), (VEC_SIZE * 1)(%rcx)
+	VMOVA	%VEC(3), (VEC_SIZE * 0)(%rcx)
 	addq	$(VEC_SIZE * -4), %rcx
 	cmpq	%rcx, %rdi
 	jb	L(loop_4x_vec_backward)
 	/* Store the first 4 * VEC.  */
-	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(4), (%rdi)
 	VMOVU	%VEC(5), VEC_SIZE(%rdi)
 	VMOVU	%VEC(6), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(7), (VEC_SIZE * 3)(%rdi)
@@ -470,10 +461,131 @@ L(loop_4x_vec_backward):
 	VZEROUPPER_RETURN
 
 
+	.p2align 5
+	/* NB: The size of the L(skip_short_movsb_check) and L(movsb)
+	   blocks impacts the alignment of the L(more_2x_vec) and
+	   L(more_8x_vec) cases. If this block is changes ensure no
+	   performance degragragation for sizes running out of those
+	   sections.  */
+#if ALIGN_MOVSB
+L(skip_short_movsb_check):
+# if MOVSB_ALIGN_TO > VEC_SIZE
+	VMOVU	VEC_SIZE(%rsi), %VEC(5)
+# endif
+# if MOVSB_ALIGN_TO > (VEC_SIZE * 2)
+#  error Unsupported MOVSB_ALIGN_TO
+# endif
+	/* If CPU does not have FSRM two options for aligning. Align src
+	   if dst and src 4k alias. Otherwise align dst.  */
+	testl	$(PAGE_SIZE - 512), %ecx
+	jnz	L(movsb_align_dst)
+	/* rcx already has dst - src.  */
+	movq	%rcx, %r9
+	/* Add src to len. Subtract back after src aligned. -1 because
+	   src is initially aligned to MOVSB_ALIGN_TO - 1.  */
+	leaq	-(1)(%rsi, %rdx), %rcx
+	/* Inclusively align src to MOVSB_ALIGN_TO - 1.  */
+	orq	$(MOVSB_ALIGN_TO - 1), %rsi
+	/* Restore dst and len adjusted with new values for aligned dst.
+	 */
+	leaq	1(%rsi, %r9), %rdi
+	subq	%rsi, %rcx
+	/* Finish aligning src.  */
+	incq	%rsi
+
+	rep	movsb
+
+	VMOVU	%VEC(4), (%r8)
+# if MOVSB_ALIGN_TO > VEC_SIZE
+	VMOVU	%VEC(5), VEC_SIZE(%r8)
+# endif
+	VZEROUPPER_RETURN
+#endif
+
+	.p2align 4,, 12
+#if defined USE_MULTIARCH && IS_IN (libc)
+L(movsb):
+	VMOVU	(%rsi), %VEC(4)
+	movq	%rdi, %rcx
+	subq	%rsi, %rcx
+	/* Go to backwards temporal copy if overlap no matter what as
+	   backward REP MOVSB is slow and we don't want to use NT stores if
+	   there is overlap.  */
+	cmpq	%rdx, %rcx
+	/* L(more_8x_vec_backward_check_nop) checks for src == dst.  */
+	jb	L(more_8x_vec_backward_check_nop)
+# if ALIGN_MOVSB
+	/* Save dest for storing aligning VECs later.  */
+	movq	%rdi, %r8
+# endif
+	/* If above x86_rep_movsb_stop_threshold most likely is
+	   candidate for NT moves aswell.  */
+	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
+	jae	L(large_memcpy_2x_check)
+# if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
+	/* Only avoid short movsb if CPU has FSRM.  */
+	PAD_TO_10;
+	cmp	$ASDRB, %rdx
+	jb	L(skip_short_movsb_check)
+#  if AVOID_SHORT_DISTANCE_REP_MOVSB
+	/* Avoid "rep movsb" if RCX, the distance between source and
+	   destination, is N*4GB + [1..63] with N >= 0.  */
+
+	/* ecx contains dst - src. Early check for backward copy
+	   conditions means only case of slow movsb with src = dst + [0,
+	   63] is ecx in [-63, 0]. Use unsigned comparison with -64 check
+	   for that case.  */
+	cmpl	$-64, %ecx
+	ja	L(more_8x_vec_forward)
+#  endif
+# endif
+# if ALIGN_MOVSB
+#  if MOVSB_THRESHOLD != 4096
+	VMOVU	(%rsi), %VEC(4)
+#  endif
+#  if MOVSB_ALIGN_TO > VEC_SIZE
+	VMOVU	VEC_SIZE(%rsi), %VEC(5)
+#  endif
+#  if MOVSB_ALIGN_TO > (VEC_SIZE * 2)
+#   error Unsupported MOVSB_ALIGN_TO
+#  endif
+	/* Fall through means cpu has FSRM. In that case exclusively
+	   align destination.  */
+L(movsb_align_dst):
+	/* Subtract dst from src. Add back after dst aligned.  */
+	subq	%rdi, %rsi
+	/* Exclusively align dst to MOVSB_ALIGN_TO (64).  */
+	addq	$(MOVSB_ALIGN_TO - 1), %rdi
+	/* Add dst to len. Subtract back after dst aligned.  */
+	leaq	(%r8, %rdx), %rcx
+	/* Finish aligning dst.  */
+	andq	$-(MOVSB_ALIGN_TO), %rdi
+	/* Restore src and len adjusted with new values for aligned dst.
+	 */
+	addq	%rdi, %rsi
+	subq	%rdi, %rcx
+
+	rep	movsb
+
+	/* Store VECs loaded for aligning.  */
+	VMOVU	%VEC(4), (%r8)
+#  if MOVSB_ALIGN_TO > VEC_SIZE
+	VMOVU	%VEC(5), VEC_SIZE(%r8)
+#  endif
+	VZEROUPPER_RETURN
+# else
+	/* !ALIGN_MOVSB.  */
+L(skip_short_movsb_check):
+	mov	%RDX_LP, %RCX_LP
+	rep	movsb
+	ret
+# endif
+#endif
+
 	.p2align 4,, 10
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 L(large_memcpy_2x_check):
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
 	jb	L(more_8x_vec_check)
 L(large_memcpy_2x):
 	/* To reach this point it is impossible for dst > src and
@@ -486,6 +598,9 @@ L(large_memcpy_2x):
 
 	/* Cache align destination. First store the first 64 bytes then
 	   adjust alignments.  */
+# if MOVSB_THRESHOLD != 4096
+	VMOVU	(%rsi), %VEC(4)
+# endif
 # if VEC_SIZE < 64
 	VMOVU	VEC_SIZE(%rsi), %VEC(9)
 #  if VEC_SIZE < 32
@@ -493,7 +608,7 @@ L(large_memcpy_2x):
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(11)
 #  endif
 # endif
-	VMOVU	%VEC(0), (%rdi)
+	VMOVU	%VEC(4), (%rdi)
 # if VEC_SIZE < 64
 	VMOVU	%VEC(9), VEC_SIZE(%rdi)
 #  if VEC_SIZE < 32
@@ -521,7 +636,7 @@ L(large_memcpy_2x):
 
 	movq	%rdx, %r10
 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
-	cmp	x86_shared_non_temporal_threshold(%rip), %r10
+	cmp	$LARGE_MEMCPY_THRESHOLD, %r10
 	jae	L(large_memcpy_4x)
 
 	/* edx will store remainder size for copying tail.  */

@@ -1,6 +1,6 @@
 #ifndef _AVX2_VECS_H_
 #define _AVX2_VECS_H_
-
+#define MOV_SIZE 4
 # define MOVSB_THRESHOLD 4096
 # define LARGE_MEMCPY_THRESHOLD 1048576
 # define ASDRB 1048576

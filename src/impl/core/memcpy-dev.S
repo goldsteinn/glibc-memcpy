@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx2-vecs.h"
 #endif
 
 	// Tigerlake
@@ -177,18 +177,17 @@ L(return):
 	ret
 # endif
 #endif
-
-
+#if MOVSB_THRESHOLD != 4096
 	.p2align 4,, 8
 L(between_4_7):
 	/* From 4 to 7.  No branch when size == 4.  */
-	movl	-4(%rsi, %rdx), %ecx
-	movl	(%rsi), %esi
-	movl	%ecx, -4(%rdi, %rdx)
-	movl	%esi, (%rdi)
+	movl	(%rsi), %ecx
+	movl	(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, (%rdi, %rdx)
 	ret
-
-	.p2align 4,, 8
+#endif
+	.p2align 4
 L(less_vec):
 	/* Less than 1 VEC.  */
 #if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
@@ -204,36 +203,61 @@ L(less_vec):
 #endif
 	cmpl	$8, %edx
 	jae	L(between_8_15)
+#if MOVSB_THRESHOLD == 4096
 	cmpl	$4, %edx
 	jae	L(between_4_7)
 	cmpl	$1, %edx
 	jb	L(copy_0)
-	movzbl	(%rsi), %ecx
+	movb	(%rsi), %cl
 	je	L(copy_1)
 	movzwl	-2(%rsi, %rdx), %esi
 	movw	%si, -2(%rdi, %rdx)
 L(copy_1):
 	movb	%cl, (%rdi)
+#else
+	subq	$4, %rdx
+	jae	L(between_4_7)
+	cmpl	$-3, %edx
+	jl	L(copy_0)
+	movb	(%rsi), %cl
+	je	L(copy_1)
+	movzwl	2(%rsi, %rdx), %esi
+	movw	%si, 2(%rdi, %rdx)
+L(copy_1):
+	movb	%cl, (%rdi)
+#endif
 L(copy_0):
 	ret
+
+#if MOVSB_THRESHOLD == 4096
+	.p2align 4,, 8
+L(between_4_7):
+	/* From 4 to 7.  No branch when size == 4.  */
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
+	ret
+#endif
 
 #if VEC_SIZE > 16
 	/* From 16 to 31.  No branch when size == 16.  */
 	.p2align 4,, 8
 L(between_16_31):
-	movups	(%rsi), %xmm0
-	movups	-16(%rsi, %rdx), %xmm1
-	movups	%xmm0, (%rdi)
-	movups	%xmm1, -16(%rdi, %rdx)
+	vmovdqu	(%rsi), %xmm0
+	vmovdqu	-16(%rsi, %rdx), %xmm1
+	vmovdqu	%xmm0, (%rdi)
+	vmovdqu	%xmm1, -16(%rdi, %rdx)
 	ret
 #endif
+
 	.p2align 4,, 10
 L(between_8_15):
 	/* From 8 to 15.  No branch when size == 8.  */
-	movq	-8(%rsi, %rdx), %rcx
-	movq	(%rsi), %rsi
-	movq	%rcx, -8(%rdi, %rdx)
-	movq	%rsi, (%rdi)
+	movq	(%rsi), %rcx
+	movq	-8(%rsi, %rdx), %rsi
+	movq	%rcx, (%rdi)
+	movq	%rsi, -8(%rdi, %rdx)
 	ret
 
 
@@ -249,7 +273,8 @@ L(between_32_63):
 #endif
 
 
-	.p2align 4,, 10
+
+	.p2align 4,, 4
 L(last_4x_vec):
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
@@ -260,10 +285,11 @@ L(last_4x_vec):
 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
+
 	.p2align 4,, 12
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
-	cmp	x86_rep_movsb_threshold(%rip), %RDX_LP
+	cmp	$MOVSB_THRESHOLD, %RDX_LP
 	ja	L(movsb)
 #endif
 L(more_2x_vec):
@@ -355,7 +381,8 @@ L(more_8x_vec):
 	/* Check if non-temporal move candidate.  */
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 	/* Check non-temporal store threshold.  */
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	// cmp     x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
 	ja	L(large_memcpy_2x)
 #endif
 	/* To reach this point there cannot be overlap and dst > src. So
@@ -493,12 +520,13 @@ L(movsb):
 # endif
 	/* If above x86_rep_movsb_stop_threshold most likely is
 	   candidate for NT moves aswell.  */
-	cmp	x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
 	jae	L(large_memcpy_2x_check)
 # if AVOID_SHORT_DISTANCE_REP_MOVSB || ALIGN_MOVSB
 	/* Only avoid short movsb if CPU has FSRM.  */
-	testl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, x86_string_control(%rip)
-	jz	L(skip_short_movsb_check)
+	PAD_TO_10;
+	cmp	$ASDRB, %rdx
+	jb	L(skip_short_movsb_check)
 #  if AVOID_SHORT_DISTANCE_REP_MOVSB
 	/* Avoid "rep movsb" if RCX, the distance between source and
 	   destination, is N*4GB + [1..63] with N >= 0.  */
@@ -555,7 +583,7 @@ L(skip_short_movsb_check):
 	.p2align 4,, 10
 #if (defined USE_MULTIARCH || VEC_SIZE == 16) && IS_IN (libc)
 L(large_memcpy_2x_check):
-	cmp	x86_shared_non_temporal_threshold(%rip), %RDX_LP
+	cmp	$LARGE_MEMCPY_THRESHOLD, %RDX_LP
 	jb	L(more_8x_vec_check)
 L(large_memcpy_2x):
 	/* To reach this point it is impossible for dst > src and
@@ -569,21 +597,21 @@ L(large_memcpy_2x):
 	/* Cache align destination. First store the first 64 bytes then
 	   adjust alignments.  */
 	VMOVU	(%rsi), %VEC(8)
-#if VEC_SIZE < 64
+# if VEC_SIZE < 64
 	VMOVU	VEC_SIZE(%rsi), %VEC(9)
-#if VEC_SIZE < 32
+#  if VEC_SIZE < 32
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(10)
 	VMOVU	(VEC_SIZE * 3)(%rsi), %VEC(11)
-#endif
-#endif
+#  endif
+# endif
 	VMOVU	%VEC(8), (%rdi)
-#if VEC_SIZE < 64
+# if VEC_SIZE < 64
 	VMOVU	%VEC(9), VEC_SIZE(%rdi)
-#if VEC_SIZE < 32
+#  if VEC_SIZE < 32
 	VMOVU	%VEC(10), (VEC_SIZE * 2)(%rdi)
 	VMOVU	%VEC(11), (VEC_SIZE * 3)(%rdi)
-#endif
-#endif
+#  endif
+# endif
 	/* Adjust source, destination, and size.  */
 	movq	%rdi, %r8
 	andq	$63, %r8
@@ -604,7 +632,7 @@ L(large_memcpy_2x):
 
 	movq	%rdx, %r10
 	shrq	$LOG_4X_MEMCPY_THRESH, %r10
-	cmp	x86_shared_non_temporal_threshold(%rip), %r10
+	cmp	$LARGE_MEMCPY_THRESHOLD, %r10
 	jae	L(large_memcpy_4x)
 
 	/* edx will store remainder size for copying tail.  */

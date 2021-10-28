@@ -4,7 +4,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define USE_WITH_ERMS
 #ifndef VZEROUPPER
-# include "../avx2-vecs.h"
+# include "../evex-vecs.h"
 #endif
 
 	// Tigerlake

@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx2-vecs.h"
 #endif
 
 	// Tigerlake
@@ -160,12 +160,17 @@ L(start_erms):
 # endif
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
+# if MOVSB_THRESHOLD == 4096
+	VMOVU	(%rsi), %VEC(4)
+# endif
 	cmp	$(VEC_SIZE * 2), %RDX_LP
 	ja	L(movsb_more_2x_vec)
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.
 	 */
+# if MOVSB_THRESHOLD != 4096
 	VMOVU	(%rsi), %VEC(4)
+# endif
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(1)
 	VMOVU	%VEC(4), (%rdi)
 	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
@@ -177,7 +182,16 @@ L(return):
 # endif
 #endif
 
-
+#if MOVSB_THRESHOLD != 4096
+	.p2align 4,, 8
+L(between_4_7):
+	/* From 4 to 7.  No branch when size == 4.  */
+	movl	(%rsi), %ecx
+	movl	(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, (%rdi, %rdx)
+	ret
+#endif
 	.p2align 4
 L(less_vec):
 	/* Less than 1 VEC.  */
@@ -194,16 +208,31 @@ L(less_vec):
 #endif
 	cmpl	$8, %edx
 	jae	L(between_8_15)
+
+
+#if MOVSB_THRESHOLD == 4096
 	cmpl	$4, %edx
 	jae	L(between_4_7)
 	cmpl	$1, %edx
 	jb	L(copy_0)
-	movzbl	(%rsi), %ecx
+	movb	(%rsi), %cl
 	je	L(copy_1)
 	movzwl	-2(%rsi, %rdx), %esi
 	movw	%si, -2(%rdi, %rdx)
 L(copy_1):
 	movb	%cl, (%rdi)
+#else
+	subq	$4, %rdx
+	jae	L(between_4_7)
+	cmpl	$-3, %edx
+	jl	L(copy_0)
+	movb	(%rsi), %cl
+	je	L(copy_1)
+	movzwl	2(%rsi, %rdx), %esi
+	movw	%si, 2(%rdi, %rdx)
+L(copy_1):
+	movb	%cl, (%rdi)
+#endif
 L(copy_0):
 	ret
 
@@ -211,12 +240,13 @@ L(copy_0):
 	.p2align 4,, 8
 L(between_4_7):
 	/* From 4 to 7.  No branch when size == 4.  */
-	movl	-4(%rsi, %rdx), %ecx
-	movl	(%rsi), %esi
-	movl	%ecx, -4(%rdi, %rdx)
-	movl	%esi, (%rdi)
+	movl	(%rsi), %ecx
+	movl	-4(%rsi, %rdx), %esi
+	movl	%ecx, (%rdi)
+	movl	%esi, -4(%rdi, %rdx)
 	ret
 #endif
+
 #if VEC_SIZE > 16
 	/* From 16 to 31.  No branch when size == 16.  */
 	.p2align 4,, 8
@@ -228,7 +258,7 @@ L(between_16_31):
 	ret
 #endif
 
-#if MOVSB_THRESHOLD != 4096
+#if MOVSB_THRESHOLD != 4096 && 0
 
 
 	.p2align 4,, 10
@@ -261,6 +291,8 @@ L(between_32_63):
 	VZEROUPPER_RETURN
 #endif
 
+    
+#if MOVSB_THRESHOLD == 4096
 	.p2align 4,, 4
 L(last_4x_vec):
 	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
@@ -271,8 +303,9 @@ L(last_4x_vec):
 	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VZEROUPPER_RETURN
+#endif
 
-	.p2align 4,, 12
+	.p2align 4
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
 	cmp	$MOVSB_THRESHOLD, %RDX_LP
@@ -284,7 +317,9 @@ L(more_2x_vec):
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_8x_vec)
 	/* Load regardless.  */
+#if MOVSB_THRESHOLD != 4096
 	VMOVU	(%rsi), %VEC(4)
+#endif
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(last_4x_vec)
@@ -304,14 +339,23 @@ L(more_2x_vec):
 	VMOVU	%VEC(6), -(VEC_SIZE * 3)(%rdi, %rdx)
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
+#if MOVSB_THRESHOLD != 4096
+	.p2align 4,, 4
+L(last_4x_vec):
+	/* Copy from 2 * VEC + 1 to 4 * VEC, inclusively.  */
+	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(2)
+	VMOVU	-(VEC_SIZE * 2)(%rsi, %rdx), %VEC(3)
+	VMOVU	%VEC(4), (%rdi)
+	VMOVU	%VEC(1), VEC_SIZE(%rdi)
+	VMOVU	%VEC(2), -VEC_SIZE(%rdi, %rdx)
+	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
+	VZEROUPPER_RETURN
+#endif
 
-	.p2align 4,,4
+	.p2align 4,, 4
 L(more_8x_vec):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
-#if MOVSB_THRESHOLD == 4096
-	VMOVU	(%rsi), %VEC(4)
-#endif
 	/* Go to backwards temporal copy if overlap no matter what as
 	   backward REP MOVSB is slow and we don't want to use NT stores if
 	   there is overlap.  */
@@ -504,9 +548,6 @@ L(skip_short_movsb_check):
 L(movsb):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
-#if MOVSB_THRESHOLD == 4096
-	VMOVU	(%rsi), %VEC(4)
-#endif
 	/* Go to backwards temporal copy if overlap no matter what as
 	   backward REP MOVSB is slow and we don't want to use NT stores if
 	   there is overlap.  */
@@ -779,6 +820,7 @@ L(large_memcpy_4x_end):
 	VZEROUPPER_RETURN
 #endif
 END (MEMCPY)
+#if 0
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 6
 x86_rep_movsb_threshold:
@@ -790,4 +832,5 @@ x86_rep_movsb_stop_threshold:
 x86_string_control:
 	.quad	(1)
 	.previous
-END(MEMCPY)
+#endif
+	// END(MEMCPY)

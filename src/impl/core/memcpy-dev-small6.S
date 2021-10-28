@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx2-vecs.h"
 #endif
 
 	// Tigerlake
@@ -779,6 +779,7 @@ L(large_memcpy_4x_end):
 	VZEROUPPER_RETURN
 #endif
 END (MEMCPY)
+#if 0
 	.section SECTION(.rodata), "aM", @progbits, 8
 	.p2align 6
 x86_rep_movsb_threshold:
@@ -790,4 +791,5 @@ x86_rep_movsb_stop_threshold:
 x86_string_control:
 	.quad	(1)
 	.previous
-END(MEMCPY)
+#endif
+	// END(MEMCPY)

@@ -1,6 +1,6 @@
 #ifndef _EVEX_VECS_H_
 #define _EVEX_VECS_H_
-
+#define MOV_SIZE 6
 # define MOVSB_THRESHOLD 2112
 # define LARGE_MEMCPY_THRESHOLD 1048576
 # define ASDRB 1

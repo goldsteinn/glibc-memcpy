@@ -3,7 +3,7 @@
 #define USE_WITH_MULTIARCH_AND_LIBC
 #define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	1
 #ifndef VZEROUPPER
-# include "../evex-vecs.h"
+# include "../avx2-vecs.h"
 #endif
 
 	// Tigerlake
@@ -160,12 +160,17 @@ L(start_erms):
 # endif
 	cmp	$VEC_SIZE, %RDX_LP
 	jb	L(less_vec)
+# if MOVSB_THRESHOLD == 4096
+	VMOVU	(%rsi), %VEC(4)
+# endif
 	cmp	$(VEC_SIZE * 2), %RDX_LP
 	ja	L(movsb_more_2x_vec)
 L(last_2x_vec):
 	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.
 	 */
+# if MOVSB_THRESHOLD != 4096
 	VMOVU	(%rsi), %VEC(4)
+# endif
 	VMOVU	-VEC_SIZE(%rsi, %rdx), %VEC(1)
 	VMOVU	%VEC(4), (%rdi)
 	VMOVU	%VEC(1), -VEC_SIZE(%rdi, %rdx)
@@ -198,7 +203,7 @@ L(less_vec):
 	jae	L(between_4_7)
 	cmpl	$1, %edx
 	jb	L(copy_0)
-	movzbl	(%rsi), %ecx
+	movb	(%rsi), %cl
 	je	L(copy_1)
 	movzwl	-2(%rsi, %rdx), %esi
 	movw	%si, -2(%rdi, %rdx)
@@ -272,6 +277,7 @@ L(last_4x_vec):
 	VMOVU	%VEC(3), -(VEC_SIZE * 2)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
+
 	.p2align 4,, 12
 #if defined USE_MULTIARCH && IS_IN (libc)
 L(movsb_more_2x_vec):
@@ -284,7 +290,9 @@ L(more_2x_vec):
 	cmpq	$(VEC_SIZE * 8), %rdx
 	ja	L(more_8x_vec)
 	/* Load regardless.  */
+#if MOVSB_THRESHOLD != 4096
 	VMOVU	(%rsi), %VEC(4)
+#endif
 	VMOVU	VEC_SIZE(%rsi), %VEC(1)
 	cmpq	$(VEC_SIZE * 4), %rdx
 	jbe	L(last_4x_vec)
@@ -305,13 +313,11 @@ L(more_2x_vec):
 	VMOVU	%VEC(7), -(VEC_SIZE * 4)(%rdi, %rdx)
 	VZEROUPPER_RETURN
 
-	.p2align 4,,4
+
+	.p2align 4,, 4
 L(more_8x_vec):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
-#if MOVSB_THRESHOLD == 4096
-	VMOVU	(%rsi), %VEC(4)
-#endif
 	/* Go to backwards temporal copy if overlap no matter what as
 	   backward REP MOVSB is slow and we don't want to use NT stores if
 	   there is overlap.  */
@@ -413,9 +419,9 @@ L(more_8x_vec_backward_check_nop):
 L(more_8x_vec_backward):
 	/* Load the first 4 * VEC and last VEC to support overlapping
 	   addresses.  */
-#if MOVSB_THRESHOLD != 4096
+# if MOVSB_THRESHOLD != 4096
 	VMOVU	(%rsi), %VEC(4)
-#endif
+# endif
 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
 	VMOVU	(VEC_SIZE * 2)(%rsi), %VEC(6)
 	/* Begining of region for 4x backward copy stored in rcx.  */
@@ -504,9 +510,6 @@ L(skip_short_movsb_check):
 L(movsb):
 	movq	%rdi, %rcx
 	subq	%rsi, %rcx
-#if MOVSB_THRESHOLD == 4096
-	VMOVU	(%rsi), %VEC(4)
-#endif
 	/* Go to backwards temporal copy if overlap no matter what as
 	   backward REP MOVSB is slow and we don't want to use NT stores if
 	   there is overlap.  */
@@ -539,9 +542,9 @@ L(movsb):
 #  endif
 # endif
 # if ALIGN_MOVSB
-#  if MOVSB_THRESHOLD != 4096
+# if MOVSB_THRESHOLD != 4096
 	VMOVU	(%rsi), %VEC(4)
-#  endif
+# endif
 #  if MOVSB_ALIGN_TO > VEC_SIZE
 	VMOVU	VEC_SIZE(%rsi), %VEC(5)
 #  endif
