@@ -1,0 +1,34 @@
+{
+ "timing_type": "hp_timing",
+ "functions": {
+  "memcpy": {
+   "bench-variant": "random",
+   "ifuncs": ["__memcpy_avx_unaligned", "__memcpy_avx_unaligned_erms", "__memcpy_evex_unaligned", "__memcpy_evex_unaligned_erms", "__memcpy_ssse3_back", "__memcpy_ssse3", "__memcpy_avx512_no_vzeroupper", "__memcpy_avx512_unaligned", "__memcpy_avx512_unaligned_erms", "__memcpy_sse2_unaligned", "__memcpy_sse2_unaligned_erms", "__memcpy_erms"],
+   "results": [
+    {
+     "length": 32768,
+     "timings": [272418, 275126, 272851, 292264, 426227, 333679, 248397, 283670, 301052, 217656, 218918, 251829]
+    },
+    {
+     "length": 65536,
+     "timings": [283038, 274378, 265942, 294616, 442863, 343014, 253138, 287953, 304511, 226929, 223683, 276105]
+    },
+    {
+     "length": 131072,
+     "timings": [291146, 291082, 282874, 302471, 452920, 349585, 259011, 291537, 308911, 232152, 237003, 290409]
+    },
+    {
+     "length": 262144,
+     "timings": [296119, 297564, 282106, 303821, 453418, 357486, 261116, 294846, 315547, 233879, 234774, 307113]
+    },
+    {
+     "length": 524288,
+     "timings": [303298, 301253, 288565, 313534, 472156, 362495, 268085, 297734, 315976, 252191, 251968, 327943]
+    },
+    {
+     "length": 1048576,
+     "timings": [442352, 432207, 423790, 422588, 480026, 447504, 420291, 420776, 432812, 448660, 437815, 500451]
+    }]
+  }
+ }
+}
