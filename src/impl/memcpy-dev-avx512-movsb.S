@@ -4,4 +4,4 @@
 #define USE_WITH_ERMS
 //#define USE_MOVSB
 #include "avx512-vecs.h"
-#include "core/memcpy-dev-tgl-v1.S"
+#include "core/memcpy-dev-v0.S"

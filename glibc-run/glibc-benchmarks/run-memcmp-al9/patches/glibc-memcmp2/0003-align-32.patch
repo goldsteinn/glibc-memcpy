@@ -1,0 +1,25 @@
+From 37987d0ddb5ec37412b7553ad7bef24bc78f9495 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 6 Nov 2021 23:54:18 -0500
+Subject: [PATCH 3/3] align 32
+
+---
+ sysdeps/x86/sysdep.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 10ab3c5e9d..1e247af90b 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -83,7 +83,7 @@ enum cf_protection_level
+   .type C_SYMBOL_NAME(name),@function;					      \
+   .align ALIGNARG(alignment);						      \
+   nop;						      \
+-  .align ALIGNARG(4);						      \
++  .align ALIGNARG(5);						      \
+   C_LABEL(name)								      \
+   cfi_startproc;							      \
+   _CET_ENDBR;								      \
+-- 
+2.25.1
+

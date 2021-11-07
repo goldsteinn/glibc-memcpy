@@ -242,6 +242,10 @@ run_overlapp_tests_kernel(const memcpy_info_t * memcpy_def, uint64_t sz) {
     size_t            progress_sz = sz;
     uint8_t *         s_base      = make_buf(sz);
     uint8_t *         s_tmp       = make_buf(sz);
+    uint64_t          start_len   = 0;
+    if (sz >= 16384) {
+        start_len = sz - (sz / 8);
+    }
     init_region(s_base, sz);
     init_region(s_tmp, sz);
     uint8_t *test1, *test2;
@@ -259,9 +263,9 @@ run_overlapp_tests_kernel(const memcpy_info_t * memcpy_def, uint64_t sz) {
             uint64_t alignment =
                 repeats ? (PAGE_SIZE - alignments[al_idx]) : alignments[al_idx];
             make_alignment_pairs(al_pairs, alignment);
-            for (uint64_t len = 0; len <= sz - alignment;
+            for (uint64_t len = start_len; len <= sz - alignment;
                  len          = next_len(len, sz)) {
-                //fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
+                // fprintf(stderr, "%d:%lu:%lu\n", repeats, al_idx, len);
                 for (uint32_t i = 0; i < NPAIRS; ++i) {
                     test1 = s_base + al_pairs[S1_IDX(i)];
                     test2 = s_base + al_pairs[S2_IDX(i)];
@@ -324,7 +328,10 @@ run_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def, uint64_t sz) {
     init_region(s1, sz);
     init_region(s2_lo, sz);
     init_region(s2_hi, sz);
-
+    uint64_t start_len = 0;
+    if (sz >= 16384) {
+        start_len = sz - (sz / 8);
+    }
     uint8_t *test1, *test2;
     uint64_t al_pairs[NPAIRS << 1] = { 0 };
     for (uint32_t repeats = 0; repeats < 2; ++repeats) {
@@ -339,7 +346,7 @@ run_no_overlapp_tests_kernel(const memcpy_info_t * memcpy_def, uint64_t sz) {
             uint64_t alignment =
                 repeats ? (PAGE_SIZE - alignments[al_idx]) : alignments[al_idx];
             make_alignment_pairs(al_pairs, alignment);
-            for (uint64_t len = 0; len <= sz - alignment;
+            for (uint64_t len = start_len; len <= sz - alignment;
                  len          = next_len(len, sz)) {
                 //                fprintf(stderr, "%d:%lu:%lu\n", repeats,
                 //                al_idx, len);
@@ -382,11 +389,14 @@ run_small_tests(const memcpy_info_t * memcpy_def, int32_t with_overlap) {
 
 void
 run_all_tests(const memcpy_info_t * memcpy_def) {
-    run_small_tests(memcpy_def, 1);
-    run_small_tests(memcpy_def, 0);
+    //        run_small_tests(memcpy_def, 1);
+    //        run_small_tests(memcpy_def, 0);
 
-    for (uint64_t i = 13; i < 26; ++i) {
-        //        run_no_overlapp_tests_kernel(memcpy_def, (1UL << i));
-        //        run_overlapp_tests_kernel(memcpy_def, (1UL << i));
+
+    for (uint64_t i = 15; i < 20; ++i) {
+        run_no_overlapp_tests_kernel(memcpy_def, (1UL << i) + 4096);
+        fprintf(stderr, "\n");
+        run_overlapp_tests_kernel(memcpy_def, (1UL << i) + 4096);
+        fprintf(stderr, "\n");
     }
 }
